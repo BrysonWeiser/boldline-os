@@ -1,4 +1,5 @@
 import { PORTAL_FONTS_HREF, PORTAL_LOOK_CSS, PORTAL_LOOK_JS } from "../lib/portal-look.mjs";
+import { weeklyChartHTML, WEEKLY_CHART_CSS } from "../lib/portal-chart.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { makeContractHTML, resultWords, contractFeatureIds } from "../lib/contract-shared.cjs";
 import { withLambda } from "../lib/lambda-adapter.mjs";
@@ -611,16 +612,8 @@ const makePortalHTML = (cl, pkg, notice, site = null) => {
     + tile("Ad spend, 30 days", perf ? money(spend30) : "Not yet", perf ? "Paid by you straight to " + payTo : "Shows once your ad account is connected")
     + tile("Cost per " + noun, cpl != null ? money2(cpl) : "Not yet", cpl != null ? clicks30.toLocaleString("en-US") + " clicks on your ads" : perf ? "Shows after your first " + noun : "Needs your ad account connected")
     + "</div>";
-  // One series, so one colour and no legend: the title names it. Each bar carries its own
-  // label for a screen reader and a tooltip on hover or tap (it is focusable for that).
-  const days = Array.from({ length: 30 }, (_, k) => phxDay(nowMs - (29 - k) * 864e5));
-  const perDay = days.map((d) => dated.filter((l) => phxDay(l.receivedAt) === d).length);
-  const peak = Math.max(1, ...perDay);
-  const dayLabel = (d) => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-  const chart = `<div class="card cwide"><div class="ch-head"><div><div class="lbl">${Nouns} per day</div><div class="ch-sub">The last 30 days. Tap a bar for the day.</div></div><div class="ch-peak">Busiest day: <b>${Math.max(...perDay)}</b></div></div>`
-    + `<div class="ch" role="img" aria-label="${esc(Nouns)} per day over the last 30 days: ${last30.length} in total">`
-    + perDay.map((n, k) => `<span class="bar${n ? "" : " z"}" tabindex="0" data-tip="${dayLabel(days[k])}: ${n} ${n === 1 ? noun : nouns}" aria-label="${dayLabel(days[k])}: ${n} ${n === 1 ? noun : nouns}" style="--h:${n ? Math.max(6, Math.round((n / peak) * 100)) : 0}%"></span>`).join("")
-    + `</div><div class="ch-axis"><span>${dayLabel(days[0])}</span><span>${dayLabel(days[15])}</span><span>Today</span></div></div>`;
+  // Weekly bars with the answer written above them (KB `portal-chart`): how it is going, at a glance.
+  const chart = weeklyChartHTML({ dated, nowMs, noun, nouns, Nouns, esc });
   const recent = dated.slice().sort((x, y) => new Date(y.receivedAt) - new Date(x.receivedAt)).slice(0, 3);
   const recentCard = `<div class="card"><div class="lbl">Newest ${nouns}</div>`
     + (recent.length
@@ -713,7 +706,7 @@ const makePortalHTML = (cl, pkg, notice, site = null) => {
       + approvals.slice().sort((x, y) => (apOrder[x.status] ?? 3) - (apOrder[y.status] ?? 3)).map(apCardHTML).join("")
     : '<div class="card"><div style="font-size:14.5px;color:#9CA3AF;line-height:1.6">Nothing needs your review right now. When we have something for you, like your new landing page, it\'ll show up here for you to approve.</div></div>';
 
-  return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>" + esc(cl.name) + " Portal</title><link rel=\"preconnect\" href=\"https://fonts.googleapis.com\"><link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin><link rel=\"stylesheet\" href=\"" + PORTAL_FONTS_HREF + "\"><style>" + css + PORTAL_LOOK_CSS + "</style></head><body>" + '<div class="topglow" aria-hidden="true"></div><div class="ambient" aria-hidden="true"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="grain"></div></div>'
+  return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>" + esc(cl.name) + " Portal</title><link rel=\"preconnect\" href=\"https://fonts.googleapis.com\"><link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin><link rel=\"stylesheet\" href=\"" + PORTAL_FONTS_HREF + "\"><style>" + css + PORTAL_LOOK_CSS + WEEKLY_CHART_CSS + "</style></head><body>" + '<div class="topglow" aria-hidden="true"></div><div class="ambient" aria-hidden="true"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="grain"></div></div>'
     + '<div class="hdr"><img class="logo" src="/logo.png" alt="BoldLine Media"><div><div class="hb-name">BoldLine Media</div><div class="hb-sub">Client Portal</div></div><div class="hb-client">' + esc(cl.name) + "</div></div>"
     // 🔴 FOUR TABS, NOT SIX. Measured 2026-08-31 in this page's own CSS: six tabs is 451px
     // of buttons in a 390px strip, so Contract sat off-screen until you swiped the row, and

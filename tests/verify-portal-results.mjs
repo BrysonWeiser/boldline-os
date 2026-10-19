@@ -45,8 +45,10 @@ const kpiVals = (h) => [...h.matchAll(/<div class="kpi-v[^"]*">([^<]*)<\/div>/g)
   ok("🔴 cost per lead is spend divided by leads, worked out not estimated", v[3] === "$100", v[3]);
   ok("under $100 it shows cents", kpiVals(html(live({ adPerf: { totals: { spend30d: 178.5, clicks: 9 } } })))[3] === "$35.70");
   ok("clicks come from the sync", /210 clicks on your ads/.test(h));
-  ok("the chart has one bar per day for 30 days", (h.match(/class="bar[ "]/g) || []).length === 30);
-  ok("every bar can be read without a mouse", (h.match(/<span class="bar[^>]*tabindex="0"[^>]*aria-label="/g) || []).length === 30);
+  const bars = (h.match(/class="bar[ "]/g) || []).length;
+  ok("the chart has one bar per week, never fewer than four or more than eight (KB portal-chart)", bars >= 4 && bars <= 8, String(bars));
+  ok("every bar can be read without a mouse", (h.match(/<span class="bar[^>]*tabindex="0"[^>]*aria-label="/g) || []).length === bars);
+  ok("the answer is written above the chart", /class="wk-line"/.test(h));
   ok("the newest leads are on the front page with a way to the full list", /Newest leads/.test(h) && /goTab\('leads'\)/.test(h));
 }
 
