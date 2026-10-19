@@ -164,6 +164,49 @@ function termsVersionOf(cl) {
   return TERMS_CURRENT;
 }
 
+// ── The late fee: Bryson's per-client setting, frozen into each agreement when it is sent ──
+// Bryson, 2026-10-19: "for the future for all clients i want an easy way to edit the late fee".
+// `billingLateFee` is the box on the Billing card (blank = the standard $150). 🔴 What a client
+// SIGNED is fixed: the amount is stamped as `contractLateFee` the moment the agreement goes out,
+// and anything sent before this existed carried $150. So the agreement always prints what was
+// signed, and the charge is the LOWER of that and today's setting: he can always go easier on a
+// client after signing, never charge more than they agreed to. KB `late-fee-setting`.
+const LATE_FEE_DEFAULT = 150, LATE_FEE_MAX = 1000;
+function lateFeeSetting(cl) {
+  const v = cl && cl.billingLateFee;
+  if (v === null || v === undefined || v === "") return LATE_FEE_DEFAULT;
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 0 ? Math.min(n, LATE_FEE_MAX) : LATE_FEE_DEFAULT;
+}
+// Has an agreement gone out (or been signed)? Then its late fee is fixed. A voided or declined
+// envelope froze nothing, same rule as termsVersionOf.
+function lateFeeFrozen(cl) {
+  cl = cl || {};
+  const has = (v) => v !== null && v !== undefined && v !== "";
+  const dead = !cl.contractSigned && /^(voided|declined)$/i.test(String(cl.docusignStatus || ""));
+  return !!(cl.contractSigned || has(cl.contractTermsVersion) || has(cl.contractLateFee) || (!dead && cl.docusignSentAt));
+}
+function agreedLateFee(cl) {
+  cl = cl || {};
+  const s = cl.contractLateFee;
+  if (s !== null && s !== undefined && s !== "" && Number.isFinite(Number(s))) return Math.max(0, Math.round(Number(s)));
+  return lateFeeFrozen(cl) ? LATE_FEE_DEFAULT : lateFeeSetting(cl);
+}
+function chargedLateFee(cl) { return Math.min(agreedLateFee(cl), lateFeeSetting(cl)); }
+function feeWords(n) {
+  n = Math.max(0, Math.round(Number(n)) || 0);
+  const o = ["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+  const t = ["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+  const u100 = (x) => x < 20 ? o[x] : t[Math.floor(x / 10)] + (x % 10 ? "-" + o[x % 10] : "");
+  const u1000 = (x) => x < 100 ? u100(x) : o[Math.floor(x / 100)] + " hundred" + (x % 100 ? " " + u100(x % 100) : "");
+  return n >= 1000 ? u1000(Math.floor(n / 1000)) + " thousand" + (n % 1000 ? " " + u1000(n % 1000) : "") : u1000(n);
+}
+function lateFeeClause(f) {
+  return f > 0
+    ? '(b) <strong>Late fee.</strong> A late fee of ' + feeWords(f) + (f === 1 ? ' dollar' : ' dollars') + ' ($' + f + '), or the maximum permitted by law if less, applies once to each amount that remains unpaid three (3) days after its due date. It reflects the cost of chasing the payment and of pausing and restoring the account, and is not a penalty. No interest accrues on late amounts.'
+    : '(b) <strong>No late fee.</strong> No late fee applies to late amounts, and no interest accrues on them.';
+}
+
 // 🔴 v7 (5 Oct 2026): AUTOMATIC GOOGLE REVIEW REQUESTS, AND FEATURES A CLIENT DECLINED.
 // Bryson, 2026-10-05: "is there a safeguard incase a client doesnt want it so its not added into
 // the contract". Two rules decide what an agreement lists, here and nowhere else:
@@ -588,7 +631,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    // chasing and restoring rather than a penalty. Ending stays Bryson's decision, never automatic,
    // because cards fail for boring reasons and a good client should not be fired by a bank glitch.
    +(termsVersion >= 6
-     ? '<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails, it is retried automatically, and Client will update its payment method promptly. (a) <strong>Pause after three days.</strong> If an amount remains unpaid three (3) days after its due date, Agency may pause the Services until it is paid in full, including pausing the campaigns Agency manages in Client&rsquo;s ad accounts and taking offline the landing pages Agency hosts. A pause stops work and deletes nothing: Agency will not delete Client&rsquo;s ad accounts, campaigns, ads, or landing pages because of late payment, and will resume the paused Services promptly once the overdue amount is paid. A pause does not extend the term or reduce fees owed. (b) <strong>Late fee.</strong> A late fee of one hundred fifty dollars ($150), or the maximum permitted by law if less, applies once to each amount that remains unpaid three (3) days after its due date. It reflects the cost of chasing the payment and of pausing and restoring the account, and is not a penalty. No interest accrues on late amounts. (c) <strong>Ending the Agreement after ten days.</strong> If an amount remains unpaid ten (10) days after its due date, Agency may terminate this Agreement for cause by written notice under Section '+nTerm+' without any further cure period, and all amounts owed under that Section become immediately due. Ending the Agreement is Agency&rsquo;s choice and is never automatic. (d) Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late fees, reasonable collection costs, and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>'
+     ? '<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails, it is retried automatically, and Client will update its payment method promptly. (a) <strong>Pause after three days.</strong> If an amount remains unpaid three (3) days after its due date, Agency may pause the Services until it is paid in full, including pausing the campaigns Agency manages in Client&rsquo;s ad accounts and taking offline the landing pages Agency hosts. A pause stops work and deletes nothing: Agency will not delete Client&rsquo;s ad accounts, campaigns, ads, or landing pages because of late payment, and will resume the paused Services promptly once the overdue amount is paid. A pause does not extend the term or reduce fees owed. '+lateFeeClause(agreedLateFee(cl))+' (c) <strong>Ending the Agreement after ten days.</strong> If an amount remains unpaid ten (10) days after its due date, Agency may terminate this Agreement for cause by written notice under Section '+nTerm+' without any further cure period, and all amounts owed under that Section become immediately due. Ending the Agreement is Agency&rsquo;s choice and is never automatic. (d) Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late fees, reasonable collection costs, and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>'
      : '<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails and is not cured within ten (10) days of notice, Agency may suspend the Services (including pausing campaigns) until payment is made; suspension does not extend the term or reduce fees owed. Amounts more than ten (10) days past due accrue interest at the lesser of 1.5% per month or the maximum rate permitted by law, plus reasonable collection costs. Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late-payment interest and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>')
    +'<p>3.5 <strong>No refunds for partial months.</strong> Except as expressly stated in this Agreement, fees for a billing period that has begun are earned when billed and are non-refundable.</p>'
      )
@@ -703,4 +746,5 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
 // three of them and Bryson reads the fourth. The portal used to define its own inline copy and
 // the emails had no idea the question existed, which is how a store client billed per Qualified
 // Sale was emailed an invoice for "Qualified leads".
-module.exports = { makeContractHTML, resultWords, termsVersionOf, TERMS_CURRENT, contractFeatureIds, omittedFeaturesOf };
+module.exports = { makeContractHTML, resultWords, termsVersionOf, TERMS_CURRENT, contractFeatureIds, omittedFeaturesOf,
+  LATE_FEE_DEFAULT, LATE_FEE_MAX, lateFeeSetting, lateFeeFrozen, agreedLateFee, chargedLateFee, feeWords, lateFeeClause };

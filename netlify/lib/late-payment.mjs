@@ -15,12 +15,13 @@
 // Pure: no network, no clock of its own. billing-watch does the talking to Stripe and the ad
 // platforms; this only says what the rules are and what state an account should be in.
 
-import { termsVersionOf } from "./contract-shared.cjs";
+import { termsVersionOf, chargedLateFee, LATE_FEE_DEFAULT } from "./contract-shared.cjs";
 
 export const PAUSE_TERMS_FROM = 6;   // the first terms version with the pause-and-fee clause
-// $150. Was $50 for the first five hours of v6; Bryson raised it the same morning (2026-09-27).
-// A test pins the contract's printed figure to this constant, so the two cannot drift.
-export const LATE_FEE = 150;        // dollars, once per overdue invoice (Agreement 3.4(b))
+// $150 standard. Was $50 for the first five hours of v6; Bryson raised it the same morning (2026-09-27).
+// Since 2026-10-19 each client can have their own (Billing card); the amount charged is
+// `chargedLateFee`: never more than their signed agreement says (KB `late-fee-setting`).
+export const LATE_FEE = LATE_FEE_DEFAULT; // dollars, once per overdue invoice (Agreement 3.4(b))
 export const PAUSE_AFTER_DAYS = 3;  // Agreement 3.4(a)
 export const END_AFTER_DAYS = 10;   // Agreement 3.4(c): Bryson MAY end it. Nothing ends it for him.
 export const LEGACY_GRACE_DAYS = 10;
@@ -30,7 +31,7 @@ export const LEGACY_MONTHLY_RATE = 0.015;
 export function latePolicyFor(cl, { legacyGrace = LEGACY_GRACE_DAYS } = {}) {
   const version = termsVersionOf(cl || {});
   if (version >= PAUSE_TERMS_FROM) {
-    return { version, kind: "pause", lateFee: LATE_FEE, pauseAfter: PAUSE_AFTER_DAYS, endAfter: END_AFTER_DAYS, interest: false };
+    return { version, kind: "pause", lateFee: chargedLateFee(cl || {}), pauseAfter: PAUSE_AFTER_DAYS, endAfter: END_AFTER_DAYS, interest: false };
   }
   return { version, kind: "interest", lateFee: 0, pauseAfter: null, endAfter: null, interest: true, graceDays: legacyGrace };
 }

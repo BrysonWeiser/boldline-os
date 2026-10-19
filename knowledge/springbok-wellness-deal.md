@@ -4,8 +4,8 @@ topic: Clients
 task: work on Springbok Wellness, Brendon's chiropractic ads, or the qualified-lead definition for a clinic
 keywords: [springbok, springbok wellness, brendon, chiropractor, chiropractic, second client, client two, TMJ, jaw pain, lower back pain, neck pain, sciatica, qualified lead definition, monthly call before invoice, solicitors, spam form fills, appointment but not a patient, symptom searches]
 status: open
-summary: UPDATE 2026-10-09: Brendon signed an envelope Bryson thought was voided; a replacement agreement (KB contract-replace) is how it gets redone, and a signed contract is now on the record. Older text follows. 🔴 NOT A CLIENT YET, AND MUST NOT BE COUNTED AS ONE (standing rule in CLAUDE.md, Bryson 2026-09-14: "until they are in the os still act as if we only have one"). This entry used to open "BoldLine's SECOND client", which is the exact wording that leaks into a banner, an offer or a number quoted back to him. Brendon, owner of Springbok Wellness, a chiropractor, closed VERBALLY on a call Thursday 2026-09-10 and the signed contract is not on the record; contract not yet sent as of Friday evening. A deeper call is set for later the week of 15 Sep to answer the intake questions. His one stated worry is what counts as a qualified lead, because he has been burned before by people booking an appointment and never becoming a patient, and by sales enquiries coming through his ads. Bryson promised a monthly Google Meet before invoicing to agree qualified leads, the same as Sebastian. He wants to market TMJ and symptom searches; Bryson's instinct to open as a chiropractor rather than one service is right, with a caveat about which searches to buy first.
-verified: 2026-10-09
+summary: UPDATE 2026-10-19: Brendon said YES to the pay-per-show terms ($40 per new patient who shows up within 30 days, monthly yes/no with no health info, his team contacts leads within 1 business day), does NOT want review requests, and wants the ads limited to Gilbert, Mesa and Chandler AZ (replaces the 10 mile radius). Next is the replacement agreement. UPDATE 2026-10-09: Brendon signed an envelope Bryson thought was voided; a replacement agreement (KB contract-replace) is how it gets redone, and a signed contract is now on the record. Older text follows. 🔴 NOT A CLIENT YET, AND MUST NOT BE COUNTED AS ONE (standing rule in CLAUDE.md, Bryson 2026-09-14: "until they are in the os still act as if we only have one"). This entry used to open "BoldLine's SECOND client", which is the exact wording that leaks into a banner, an offer or a number quoted back to him. Brendon, owner of Springbok Wellness, a chiropractor, closed VERBALLY on a call Thursday 2026-09-10 and the signed contract is not on the record; contract not yet sent as of Friday evening. A deeper call is set for later the week of 15 Sep to answer the intake questions. His one stated worry is what counts as a qualified lead, because he has been burned before by people booking an appointment and never becoming a patient, and by sales enquiries coming through his ads. Bryson promised a monthly Google Meet before invoicing to agree qualified leads, the same as Sebastian. He wants to market TMJ and symptom searches; Bryson's instinct to open as a chiropractor rather than one service is right, with a caveat about which searches to buy first.
+verified: 2026-10-19
 ---
 
 ## Who and where it stands
@@ -292,3 +292,36 @@ one once signed. Bryson does the clicks: Replace, then set the agreed terms (per
 only if Brendon agreed), then Send. Advised a quick text to Brendon first. Also fixed: the signed-contract
 preview now fits a phone. Count note: a signed contract IS on the record now, and he stays counted while
 the replacement is out (the old one binds until the new one is signed).
+
+## 2026-10-19 (Mon, ~10:30am Phoenix): Brendon said yes; replacement agreement is next
+Bryson's email set out four terms and promised "Once you give me the go ahead, I'll send the updated agreement
+the same day." Brendon said yes to all four, plus two changes of his own:
+
+| Agreed | |
+|---|---|
+| Qualified lead | a **new patient** from BoldLine's ads who **shows up for an appointment within 30 days** |
+| Price | **$40 per patient who shows up**; no-shows cost nothing (founding: setup and monthly minimum stay WAIVED, so monthly fee 0, setup 0) |
+| Monthly check | Brendon says **yes or no** on who came in, **nothing about their health** |
+| Follow-up | his team reaches out to new leads **within one business day** |
+| 🔴 Review requests | **NO.** He does not want them right now. Tick "Springbok ... doesn't want review requests" on the Reviews tab BEFORE sending, so the agreement leaves them out and nothing ever emails his patients. Also removes the BAA question for now |
+| 🔴 Area | **Gilbert, Mesa and Chandler, AZ only** "for now". Replaces the 10 mile radius everywhere: Edit client > Campaign > "Where the ads should run", AND any saved Special Term that still says "10 miles" must be removed and redrafted |
+
+Not in what he agreed, so NOT to be added on our own: the 29 Sep proposal's "no answer within 14 days bills as
+qualified" rule, and "2 business days" (he agreed ONE). If Bryson wants the 14-day rule he has to raise it with
+Brendon first.
+
+**Click path given to Bryson** (his client record, all in the OS):
+1. Contract tab > "Need to change or cancel this signed agreement?" > Replace this agreement (two-step confirm).
+   Only if it is still showing the mistaken 9 Oct signing; if it already says "This replaces the agreement
+   signed...", skip.
+2. Package tab > Billing > Adjust Fees: Monthly 0, Setup 0, per qualified lead **40**.
+3. Reviews tab: tick "doesn't want review requests".
+4. Edit client > Campaign > "Where the ads should run": `Gilbert, AZ; Mesa, AZ; Chandler, AZ`.
+5. Contract tab > Special Terms > Open: remove old clauses (10 miles / $25 era), type the four terms in plain
+   words, Draft, read, "Add to the agreement".
+6. Read the preview top to bottom (legal name Springbok Chiropractic, LLC; $40; Gilbert/Mesa/Chandler; no review
+   requests; the "replaces the earlier agreement" line), then Send.
+
+Count: unchanged. The 9 Oct mistaken signing already put a signed contract on the record and he stays counted
+while the replacement is out (KB contract-replace). Do not announce or change anything client-count related
+because of this yes.
