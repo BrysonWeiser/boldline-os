@@ -112,3 +112,6 @@ stamped 5 too, putting him on the old late-payment terms for ever. Now a record 
 `docusignStatus` is `voided` or `declined` and that is NOT signed ignores its send date. A live envelope
 still pins (Air Suds), and a signed record is never treated as dead. Both copies; +1 check in
 `verify-late-payment` (34), mutation caught.
+
+## 2026-10-19: the fee is now per client
+The $150 is the default, no longer a fixed amount. Each client has a Late fee box on the Billing card, frozen into the agreement when it is sent, and the charge is never above what was signed. See KB `late-fee-setting`.

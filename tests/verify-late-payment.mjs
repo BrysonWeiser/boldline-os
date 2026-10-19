@@ -240,7 +240,7 @@ await t("the watch reads the client's own terms, not a global rule", () => {
   assert.doesNotMatch(WATCH, /daysLate > GRACE_DAYS \?/, "the old hard-coded interest rule is back, charging v6 clients interest");
 });
 await t("🔴 the late fee is added ONCE per overdue invoice", () => {
-  assert.match(WATCH, /if \(stage\.fee && !next\.lateFeeItemId\)/);
+  assert.match(WATCH, /if \(stage\.fee && policy\.lateFee > 0 && !next\.lateFeeItemId\)/);
   assert.match(WATCH, /lateFeeItemId: sameInv \? \(prev\.lateFeeItemId \|\| null\) : null/);
 });
 await t("a pause happens once, and never on BoldLine's own account", () => {

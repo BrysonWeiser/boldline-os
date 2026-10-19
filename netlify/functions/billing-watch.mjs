@@ -116,7 +116,7 @@ export default withFailureAlert("billing-watch", async () => {
         // ── v6: ONE flat late fee per overdue invoice, on day three ──
         // Once, never daily: the clause says "applies once to each amount". Recorded against the
         // invoice id so a second overdue invoice can carry its own, and a re-run cannot add two.
-        if (stage.fee && !next.lateFeeItemId) {
+        if (stage.fee && policy.lateFee > 0 && !next.lateFeeItemId) {
           const item = await stripe("invoiceitems", { body: { customer: cl.stripeCustomerId, amount: Math.round(policy.lateFee * 100), currency: "usd",
             description: `Late fee on ${money(overdue)} unpaid ${daysLate} days (Agreement section 3.4(b))` } });
           next.lateFeeItemId = item.id;
@@ -131,7 +131,7 @@ export default withFailureAlert("billing-watch", async () => {
             title: `${cl.name}: paused for non-payment (${daysLate} days late)`,
             body: `${cl.name} has ${money(overdue)} unpaid, ${daysLate} days past due. Under their contract their service is now paused: `
               + `${r.paused.length} campaign${r.paused.length !== 1 ? "s" : ""} paused and their landing page taken offline. Nothing was deleted. `
-              + `A ${money(policy.lateFee)} late fee rides their next invoice. The moment they pay, it all switches back on by itself.`
+              + (policy.lateFee > 0 ? `A ${money(policy.lateFee)} late fee rides their next invoice. ` : `No late fee (you set theirs to $0). `) + `The moment they pay, it all switches back on by itself.`
               + (r.failed.length ? `\n\nCould NOT pause: ${r.failed.map((f) => f.name || f.p).join(", ")} (${r.failed[0].error}). Pause those by hand so their money stops spending on a page that is offline.` : ""),
             severity: "red",
             smsText: `BoldLine: ${cl.name} paused for non-payment (${money(overdue)}, ${daysLate}d late).${r.failed.length ? ` ${r.failed.length} campaign(s) need pausing by hand.` : ""}`,
@@ -170,7 +170,7 @@ export default withFailureAlert("billing-watch", async () => {
           await ownerEmail(`⚠️ ${cl.name}: payment failed — ${money(overdue)} overdue`,
             [`<strong>${cl.name}</strong> has an unpaid invoice of <strong>${money(overdue)}</strong>, now ${daysLate} day(s) past due.`,
              policy.kind === "pause"
-               ? `Stripe retries automatically, and they have been emailed. If it is still unpaid on day ${policy.pauseAfter}, their campaigns pause, their landing page goes offline and a ${money(policy.lateFee)} late fee is added, all automatically. Paying switches it back on.`
+               ? `Stripe retries automatically, and they have been emailed. If it is still unpaid on day ${policy.pauseAfter}, their campaigns pause, their landing page goes offline${policy.lateFee > 0 ? ` and a ${money(policy.lateFee)} late fee is added` : ""}, all automatically. Paying switches it back on.`
                : `Stripe retries automatically. Interest (1.5%/mo) starts after day ${GRACE_DAYS}, and services may be suspended per the Agreement (their contract predates the three-day pause, so nothing pauses automatically).`]);
           try { await sendSMS({ to: process.env.OWNER_PHONE, body: `BoldLine ALERT — ${cl.name}: payment failed, ${money(overdue)} overdue (${daysLate}d late).` }); }
           catch (e) { console.error("billing-watch: SMS failed:", e.message); }

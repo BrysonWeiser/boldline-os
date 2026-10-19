@@ -1795,8 +1795,8 @@ const getAlerts = (cl) => {
     const pf = (cl.billingPause&&cl.billingPause.failed)||[];
     if (late.policy==="pause") {
       if (late.canEnd)   a.push({type:"billing_late",msg:`Unpaid ${days} days${amt}. You can now end the contract (Contract tab, Early termination). Nothing happens unless you do; until then they stay paused.`,severity:"red"});
-      else if (paused)   a.push({type:"billing_late",msg:`Paused for non-payment: ${days} days late${amt}. Campaigns paused, landing page offline, $${late.lateFee||150} late fee added. Paying switches it all back on.${pf.length?` ${pf.length} campaign${pf.length!==1?"s":""} could NOT be paused, pause ${pf.length!==1?"them":"it"} by hand.`:""}`,severity:"red"});
-      else if (days>0)   a.push({type:"billing_late",msg:`Payment failed, ${days} day${days!==1?"s":""} late${amt}. Stripe is retrying. On day ${late.pauseAfter||3} their ads and landing page pause automatically and a $${late.lateFee||150} late fee is added.`,severity:"red"});
+      else if (paused)   a.push({type:"billing_late",msg:`Paused for non-payment: ${days} days late${amt}. Campaigns paused, landing page offline${(late.lateFee||chargedLateFee(cl))>0?`, $${late.lateFee||chargedLateFee(cl)} late fee added`:""}. Paying switches it all back on.${pf.length?` ${pf.length} campaign${pf.length!==1?"s":""} could NOT be paused, pause ${pf.length!==1?"them":"it"} by hand.`:""}`,severity:"red"});
+      else if (days>0)   a.push({type:"billing_late",msg:`Payment failed, ${days} day${days!==1?"s":""} late${amt}. Stripe is retrying. On day ${late.pauseAfter||3} their ads and landing page pause automatically${chargedLateFee(cl)>0?` and a $${chargedLateFee(cl)} late fee is added`:""}.`,severity:"red"});
       else               a.push({type:"billing_late",msg:`Payment failed${amt}. Stripe is retrying automatically.`,severity:"red"});
     }
     else if (late.interest>0) a.push({type:"billing_interest",msg:`Payment ${days} days late${amt} — $${Number(late.interest).toLocaleString()} late interest accruing at 1.5%/mo, auto-added to their next invoice.`,severity:"red"});
@@ -3252,6 +3252,49 @@ function termsVersionOf(cl) {
   return TERMS_CURRENT;
 }
 
+// ── The late fee: Bryson's per-client setting, frozen into each agreement when it is sent ──
+// Bryson, 2026-10-19: "for the future for all clients i want an easy way to edit the late fee".
+// `billingLateFee` is the box on the Billing card (blank = the standard $150). 🔴 What a client
+// SIGNED is fixed: the amount is stamped as `contractLateFee` the moment the agreement goes out,
+// and anything sent before this existed carried $150. So the agreement always prints what was
+// signed, and the charge is the LOWER of that and today's setting: he can always go easier on a
+// client after signing, never charge more than they agreed to. KB `late-fee-setting`.
+const LATE_FEE_DEFAULT = 150, LATE_FEE_MAX = 1000;
+function lateFeeSetting(cl) {
+  const v = cl && cl.billingLateFee;
+  if (v === null || v === undefined || v === "") return LATE_FEE_DEFAULT;
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 0 ? Math.min(n, LATE_FEE_MAX) : LATE_FEE_DEFAULT;
+}
+// Has an agreement gone out (or been signed)? Then its late fee is fixed. A voided or declined
+// envelope froze nothing, same rule as termsVersionOf.
+function lateFeeFrozen(cl) {
+  cl = cl || {};
+  const has = (v) => v !== null && v !== undefined && v !== "";
+  const dead = !cl.contractSigned && /^(voided|declined)$/i.test(String(cl.docusignStatus || ""));
+  return !!(cl.contractSigned || has(cl.contractTermsVersion) || has(cl.contractLateFee) || (!dead && cl.docusignSentAt));
+}
+function agreedLateFee(cl) {
+  cl = cl || {};
+  const s = cl.contractLateFee;
+  if (s !== null && s !== undefined && s !== "" && Number.isFinite(Number(s))) return Math.max(0, Math.round(Number(s)));
+  return lateFeeFrozen(cl) ? LATE_FEE_DEFAULT : lateFeeSetting(cl);
+}
+function chargedLateFee(cl) { return Math.min(agreedLateFee(cl), lateFeeSetting(cl)); }
+function feeWords(n) {
+  n = Math.max(0, Math.round(Number(n)) || 0);
+  const o = ["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+  const t = ["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+  const u100 = (x) => x < 20 ? o[x] : t[Math.floor(x / 10)] + (x % 10 ? "-" + o[x % 10] : "");
+  const u1000 = (x) => x < 100 ? u100(x) : o[Math.floor(x / 100)] + " hundred" + (x % 100 ? " " + u100(x % 100) : "");
+  return n >= 1000 ? u1000(Math.floor(n / 1000)) + " thousand" + (n % 1000 ? " " + u1000(n % 1000) : "") : u1000(n);
+}
+function lateFeeClause(f) {
+  return f > 0
+    ? '(b) <strong>Late fee.</strong> A late fee of ' + feeWords(f) + (f === 1 ? ' dollar' : ' dollars') + ' ($' + f + '), or the maximum permitted by law if less, applies once to each amount that remains unpaid three (3) days after its due date. It reflects the cost of chasing the payment and of pausing and restoring the account, and is not a penalty. No interest accrues on late amounts.'
+    : '(b) <strong>No late fee.</strong> No late fee applies to late amounts, and no interest accrues on them.';
+}
+
 // 🔴 v7 (5 Oct 2026): AUTOMATIC GOOGLE REVIEW REQUESTS, AND FEATURES A CLIENT DECLINED.
 // Bryson, 2026-10-05: "is there a safeguard incase a client doesnt want it so its not added into
 // the contract". Two rules decide what an agreement lists, here and nowhere else:
@@ -3666,7 +3709,7 @@ const makeContractHTML=(cl,pkg)=>{
    // chasing and restoring rather than a penalty. Ending stays Bryson's decision, never automatic,
    // because cards fail for boring reasons and a good client should not be fired by a bank glitch.
    +(termsVersion >= 6
-     ? '<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails, it is retried automatically, and Client will update its payment method promptly. (a) <strong>Pause after three days.</strong> If an amount remains unpaid three (3) days after its due date, Agency may pause the Services until it is paid in full, including pausing the campaigns Agency manages in Client&rsquo;s ad accounts and taking offline the landing pages Agency hosts. A pause stops work and deletes nothing: Agency will not delete Client&rsquo;s ad accounts, campaigns, ads, or landing pages because of late payment, and will resume the paused Services promptly once the overdue amount is paid. A pause does not extend the term or reduce fees owed. (b) <strong>Late fee.</strong> A late fee of one hundred fifty dollars ($150), or the maximum permitted by law if less, applies once to each amount that remains unpaid three (3) days after its due date. It reflects the cost of chasing the payment and of pausing and restoring the account, and is not a penalty. No interest accrues on late amounts. (c) <strong>Ending the Agreement after ten days.</strong> If an amount remains unpaid ten (10) days after its due date, Agency may terminate this Agreement for cause by written notice under Section '+nTerm+' without any further cure period, and all amounts owed under that Section become immediately due. Ending the Agreement is Agency&rsquo;s choice and is never automatic. (d) Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late fees, reasonable collection costs, and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>'
+     ? '<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails, it is retried automatically, and Client will update its payment method promptly. (a) <strong>Pause after three days.</strong> If an amount remains unpaid three (3) days after its due date, Agency may pause the Services until it is paid in full, including pausing the campaigns Agency manages in Client&rsquo;s ad accounts and taking offline the landing pages Agency hosts. A pause stops work and deletes nothing: Agency will not delete Client&rsquo;s ad accounts, campaigns, ads, or landing pages because of late payment, and will resume the paused Services promptly once the overdue amount is paid. A pause does not extend the term or reduce fees owed. '+lateFeeClause(agreedLateFee(cl))+' (c) <strong>Ending the Agreement after ten days.</strong> If an amount remains unpaid ten (10) days after its due date, Agency may terminate this Agreement for cause by written notice under Section '+nTerm+' without any further cure period, and all amounts owed under that Section become immediately due. Ending the Agreement is Agency&rsquo;s choice and is never automatic. (d) Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late fees, reasonable collection costs, and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>'
      : '<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails and is not cured within ten (10) days of notice, Agency may suspend the Services (including pausing campaigns) until payment is made; suspension does not extend the term or reduce fees owed. Amounts more than ten (10) days past due accrue interest at the lesser of 1.5% per month or the maximum rate permitted by law, plus reasonable collection costs. Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late-payment interest and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>')
    +'<p>3.5 <strong>No refunds for partial months.</strong> Except as expressly stated in this Agreement, fees for a billing period that has begun are earned when billed and are non-refundable.</p>'
      )
@@ -13803,6 +13846,42 @@ const portalReturnUrl = (cl) =>
 const SALES_CONFIRM_COUNT = 20;
 const SALES_CONFIRM_AMOUNT = 1000;
 
+// ── Late fee: one box on the Billing card, editable any time (KB `late-fee-setting`) ──
+// Bryson, 2026-10-19: "for the future for all clients i want an easy way to edit the late fee".
+// Before the agreement goes out, this IS the number printed in it. After, the agreement is fixed,
+// so the box can only make it gentler: the charge is the lower of the two, never more than signed.
+function LateFeeRow({client,onUpdate}){
+  const money=(n)=>"$"+Number(n||0).toLocaleString();
+  const cur=client.billingLateFee==null?"":String(client.billingLateFee);
+  const [val,setVal]=useState(cur);
+  const [msg,setMsg]=useState("");
+  useEffect(()=>{ setVal(cur); },[cur]);
+  const frozen=lateFeeFrozen(client), agreed=agreedLateFee(client), charged=chargedLateFee(client);
+  const typed=val===""?LATE_FEE_DEFAULT:Math.min(LATE_FEE_MAX,Math.round(Number(val))||0);
+  const dirty=val!==cur;
+  const save=()=>{
+    onUpdate&&onUpdate({...client,billingLateFee:val===""?null:typed});
+    setMsg("Saved."); setTimeout(()=>setMsg(""),2500);
+  };
+  return (
+    <div style={{marginBottom:10,padding:"9px 11px",borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        <span style={{fontSize:11,fontWeight:700,color:C.text,flex:"1 1 140px"}}>Late fee</span>
+        <span style={{fontSize:12,color:C.textMuted}}>$</span>
+        <input aria-label="Late fee in dollars" value={val} onChange={e=>setVal(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} inputMode="numeric" placeholder={String(LATE_FEE_DEFAULT)}
+          style={{width:80,padding:"6px 8px",fontSize:13,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text}}/>
+        <button onClick={save} disabled={!dirty} style={{padding:"6px 12px",fontSize:11,fontWeight:700,borderRadius:7,border:"none",backgroundColor:dirty?C.gold:"rgba(255,255,255,.06)",color:dirty?"#0a0800":C.textMuted,cursor:dirty?"pointer":"default"}}>Save</button>
+      </div>
+      <div style={{fontSize:10,color:C.textMuted,marginTop:5,lineHeight:1.55}}>
+        {frozen
+          ? <>Their agreement says <strong style={{color:C.text}}>{agreed>0?money(agreed):"no late fee"}</strong>. You can lower it here any time. It can never go above what they signed. {charged>0?<>If a bill is 3 days late they will be charged <strong style={{color:C.text}}>{money(charged)}</strong>.</>:"They will not be charged a late fee."}</>
+          : <>Charged once if a bill is 3 days late. Blank means the standard {money(LATE_FEE_DEFAULT)}, 0 means no late fee. This is the number printed in their agreement, and it locks when you send it.</>}
+        {frozen&&dirty&&typed>agreed&&<div style={{color:C.amber,marginTop:3}}>Higher than their agreement, so {agreed>0?money(agreed):"$0"} is still the most they will be charged.</div>}
+        {msg&&<span style={{color:C.green,marginLeft:4}}>{msg}</span>}
+      </div>
+    </div>
+  );
+}
 function BillingCard({client,pkg,onUpdate}) {
   const [busy,setBusy]=useState("");        // "" | "setup" | "sync" | "portal"
   const [msg,setMsg]=useState("");
@@ -14074,6 +14153,7 @@ function BillingCard({client,pkg,onUpdate}) {
         <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>{monthly>0?"Whichever is higher, never both. ":"Paid on results only. "}The client pays Google and Meta directly for ad spend.</div>
       </div>
 
+      {!oneTime&&!client.internal&&termsVersionOf(client)>=6&&<LateFeeRow client={client} onUpdate={onUpdate}/>}
       {status==="none"&&!adjusting&&<>
         {monthly>0&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Create a secure payment link. The client enters a card or bank account once, then the fee auto-charges every month.{setup>0?" The one-time setup fee is added to the first charge automatically.":" Setup fee is waived — first charge is the monthly minimum only."}</div>}
         {resultsOnly&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>No monthly minimum, so there is nothing recurring to subscribe to. The client saves a card once and it is never charged on its own. You approve qualified {itPlural}, and each approved batch is invoiced to that card straight away.{setup>0?` The ${money(setup)} setup fee is billed separately.`:" Setup fee is waived."}</div>}
@@ -14801,9 +14881,9 @@ function ReplaceAgreementCard({client,onUpdate}){
   const on=client.contractSignedAt?new Date(client.contractSignedAt).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric",timeZone:"America/Phoenix"}):"";
   const go=()=>{
     if(!window.confirm(`Replace ${client.name}'s signed agreement${on?` (signed ${on})`:""}?\n\nDocuSign can't cancel a signed agreement, so you'll send a new one that says in writing it replaces and cancels this one. When they sign it, the old one is gone. Until then the old one still stands.\n\nThe signed copy stays on the record. Next: change the terms, then send.`)) return;
-    const prev={envelopeId:client.docusignEnvelopeId||"",signedAt:client.contractSignedAt||"",signedContractPath:client.signedContractPath||"",termsVersion:client.contractTermsVersion==null?null:client.contractTermsVersion,omits:client.contractOmits||null,replacedAt:new Date().toISOString()};
+    const prev={envelopeId:client.docusignEnvelopeId||"",signedAt:client.contractSignedAt||"",signedContractPath:client.signedContractPath||"",termsVersion:client.contractTermsVersion==null?null:client.contractTermsVersion,omits:client.contractOmits||null,lateFee:agreedLateFee(client),replacedAt:new Date().toISOString()};
     onUpdate&&onUpdate({...client,contractHistory:[prev,...(client.contractHistory||[])].slice(0,10),replacesAgreement:{envelopeId:prev.envelopeId,signedAt:prev.signedAt||new Date().toISOString()},
-      contractSigned:false,contractStatus:"pending",docusignEnvelopeId:"",docusignStatus:"",docusignSentAt:"",contractSignedAt:"",signedContractPath:"",contractTermsVersion:null,contractOmits:null});
+      contractSigned:false,contractStatus:"pending",docusignEnvelopeId:"",docusignStatus:"",docusignSentAt:"",contractSignedAt:"",signedContractPath:"",contractTermsVersion:null,contractLateFee:null,contractOmits:null});
   };
   return (
     <Card>
@@ -14865,7 +14945,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
       // 🔴 STAMP THE VERSION THAT WAS SENT. The envelope freezes the document as it read today, and
       // the OS renders it fresh every time, so without this a later terms change would silently
       // rewrite what the OS says they signed. `html` came from termsVersionOf(client), so this matches.
-      onUpdate&&onUpdate({...client,contractStatus:"pending",docusignEnvelopeId:d.envelopeId,docusignSentAt:new Date().toISOString(),contractTermsVersion:termsVersionOf(client),contractOmits:(Array.isArray(client.declinedFeatures)?client.declinedFeatures:[]).slice()});
+      onUpdate&&onUpdate({...client,contractStatus:"pending",docusignEnvelopeId:d.envelopeId,docusignSentAt:new Date().toISOString(),contractTermsVersion:termsVersionOf(client),contractOmits:(Array.isArray(client.declinedFeatures)?client.declinedFeatures:[]).slice(),contractLateFee:agreedLateFee(client)});
     }catch(e){ setDsState("error"); setDsMsg("Network error — try again."); }
   };
   const downloadPDF=()=>{
@@ -14963,7 +15043,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
     // would keep a client on the terms of the day they first signed for ever. Bryson,
     // 2026-09-02, on the new delay-and-abandonment clause: "this will be for future clients
     // not Sebastian until he renews his contract". This line is the "until he renews" half.
-    onRenew(fmt(newEnd),{contractTermMonths:months,billingMonthly:monthly,contractTermsVersion:CONTRACT_TERMS_VERSION,...(perLead!=null?{billingPerLead:perLead,billingPerLeadBase:basePerLead}:{}),...(spendPct!=null?{billingSpendPct:spendPct}:{})});
+    onRenew(fmt(newEnd),{contractTermMonths:months,billingMonthly:monthly,contractTermsVersion:CONTRACT_TERMS_VERSION,contractLateFee:chargedLateFee(client),...(perLead!=null?{billingPerLead:perLead,billingPerLeadBase:basePerLead}:{}),...(spendPct!=null?{billingSpendPct:spendPct}:{})});
     setRenewNote(note);
     setRenewSaved(true);
     setTimeout(()=>{ setShowRenewal(false);setRenewSaved(false);setRenewNote(""); },note?4000:1500);
