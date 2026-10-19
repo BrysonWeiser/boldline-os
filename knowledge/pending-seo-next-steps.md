@@ -53,3 +53,5 @@ cannot be edited directly; they refresh after Google re-reads the sources (days 
   gives "Invalid sitemap address"). Live sitemap had 35 URLs; Google had last read it Jul 21 with 10.
 - Google Business Profile: new description (ads, landing pages and websites) + "Website design" service added.
 - Expect Google's AI answer ($350/mo, no websites) to catch up over days to weeks.
+
+5. **Google Business Profile API access** — APPLIED 2026-10-19, case 9-0183000041683, 7 to 10 business days. Details in `service-add-ons`. Do not submit a second request.

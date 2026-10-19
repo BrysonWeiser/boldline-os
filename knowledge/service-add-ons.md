@@ -223,3 +223,9 @@ Answer: not built; sellable by hand today (client adds BoldLine as Manager on th
 replies (not built, offered). He asked for the application steps at 8am Thu Oct 15: reminder trig_01VEcPbVCrFhuiYhf1PqUT4s.
 Requirements found: verified 60+ days, a website on the listing, a Google Cloud project NUMBER, "Application for Basic API
 Access" on the GBP API contact form, an owner/manager email; quota stays 0 until approved.
+- ✅ APPLIED 2026-10-19 (Mon, Phoenix): Google Business Profile API "Application for Basic API Access" submitted for
+  Cloud project "BoldLine OS" (project id boldline-os, business gmail). Support case ID **9-0183000041683**. Google
+  quoted 7 to 10 business days. 🔴 Submit only ONE request; a second case for the same project delays it. Answers given:
+  website https://boldlinemedia.com, heard via the API documentation, reason = agency managing clients' profiles with
+  their permission, verified 60+ days = Yes, already-allowlisted project = No. Approval check: the project's Business
+  Profile API quota shows 300 QPM (0 = not approved). Also asked him to add business hours to BoldLine's listing.
