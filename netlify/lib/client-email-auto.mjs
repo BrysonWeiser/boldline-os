@@ -52,6 +52,8 @@ export const buildClientCtx = (cl, extra = {}) => {
     care: termsOf(cl).care,
     // Hosting only (no management): the emails say hosting, never a care plan with changes it doesn't include.
     hosting: termsOf(cl).mgmt === "hosting",
+    // Bought outright (WA-8, KB demo-sites): the emails send them to their portal for the files, never "we'll put it live".
+    own: termsOf(cl).mgmt === "own",
     blog: !!termsOf(cl).blog,
     date: fmt(new Date()),
     ...extra,

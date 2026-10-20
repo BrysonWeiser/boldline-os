@@ -10488,6 +10488,7 @@ function EmailCenterTab({client,pkg,onUpdate}) {
       plan: wdTerms(client).plan,
       care: wdTerms(client).care,
       hosting: wdTerms(client).mgmt==="hosting",
+      own: wdTerms(client).mgmt==="own",
       blog: !!wdTerms(client).blog,
       // So the Results Milestone preview shows a real number instead of a placeholder.
       milestone: (client.leadsLog||[]).length,
@@ -11176,7 +11177,8 @@ function WebsiteDealCard({client,onUpdate}){
   const termsForm=(x)=>{ const n=wdNorm(x); return {tier:n.tier,mgmt:n.mgmt,price:String(n.price),plan:n.plan,care:String(n.care),extraPages:String(n.extraPages),extraPagePrice:String(n.extraPagePrice),blog:n.blog,blogSetup:String(n.blogSetup),blogMonthly:String(n.blogMonthly),blogPosts:String(n.blogPosts),emailSetup:n.emailSetup,emailSetupPrice:String(n.emailSetupPrice)}; };
   // A client made from a demo (KB demo-sites) arrives with the plan picked on the meeting; it is the starting point
   // until terms are saved.
-  const dSeed=(d&&(d.price!=null||d.mgmt))?d:{...d,mgmt:client.websitePlanChoice==="own"?"own":"care"};
+  const rawDeal=client.websiteDeal||{};
+  const dSeed=(rawDeal.price!=null||rawDeal.mgmt)?d:{...d,price:undefined,care:undefined,mgmt:client.websitePlanChoice==="own"?"own":"care"};
   const [form,setForm]=useState(termsForm(dSeed));
   const [busy,setBusy]=useState("");
   const [msg,setMsg]=useState("");
@@ -11275,7 +11277,7 @@ function WebsiteDealCard({client,onUpdate}){
             <button disabled={!!busy||!client.email} onClick={async()=>{
               const dirty=JSON.stringify(form)!==JSON.stringify(termsForm(d));
               if(dirty){ setMsg("Save the price first, so the agreement says what you mean."); return; }
-              if(!window.confirm(`Send the website agreement to ${client.email} to sign?\n\n${wdVariantName(t)}.\nBuild: ${wdMoney(wdBuildTotal(t))}${t.extraPages?` (includes ${t.extraPages} extra page${t.extraPages>1?"s":""})`:""}${t.blog?" (includes blog setup)":""}${t.emailSetup?" (includes email setup)":""}, ${t.plan==="half"?`${wdMoney(m.first)} now, ${wdMoney(m.final)} before launch`:"paid up front"}\n${t.mgmt==="hosting"?"Hosting only":"Care plan"}: ${t.care>0?wdMoney(t.care)+" a month from launch":"no monthly charge"}${(t.special||[]).length?`\nSpecial terms: ${t.special.length}`:""}${t.blog?`\nBlog plan: ${wdMoney(t.blogMonthly)} a month for ${t.blogPosts} articles`:""}\n\nWhen they sign, the first invoice goes to them by itself.`)) return;
+              if(!window.confirm(`Send the website agreement to ${client.email} to sign?\n\n${wdVariantName(t)}.\nBuild: ${wdMoney(wdBuildTotal(t))}${t.extraPages?` (includes ${t.extraPages} extra page${t.extraPages>1?"s":""})`:""}${t.blog?" (includes blog setup)":""}${t.emailSetup?" (includes email setup)":""}, ${t.plan==="half"?`${wdMoney(m.first)} now, ${wdMoney(m.final)} before launch`:"paid up front"}\n${t.mgmt==="own"?"Bought outright: no monthly charge, they download their files once it's paid":`${t.mgmt==="hosting"?"Hosting only":"Care plan"}: ${t.care>0?wdMoney(t.care)+" a month from launch":"no monthly charge"}`}${(t.special||[]).length?`\nSpecial terms: ${t.special.length}`:""}${t.blog?`\nBlog plan: ${wdMoney(t.blogMonthly)} a month for ${t.blogPosts} articles`:""}\n\nWhen they sign, the first invoice goes to them by itself.`)) return;
               call("send",{},"✓ Sent. You'll get an alert the moment they sign.");
             }} style={btn(true,!!busy||!client.email)}>{busy==="send"?"Sending…":"Send the agreement"}</button>
           </div>

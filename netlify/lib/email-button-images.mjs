@@ -16,6 +16,11 @@ export const EMAIL_BUTTON_IMAGES = {
     "w": 241,
     "h": 44
   },
+  "Get Your Website Files": {
+    "file": "get-your-website-files.png",
+    "w": 235,
+    "h": 44
+  },
   "Leave a Review": {
     "file": "leave-a-review.png",
     "w": 186,
