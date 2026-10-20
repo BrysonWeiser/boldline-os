@@ -638,13 +638,16 @@ const makePortalHTML = (cl, pkg, notice, site = null) => {
   const wT = webOnly ? termsOf(cl) : null;
   const websitePlanHTML = webOnly ? (() => {
     const inc = tierIncludes(wT), pages = inc.basePages + wT.extraPages;
-    const items = [`${pages} pages, written for you`, `${inc.rounds} rounds of changes before it goes live`, "Hosting, security and keeping it online",
+    const own = wT.mgmt === "own";
+    // Bought outright (WA-8, KB demo-sites): theirs to host, so the list says so instead of promising upkeep.
+    const items = own ? [`${pages} pages, written for you`, `${inc.rounds} rounds of changes before it's handed over`, "The complete website files, yours to keep and host anywhere", "No monthly fee", "Any later change from us is quoted first"]
+      : [`${pages} pages, written for you`, `${inc.rounds} rounds of changes before it goes live`, "Hosting, security and keeping it online",
       wT.mgmt === "hosting" ? "Changes after launch are quoted first (hosting only)" : `Up to ${inc.careEdits} small changes a month once it's live`, "Your own web address connected, and kept working",
       wT.blog ? `A blog with about ${wT.blogPosts} new articles a month` : "", wT.emailSetup ? "Business email set up on your own address" : "",
       wT.tier === "signature" ? "Designed around your own brand: your colours, fonts and layout" : ""].filter(Boolean);
     return '<details class="acc"><summary><div><div class="at">Your Website Plan</div><div class="as">What you are on, and what it includes.</div></div><span class="car">&#9654;</span></summary><div class="abody"><div><div class="card">'
       + `<div class="lbl">${wT.tier === "signature" ? "Signature website" : "Website"}</div>`
-      + `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><div class="stat"><div class="lbl">To build</div><div style="font-size:16px;font-weight:800;color:#F5F3ED">${wMoney(buildTotal(wT))}</div></div><div class="stat"><div class="lbl">Monthly</div><div style="font-size:16px;font-weight:800;color:#F5F3ED">${monthlyTotal(wT) > 0 ? `${wMoney(monthlyTotal(wT))}/mo` : "Waived"}</div></div></div>`
+      + `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><div class="stat"><div class="lbl">To build</div><div style="font-size:16px;font-weight:800;color:#F5F3ED">${wMoney(buildTotal(wT))}</div></div><div class="stat"><div class="lbl">Monthly</div><div style="font-size:16px;font-weight:800;color:#F5F3ED">${monthlyTotal(wT) > 0 ? `${wMoney(monthlyTotal(wT))}/mo` : wT.mgmt === "own" ? "None, it's yours" : "Waived"}</div></div></div>`
       + items.map((x) => `<div style="display:flex;gap:9px;padding:6px 0;font-size:13.5px;color:#D1D5DB;line-height:1.5"><span style="color:#10B981;flex-shrink:0">&#10003;</span><span>${x}</span></div>`).join("")
       + '<div style="font-size:12px;color:#8A90A2;margin-top:10px;line-height:1.6">Payments and anything due are on the Website tab.</div>'
       + "</div></div></div></details>";

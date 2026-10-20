@@ -96,7 +96,7 @@ ok("the care plan starts on launch day", /starts on the day the Website goes liv
 ok("🔴 WA-2: BoldLine manages the domain through access the client gives, and may not transfer it, cancel it or touch their email settings", /Client will give BoldLine access to the account where the domain is registered/.test(aH) && /will not transfer the domain, change who owns it, cancel it, or change the settings Client&rsquo;s email depends on/.test(aH));
 ok("🔴 WA-2: the domain stays theirs, they can remove our access any time, and the hand-back never depends on money owed", /The domain and the account stay Client&rsquo;s at all times, and Client may remove BoldLine&rsquo;s access whenever it chooses/.test(aH) && /This does not depend on any amount being owed/.test(aH));
 ok("WA-2: renewing the domain stays the client's job", /Keeping the domain renewed and paid for remains Client&rsquo;s responsibility/.test(aH));
-ok("the agreement is version WA-7", L.AGREEMENT_VERSION === "WA-7");
+ok("the agreement is version WA-8", L.AGREEMENT_VERSION === "WA-8");
 {
   // WA-6 (2026-10-11, Bryson: "yes add both"): the client answers for what it supplies, and BoldLine may show the site.
   const A = L.websiteAgreementHTML({ name: "Sample Co", email: "a@b.co" }, { price: 1500, plan: "full", care: 100 });
@@ -326,7 +326,7 @@ ok("🔴 adding ads asks first and only changes the package (nothing is sent or 
   ok("🔴 special terms freeze with the rest once the agreement is out", L.termsOf({ websiteDeal: { special: [{ text: "new" }], agreement: { status: "sent", terms: { special: [{ text: "old" }] } } } }).special[0].text === "old");
   const FN = src("netlify/functions/website-deal.mjs");
   ok("🔴 the server saves special terms only while no agreement is out", /case "set-special": \{\s*if \(agreementLive\(cl\)\) return json\(\{ ok: false/.test(FN) && /const special = cleanSpecial\(body\.special\);/.test(FN));
-  ok("set-terms takes the version", /mgmt: body\.mgmt === "hosting" \? "hosting" : "care"/.test(FN));
+  ok("set-terms takes the version (care, hosting only, or bought outright)", /mgmt: body\.mgmt === "hosting" \|\| body\.mgmt === "own" \? body\.mgmt : "care"/.test(FN));
   const CT = src("netlify/functions/contract-terms.mjs");
   ok("🔴 the AI writes website terms with its own background, and refuses once the agreement is out", /const website = body\.kind === "website";/.test(CT) && /if \(website && row && row\.data && websiteAgreementLive\(row\.data\)\)/.test(CT) && /system: website \? WEBSITE_SYSTEM : SYSTEM/.test(CT));
   const UIy = src("index.html");

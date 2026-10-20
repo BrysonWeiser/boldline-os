@@ -62,6 +62,8 @@ export function buildPrompt(cl) {
     ["About them, in their own words", wi.different],
     ["Tone they want", bv.tone],
     ["Notes from the sales call", String(cl.notes || "").slice(0, 1500)],
+    // A demo built before the meeting (KB demo-sites): only public facts the research found, never private notes.
+    ["Public facts found in research", String(cl.researchFacts || "").slice(0, 600)],
     ["What counts as a good customer", String(cl.qualifiedLeadDef || "").slice(0, 600)],
   ].filter(([, v]) => String(v || "").trim()).map(([k, v]) => `${k}: ${String(v).trim()}`).join("\n");
   const health = /chiro|dental|med ?spa|medical|clinic|therap|physio|wellness|dermatolog|optom|audiolog|counsel|psych/i.test(`${cl.niche} ${cl.name}`);

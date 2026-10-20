@@ -79,7 +79,8 @@ export default async (req) => {
     switch (body.action) {
       case "set-terms": {
         if (agreementLive(cl)) return json({ ok: false, error: "The agreement is already out. Cancel it first to change the terms." }, 409);
-        const price = Number(body.price), care = Number(body.care);
+        // Bought outright has no monthly fee at all, whatever the form sent (KB demo-sites).
+        const price = Number(body.price), care = body.mgmt === "own" ? 0 : Number(body.care);
         if (!Number.isFinite(price) || price < 0 || price > 100000) return json({ ok: false, error: "Enter a build price between $0 and $100,000." }, 400);
         if (!Number.isFinite(care) || care < 0 || care > 5000) return json({ ok: false, error: `Enter a ${body.mgmt === "hosting" ? "hosting" : "care plan"} price between $0 and $5,000 a month.` }, 400);
         const extraPages = Math.floor(Number(body.extraPages || 0)), extraPagePrice = Number(body.extraPagePrice ?? WEBSITE_OFFER.extraPage);
@@ -92,7 +93,7 @@ export default async (req) => {
         const next = await save({ price: r(price), care: r(care), plan: body.plan === "half" ? "half" : "full",
           extraPages, extraPagePrice: r(extraPagePrice), blog: body.blog === true, blogSetup: r(blogSetup), blogMonthly: r(blogMonthly), blogPosts,
           emailSetup: body.emailSetup === true, emailSetupPrice: r(emailSetupPrice), tier: body.tier === "signature" ? "signature" : "standard",
-          mgmt: body.mgmt === "hosting" ? "hosting" : "care" });
+          mgmt: body.mgmt === "hosting" || body.mgmt === "own" ? body.mgmt : "care" });
         return json({ ok: true, deal: next });
       }
       // The Special Terms on their own, so writing one up never touches the price. Frozen once the agreement is out,
@@ -208,6 +209,8 @@ export default async (req) => {
       case "launch": {
         const lock = publishLock(cl);
         if (lock) return json({ ok: false, error: lock }, 409);
+        // 🔴 Bought outright is never hosted by us: the agreement says they get the files instead (WA-8, KB demo-sites).
+        if (termsOf(cl).mgmt === "own") return json({ ok: false, error: "They bought it outright, so we don't host it. Download their site files on the Website tab and send them over." }, 409);
         if (exempt(cl)) { const next = await save({ launchedAt: deal.launchedAt || new Date().toISOString() }); return json({ ok: true, deal: next }); }
         const r = await startCarePlan(cl, api);
         const care = monthlyTotal(termsOf(cl));

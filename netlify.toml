@@ -313,6 +313,27 @@
   to = "/.netlify/functions/site-hit"
   status = 200
 
+# Demo websites built before a sales meeting (KB `demo-sites`). Private, never indexed.
+[[redirects]]
+  from = "/demo/:token/:page/"
+  to = "/.netlify/functions/demo-site?token=:token&page=:page"
+  status = 200
+
+[[redirects]]
+  from = "/demo/:token/:page"
+  to = "/.netlify/functions/demo-site?token=:token&page=:page"
+  status = 200
+
+[[redirects]]
+  from = "/demo/:token/"
+  to = "/.netlify/functions/demo-site?token=:token"
+  status = 200
+
+[[redirects]]
+  from = "/demo/:token"
+  to = "/.netlify/functions/demo-site?token=:token"
+  status = 200
+
 # Client websites (KB `website-builder`). Before /lp and the SPA catch-all. Blog articles first.
 [[redirects]]
   from = "/site/:slug/blog/:post/"

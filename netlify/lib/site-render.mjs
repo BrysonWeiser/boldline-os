@@ -706,7 +706,10 @@ ${formScript(cl)}})();`;
 
 function formScript(cl) {
   const token = encodeURIComponent((cl && cl.leadToken) || "");
-  return `var f=d.getElementById('sf');if(f){f.addEventListener('submit',function(e){e.preventDefault();
+  // A site handed over to a client who bought it outright (KB demo-sites) cannot depend on our lead intake, so its
+  // form opens the visitor's own email app addressed to the business instead (`__mailto`, set only by site-export).
+  const mailto = String((cl && cl.__mailto) || "").replace(/[^A-Za-z0-9@._+-]/g, "");
+  return `var MAILTO=${JSON.stringify(mailto)};var f=d.getElementById('sf');if(f){f.addEventListener('submit',function(e){e.preventDefault();
 var b=f.querySelector('button'),er=f.querySelector('.err'),ph=f.ph.value.trim(),em=f.em.value.trim();
 if(!ph&&!em){er.textContent='Please add a phone number or an email so we can reach you.';er.style.display='block';return;}
 er.style.display='none';b.disabled=true;var lbl=b.textContent;b.textContent='Sending...';
@@ -714,6 +717,7 @@ var p={name:f.nm.value,phone:ph,email:em,source:'website',message:f.msg?f.msg.va
 try{p.page=location.href.split('#')[0];var q=new URLSearchParams(location.search);['gclid','wbraid','gbraid','utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){var v=q.get(k);if(v)p[k]=v;});}catch(x){}
 function done(){f.style.display='none';d.getElementById('sthx').style.display='block';}
 if(PREVIEW){done();return;}
+if(MAILTO){location.href='mailto:'+MAILTO+'?subject='+encodeURIComponent('New enquiry from your website')+'&body='+encodeURIComponent('Name: '+p.name+'\\nPhone: '+ph+'\\nEmail: '+em+(p.message?'\\n\\n'+p.message:''));done();return;}
 fetch('/lead?token=${token}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(function(r){if(!r.ok)throw 0;done();})
 .catch(function(){er.textContent='Something went wrong, please try again or call us.';er.style.display='block';b.disabled=false;b.textContent=lbl;});});}`;
 }

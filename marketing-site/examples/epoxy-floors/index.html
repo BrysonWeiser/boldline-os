@@ -390,7 +390,7 @@ if(pg&&vl&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&a.target!=='_blank'&&a.href.spli
 vl.style.transition='none';vl.classList.remove('out','on');void vl.offsetWidth;vl.style.transition='';vl.classList.add('on');setTimeout(function(){location.href=a.href;},560);}});
 addEventListener('pageshow',function(e){if(e.persisted&&vl){vl.classList.remove('on');vl.classList.add('out');}});
 }catch(err){h.classList.remove('js','mo');var vv=d.querySelector('.veil');if(vv)vv.parentNode.removeChild(vv);}
-var f=d.getElementById('sf');if(f){f.addEventListener('submit',function(e){e.preventDefault();
+var MAILTO="";var f=d.getElementById('sf');if(f){f.addEventListener('submit',function(e){e.preventDefault();
 var b=f.querySelector('button'),er=f.querySelector('.err'),ph=f.ph.value.trim(),em=f.em.value.trim();
 if(!ph&&!em){er.textContent='Please add a phone number or an email so we can reach you.';er.style.display='block';return;}
 er.style.display='none';b.disabled=true;var lbl=b.textContent;b.textContent='Sending...';
@@ -398,6 +398,7 @@ var p={name:f.nm.value,phone:ph,email:em,source:'website',message:f.msg?f.msg.va
 try{p.page=location.href.split('#')[0];var q=new URLSearchParams(location.search);['gclid','wbraid','gbraid','utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){var v=q.get(k);if(v)p[k]=v;});}catch(x){}
 function done(){f.style.display='none';d.getElementById('sthx').style.display='block';}
 if(PREVIEW){done();return;}
+if(MAILTO){location.href='mailto:'+MAILTO+'?subject='+encodeURIComponent('New enquiry from your website')+'&body='+encodeURIComponent('Name: '+p.name+'\nPhone: '+ph+'\nEmail: '+em+(p.message?'\n\n'+p.message:''));done();return;}
 fetch('/lead?token=demo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(function(r){if(!r.ok)throw 0;done();})
 .catch(function(){er.textContent='Something went wrong, please try again or call us.';er.style.display='block';b.disabled=false;b.textContent=lbl;});});}})();</script><script>(function(){var c=document.querySelector('.hero canvas');if(!c)return;
 var mq=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;var nv=navigator||{};
