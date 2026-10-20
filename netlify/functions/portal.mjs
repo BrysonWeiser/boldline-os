@@ -1,4 +1,6 @@
 import { PORTAL_FONTS_HREF, PORTAL_LOOK_CSS, PORTAL_LOOK_JS } from "../lib/portal-look.mjs";
+import { exportSiteFiles, zipFiles } from "../lib/site-export.mjs";
+import { cleanDomain } from "../lib/site-domain.mjs";
 import { weeklyChartHTML, WEEKLY_CHART_CSS } from "../lib/portal-chart.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { makeContractHTML, resultWords, contractFeatureIds } from "../lib/contract-shared.cjs";
@@ -8,7 +10,7 @@ import { websitePortalHTML, WEBSITE_PORTAL_JS, hasWebsite } from "../lib/portal-
 import { cleanIntake, needsStatus } from "../lib/website-needs.mjs";
 import { summarize } from "../lib/site-stats.mjs";
 import { supabaseStore, loadIndex, loadPost, setHeld, applyEdit } from "../lib/site-blog.mjs";
-import { termsOf, websiteAgreementHTML, dealOf, isSigned, agreementLive, tierIncludes, buildTotal, monthlyTotal } from "../lib/website-deal.mjs";
+import { termsOf, websiteAgreementHTML, dealOf, isSigned, agreementLive, tierIncludes, buildTotal, monthlyTotal, fullyPaid } from "../lib/website-deal.mjs";
 import { publicSiteUrl } from "../lib/site-domain.mjs";
 import { dispatchAlert } from "../lib/alerts-shared.mjs";
 import { customerPayCardHTML, CUSTOMER_PAY_JS } from "../lib/portal-payments.mjs";
@@ -920,6 +922,40 @@ const handler = async (event) => {
 
       // "What we need from you" answers (Website tab, KB website-needs). Merged over what is there, so saving one
       // box never wipes another; Bryson is told only when something actually changed.
+      // Bought outright (KB demo-sites): the client downloads their own site files once it's paid in full. The address
+      // is typed twice in the portal; checked again here so a typo can never become their handover.
+      if (body.siteFiles && typeof body.siteFiles === "object") {
+        const cur = data.data || {};
+        const cl = { ...cur, id: data.id };
+        if (termsOf(cl).mgmt !== "own") return { statusCode: 403, body: JSON.stringify({ ok: false, error: "Your website is hosted by us, so there are no files to download." }) };
+        if (!fullyPaid(cl)) return { statusCode: 409, body: JSON.stringify({ ok: false, error: "Your files are ready the moment your payment is in." }) };
+        const a = cleanDomain(body.siteFiles.domain), b = cleanDomain(body.siteFiles.confirm);
+        if (!a) return { statusCode: 400, body: JSON.stringify({ ok: false, error: "Type your web address, like yourbusiness.com." }) };
+        if (a.replace(/^www\./, "") !== String(b || "").replace(/^www\./, "")) return { statusCode: 400, body: JSON.stringify({ ok: false, error: "The two addresses don't match. Check them and try again." }) };
+        let out;
+        try { out = await exportSiteFiles(cl, { domain: a, email: (cur.website && cur.website.publicEmail) || cur.email, maxImageBytes: 2.4e6 }); }
+        catch (e) { return { statusCode: 400, body: JSON.stringify({ ok: false, error: String(e.message || e) }) }; }
+        const at = new Date().toISOString();
+        const first = !(cur.websiteDeal && cur.websiteDeal.handedOverAt);
+        const again = !first && cur.websiteDeal.handedOverTo !== out.host;
+        const next = { ...cur, websiteDeal: { ...(cur.websiteDeal || {}), handedOverAt: (cur.websiteDeal && cur.websiteDeal.handedOverAt) || at, handedOverTo: out.host, lastDownloadAt: at },
+          commLog: [{ date: new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Phoenix" }), note: `Downloaded their website files for ${out.host} in the portal.`, cat: "website" }, ...(cur.commLog || [])].slice(0, 200) };
+        await supabaseAdmin.from("clients").update({ data: next, updated_at: at }).eq("id", data.id);
+        if (first || again) { try { await dispatchAlert({ severity: "green", title: `${cur.name || "A client"} downloaded their website`, body: `${cur.name || "They"} downloaded their website files for ${out.host}. The handover is done. If they want help putting it online, they can ask in their portal.`, smsText: `${cur.name || "A client"} downloaded their website files (${out.host}).` }); } catch (e) { console.error("portal: files alert failed:", e.message); } }
+        return { statusCode: 200, body: JSON.stringify({ ok: true, filename: `${out.host}-website.zip`, zip: zipFiles(out.files).toString("base64") }) };
+      }
+      // "Have BoldLine host it": tells Bryson. Moving them to the monthly plan takes a new agreement, so nothing changes here.
+      if (body.hostRequest === true) {
+        const cur = data.data || {};
+        if (termsOf(cur).mgmt !== "own") return { statusCode: 403, body: JSON.stringify({ ok: false, error: "Your website is already hosted by us." }) };
+        const at = new Date();
+        const next = { ...cur, websiteHostRequestAt: at.toISOString(),
+          commLog: [{ date: at.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Phoenix" }), note: "Asked BoldLine to host their website (switch to the monthly plan).", cat: "website" }, ...(cur.commLog || [])].slice(0, 200) };
+        await supabaseAdmin.from("clients").update({ data: next, updated_at: at.toISOString() }).eq("id", data.id);
+        try { await dispatchAlert({ severity: "green", title: `${cur.name || "A client"} wants you to host their website`, body: `${cur.name || "They"} bought their website outright and just asked for BoldLine to host it. Call them, then send a new website agreement with the Care Plan from their Website tab.`, smsText: `${cur.name || "A client"} wants you to host their website. Call them.` }); } catch (e) { console.error("portal: host alert failed:", e.message); }
+        return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+      }
+
       if (body.websiteIntake && typeof body.websiteIntake === "object") {
         const cur = data.data || {};
         if (!hasWebsite(cur)) return { statusCode: 403, body: JSON.stringify({ ok: false, error: "Your plan does not include a website." }) };

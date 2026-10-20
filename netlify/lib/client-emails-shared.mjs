@@ -479,14 +479,18 @@ const T = {
           ? p(`To get started, we just need the ${half ? "first half of the build" : "build payment"}, ${b(money(c.amount))}. Stripe has emailed you the invoice too. You can pay by card or bank transfer:`) + button("Pay the Invoice", c.payUrl)
           : "") +
         p("Here's how it goes from here:") +
-        steps([
+        (c.own ? steps([
+          "You pay the invoice.",
+          "The moment it's paid, your website files are ready in your client portal. You type your web address, download them, and follow a five minute guide to put your site online.",
+          "Want something changed first? Ask in your portal. You can download a fresh copy any time.",
+        ]) + p(`Rather not deal with hosting at all? You can switch to our monthly plan any time and we'll look after everything.`) : steps([
           "You pay the first invoice. We start building the moment it lands.",
           "We send you a private link to your new site. Nobody else can see it yet, and you can ask for changes.",
           half ? "When you're happy with it, you pay the second half and we put it live." : "When you're happy with it, we put it live.",
           ...(care ? [c.hosting ? "From launch day, our hosting keeps it online and secure. Any change you'd like, we quote first." : "From launch day, your care plan keeps it online, secure and up to date."] : []),
-        ]) +
+        ])) +
         // 🔴 We look after their web address too, so the one thing we need from them is said up front.
-        p(`One small thing from you: if the business already has a web address, we'll ask for access to the account it's registered with, so we can put your new site on it and look after it from then on. It stays in your name. No address yet? We'll help you pick one and buy it in your name.`) +
+        (c.own ? "" : p(`One small thing from you: if the business already has a web address, we'll ask for access to the account it's registered with, so we can put your new site on it and look after it from then on. It stays in your name. No address yet? We'll help you pick one and buy it in your name.`)) +
         p(`Your ${gold("client portal")} has a Website tab where you can follow along, ask for a change, and see how many people visit once it's live.`) +
         button("Open Your Portal", c.portalUrl) +
         signoff(),
@@ -502,7 +506,13 @@ const T = {
     if (c.date) rows.push(["Date", c.date]);
     const biz = b(escapeHTML(c.businessName || "your business"));
     const first = escapeHTML(firstName(c.contactName));
-    const head = c.stage === "final"
+    // Bought outright and now paid in full: the files are theirs to download, right now (KB demo-sites).
+    const ownDone = c.own && (c.stage === "full" || c.stage === "final");
+    const head = ownDone
+      ? { subject: "Paid in full, your website is ready to download", pre: "Thanks! Your website files are waiting in your portal.", h: "Your website is ready",
+          body: p(`Thanks ${first}. We've received your payment of ${b(money(amount))}, so the website for ${biz} is paid in full and it's yours.`)
+            + p("Open your client portal, type the web address you'll use, and download your website files. There's a simple five minute guide right there to put it online. You can download again any time.") }
+      : c.stage === "final"
       ? { subject: "Paid in full, your website goes live next", pre: "Thanks, the build is paid off.", h: "Paid in full, thank you",
           body: p(`Thanks ${first}. We've received your final payment of ${b(money(amount))}, so the build for ${biz} is paid off.`) + p("We'll put your site live and email you the moment it's up.") }
       : c.stage === "care"
@@ -517,7 +527,8 @@ const T = {
       bodyHtml:
         h1(head.h) + head.body + detailBox(rows) +
         (c.stage === "care" ? p(c.hosting ? "That covers hosting, security updates and keeping the site online. Want something changed? Ask in your portal and we'll quote it first." : "That covers hosting, security updates, keeping the site online and a couple of small changes each month. Want something updated? Ask in your portal.") : "") +
-        (c.invoiceUrl ? button("View Your Invoice", c.invoiceUrl) + small("Your full invoice, with a downloadable PDF, is on the secure Stripe page.") : button("Open Your Portal", c.portalUrl)) +
+        (ownDone ? button("Get Your Website Files", c.portalUrl) + (c.invoiceUrl ? small(`Your receipt is on the <a href="${escapeHTML(c.invoiceUrl)}" style="color:inherit">secure Stripe page</a>.`) : "")
+          : c.invoiceUrl ? button("View Your Invoice", c.invoiceUrl) + small("Your full invoice, with a downloadable PDF, is on the secure Stripe page.") : button("Open Your Portal", c.portalUrl)) +
         signoff(),
     };
   },

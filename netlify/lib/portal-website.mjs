@@ -31,9 +31,13 @@ export function websiteStatus(cl) {
   if (w.published && d.launchedAt) return { key: "live", label: "Live", text: "Your website is live." };
   if (!a || !["sent", "delivered", "completed"].includes(a.status)) return { key: "none", label: "Getting started", text: "Your website agreement is on its way to you." };
   if (!isSigned(cl)) return { key: "sign", label: "Waiting for your signature", text: "Check your email for the agreement from DocuSign. Signing takes a minute." };
-  if (!firstPaid(cl)) return { key: "pay", label: "Signed, thank you", text: "Your first invoice is in your email. We start building as soon as it's paid." };
+  if (!firstPaid(cl)) return { key: "pay", label: "Signed, thank you", text: termsOf(cl).mgmt === "own" ? "Your invoice is in your email. Your website files are ready here the moment it's paid." : "Your first invoice is in your email. We start building as soon as it's paid." };
   if (!w.content) return { key: "build", label: "Being built", text: "We're building your website now. You'll get a link to see it before anything goes live." };
   if (!fullyPaid(cl)) return { key: "review", label: "Ready for you to look at", text: "Have a look using the link below and tell us what you'd like changed. The final payment is due before it goes live." };
+  // Bought outright: theirs to download and put online, never "we're putting it live" (KB demo-sites).
+  if (termsOf(cl).mgmt === "own") return d.handedOverAt
+    ? { key: "own-done", label: "It's yours", text: "You've downloaded your website files. Download again any time below." }
+    : { key: "own-ready", label: "Paid in full, ready to download", text: "Your website is yours. Download your files below and put it online in about five minutes." };
   return { key: "launch", label: "Paid in full", text: "Thank you. We're putting your website live now." };
 }
 
@@ -85,6 +89,39 @@ export function needsCardHTML(cl) {
 }
 
 // The whole tab. `ctx` = { siteUrl, stats (from site-stats.summarize, or null), posts (published), now }.
+// ── Bought outright: their files, self-serve (KB demo-sites) ───────────────────────────────────────────────
+// Bryson, 2026-10-20: "after they pay there is a place for them to type their own web address and once they do it
+// automatically sends to them that way I dont have to do it manually where there could be mistakes". The address is
+// typed twice (the mistake that matters is a typo), the download can be repeated any time, and the guide underneath
+// gets a non-technical owner online in about five minutes. "Have us host it" tells Bryson, who switches them to the
+// monthly plan with a new agreement; nothing about their plan changes from this button.
+export function siteFilesCardHTML(cl) {
+  if (termsOf(cl).mgmt !== "own") return "";
+  const d = dealOf(cl);
+  const paid = fullyPaid(cl);
+  const ready = !!(cl.website && cl.website.content && cl.website.content.hero && cl.website.content.hero.headline);
+  if (!paid || !ready) return `<div class="card" id="wf-card"><div class="lbl">Your website files</div><div style="font-size:12.5px;color:#9CA3AF;line-height:1.6">${!paid ? "Ready to download here the moment your payment is in. You'll get an email too." : "We're putting the finishing touches on it. You'll get an email the moment it's ready to download."}</div></div>`;
+  const prev = d.handedOverTo ? esc(d.handedOverTo) : "";
+  const inp = (id, ph) => `<input class="inp" id="${id}" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="${ph}" value="${prev}">`;
+  const steps = [
+    "Download your files below. You'll get one zip file.",
+    "Double click the zip to open it. You'll see a folder with your website inside.",
+    `Go to <a href="https://app.netlify.com/drop" target="_blank" rel="noopener" style="color:#C8A84B">app.netlify.com/drop</a> and make a free account.`,
+    "Drag the folder onto the page. Your site is online in seconds.",
+    "In that site's Domain settings, add your web address and follow the two steps it shows you at the company you bought the address from.",
+  ];
+  return `<div class="card" id="wf-card"><div class="lbl">Your website files</div>`
+    + `<div style="font-size:12.5px;color:#9CA3AF;line-height:1.6;margin-bottom:10px">It's paid in full and it's yours. Type the web address you'll use (twice, so a typo can't slip through) and download your website.${d.handedOverAt ? ` You last downloaded it on ${esc(date(d.handedOverAt))}${prev ? ` for ${prev}` : ""}. Download again any time.` : ""}</div>`
+    + `<label style="font-size:11.5px;color:#9CA3AF">Your web address${inp("wf-d", "e.g. desertshinedetail.com")}</label>`
+    + `<label style="font-size:11.5px;color:#9CA3AF">Type it again${inp("wf-d2", "same address again")}</label>`
+    + `<div id="wf-msg" role="status" style="font-size:12px;line-height:1.5;margin:2px 0 4px;color:#9CA3AF"></div>`
+    + `<button class="btn" id="wf-btn" onclick="blFiles(this)">Download my website</button>`
+    + `<div class="lbl" style="margin-top:18px">Put it online in about five minutes</div>`
+    + `<ol style="margin:0;padding-left:20px;color:#D1D5DB;font-size:13px;line-height:1.7">${steps.map((x) => `<li>${x}</li>`).join("")}</ol>`
+    + `<div style="margin-top:16px;padding:12px 14px;border-radius:12px;border:1px solid rgba(200,168,75,.3);background:rgba(200,168,75,.06)"><div style="font-size:13.5px;font-weight:700;color:#F5F3ED">Rather not deal with it?</div><div style="font-size:12.5px;color:#9CA3AF;line-height:1.6;margin:3px 0 8px">Switch to our monthly plan and we'll put it online, keep it running and make small changes for you.</div><button class="btn ghost" id="wf-host" style="margin-top:0" onclick="blHostAsk(this)">Have BoldLine host it for me</button></div>`
+    + `</div>`;
+}
+
 export function websitePortalHTML(cl, ctx = {}) {
   const now = ctx.now || Date.now();
   const d = dealOf(cl), t = termsOf(cl), m = amountsOf(t), w = cl.website || {};
@@ -144,7 +181,9 @@ export function websitePortalHTML(cl, ctx = {}) {
   const recent = reqs.slice(-4).reverse().map((r) => `<div style="padding:7px 0;border-top:1px solid rgba(255,255,255,.06);font-size:12px;color:#D1D5DB;line-height:1.5"><span style="float:right;font-size:10.5px;color:${r.status === "done" ? "#10B981" : "#9CA3AF"}">${r.status === "done" ? "Done" : "Received " + esc(date(r.at))}</span>${esc(String(r.text).slice(0, 160))}</div>`).join("");
   const reqCard = `<div class="card" id="web-req-card"><div class="lbl">Ask for a change</div><div style="font-size:12px;color:#9CA3AF;line-height:1.6;margin-bottom:8px">New hours, a price, a photo, a sentence that's wrong: tell us and we'll do it.${t.mgmt === "hosting" ? " Your plan is hosting only, so we'll quote any change before we do it." : t.care > 0 && st.key === "live" ? ` Your care plan includes ${CARE_EDITS_PER_MONTH} small changes a month (${Math.min(used, CARE_EDITS_PER_MONTH)} used this month). Bigger changes we'll quote first.` : ""}</div><textarea class="inp" id="web-req" rows="3" maxlength="1000" placeholder="What would you like changed?"></textarea><button class="btn" onclick="blWebReq(this)">Send request</button><div id="web-req-msg" style="font-size:11.5px;color:#9CA3AF;margin-top:8px"></div>${recent}</div>`;
 
-  return `<div class="welcome"><b>Your website</b><span>Everything about your website in one place.</span></div>${statusCard}${st.key === "live" ? "" : needsCardHTML(cl)}${visitCard}${payCard}${blogCard}${reqCard}`;
+  // Bought outright: the files card leads, because it's the one thing they came for once it's paid.
+  const filesCard = siteFilesCardHTML(cl);
+  return `<div class="welcome"><b>Your website</b><span>Everything about your website in one place.</span></div>${filesCard && fullyPaid(cl) ? filesCard : ""}${statusCard}${st.key === "live" || (filesCard && fullyPaid(cl)) ? "" : needsCardHTML(cl)}${filesCard && !fullyPaid(cl) ? filesCard : ""}${visitCard}${payCard}${blogCard}${reqCard}`;
 }
 
 // The one bit of script the tab needs, for the change request. Posts to the portal like every other
@@ -156,4 +195,15 @@ function blBlogSave(slug,btn){var row=document.querySelector('.bl-post[data-slug
 function blBlogHold(slug,held,btn){if(held&&!confirm('Hold this article? It will not go out until you release it.'))return;btn.disabled=true;blPost({blogHold:{slug:slug,held:held}}).then(function(){location.reload();}).catch(function(e){btn.disabled=false;alert(e.message);});}
 function blWebReq(btn){var ta=document.getElementById('web-req'),msg=document.getElementById('web-req-msg');var t=(ta&&ta.value||'').trim();if(!t){if(msg)msg.textContent='Tell us what you would like changed first.';return;}btn.disabled=true;btn.textContent='Sending...';fetch('/.netlify/functions/portal?token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({websiteRequest:{text:t}})}).then(function(r){return r.json().then(function(d){if(!r.ok||!d||!d.ok)throw new Error((d&&d.error)||'');return d;});}).then(function(){ta.value='';btn.textContent='Sent';if(msg){msg.style.color='#10B981';msg.textContent='Got it. We will be in touch, usually within one business day.';}setTimeout(function(){btn.disabled=false;btn.textContent='Send request';},2500);}).catch(function(e){btn.disabled=false;btn.textContent='Send request';if(msg){msg.style.color='#F59E0B';msg.textContent=(e&&e.message)||'That did not send. Please try again.';}});}
 function blGoTo(where){var bs=document.querySelectorAll('.nb');for(var i=0;i<bs.length;i++){if((bs[i].getAttribute('onclick')||'').indexOf("'account'")>0){show('account',bs[i]);break;}}var el=where==='media'?document.querySelector('.media-card'):document.querySelector('[data-key="businessPhone"]');if(!el)return;var d=el.closest('details');if(d)d.open=true;setTimeout(function(){try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}},80);}
+function blDom(v){var s=String(v||'').trim().toLowerCase();s=s.split('://').pop();s=s.split('/')[0];return s.indexOf('www.')===0?s.slice(4):s;}
+function blFiles(btn){var a=document.getElementById('wf-d'),b=document.getElementById('wf-d2'),m=document.getElementById('wf-msg');var x=blDom(a&&a.value),y=blDom(b&&b.value);
+if(!x||x.indexOf('.')<1){m.style.color='#F59E0B';m.textContent='Type your web address, like yourbusiness.com.';return;}
+if(x!==y){m.style.color='#F59E0B';m.textContent="The two addresses don't match. Check them and try again.";return;}
+btn.disabled=true;var lbl=btn.textContent;btn.textContent='Getting your files ready...';m.style.color='#9CA3AF';m.textContent='';
+blPost({siteFiles:{domain:a.value,confirm:b.value}}).then(function(r){return r.json();}).then(function(d){btn.disabled=false;btn.textContent=lbl;
+if(!d||!d.ok){m.style.color='#F59E0B';m.textContent=(d&&d.error)||'That did not work. Please try again.';return;}
+var s=atob(d.zip),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);var url=URL.createObjectURL(new Blob([u],{type:'application/zip'}));
+var l=document.createElement('a');l.href=url;l.download=d.filename||'website.zip';document.body.appendChild(l);l.click();l.remove();setTimeout(function(){URL.revokeObjectURL(url);},4000);
+m.style.color='#10B981';m.textContent='Downloaded. Follow the steps below to put it online.';}).catch(function(){btn.disabled=false;btn.textContent=lbl;m.style.color='#F59E0B';m.textContent='That did not work. Please try again.';});}
+function blHostAsk(btn){btn.disabled=true;blPost({hostRequest:true}).then(function(r){return r.json();}).then(function(d){btn.textContent=d&&d.ok?"Thanks, we'll be in touch to set it up":'That did not work. Please try again.';if(!(d&&d.ok))btn.disabled=false;}).catch(function(){btn.disabled=false;});}
 function blNeedsSave(btn){var o={};var fs=document.querySelectorAll('.wn-f');for(var i=0;i<fs.length;i++)o[fs[i].getAttribute('data-f')]=fs[i].value;var msg=document.getElementById('wn-msg');btn.disabled=true;btn.textContent='Saving...';blPost({websiteIntake:o}).then(function(d){btn.disabled=false;btn.textContent='Save my answers';var ids=d.needs||{};var rows=document.querySelectorAll('.wn-row');for(var j=0;j<rows.length;j++){var id=rows[j].getAttribute('data-id');if(ids[id]){var t=rows[j].firstChild;if(t&&t.tagName==='SPAN'&&!t.textContent){t.style.cssText='flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#10B981;color:#07080C;display:grid;place-items:center;font-size:13px;font-weight:900';t.innerHTML='&#10003;';}}}var c=document.getElementById('wn-count');if(c&&d.total)c.textContent=d.done+' of '+d.total;var b=document.getElementById('wn-bar');if(b&&d.total)b.style.width=Math.round(d.done/d.total*100)+'%';if(msg){msg.style.color='#10B981';msg.textContent=d.done>=d.total?'Saved. That is everything we need, thank you.':'Saved. Send the rest whenever you have it.';}}).catch(function(e){btn.disabled=false;btn.textContent='Save my answers';if(msg){msg.style.color='#F59E0B';msg.textContent=(e&&e.message)||'That did not save. Please try again.';}});}`;

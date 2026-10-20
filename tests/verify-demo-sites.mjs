@@ -141,5 +141,37 @@ const prospect = (extra = {}) => ({ id: "p1", name: "Desert Shine Mobile Detail"
   ok("the Website tab hands over files for an outright sale", /t\.mgmt==="own"&&step\(!!d\.handedOverAt,"Handover",<SiteFilesHandover/.test(UI));
 }
 
+
+// ── 7. Self-serve handover (Bryson: "after they pay there is a place for them to type their own web address and once
+//       they do it automatically sends to them that way I dont have to do it manually where there could be mistakes")
+{
+  const PW = await import("../netlify/lib/portal-website.mjs");
+  const { renderClientEmail } = await import("../netlify/lib/client-emails-shared.mjs");
+  const PORTAL = read("netlify/functions/portal.mjs");
+  const base = { id: "c1", name: "Desert Shine", packageId: "w-site", email: "hi@desertshine.example", website: { content: DEMO_DETAIL.website.content } };
+  const terms = { mgmt: "own", plan: "full", price: 2500, care: 0 };
+  const unpaid = { ...base, websiteDeal: { ...terms, agreement: { status: "completed", signedAt: "2026-10-20T18:00:00Z", terms }, invoices: { full: { id: "in_1", url: "https://invoice.stripe.com/x", amount: 2500 } } } };
+  const paid = { ...unpaid, websiteDeal: { ...unpaid.websiteDeal, invoices: { full: { id: "in_1", amount: 2500, paidAt: "2026-10-20T19:00:00Z" } } } };
+  ok("before payment the card says the files come the moment it's paid", /Ready to download here the moment your payment is in/.test(PW.siteFilesCardHTML(unpaid)) && !/wf-btn/.test(PW.siteFilesCardHTML(unpaid)));
+  const card = PW.siteFilesCardHTML(paid);
+  ok("🔴 once paid: the address twice, a download button, and the five minute guide", /id="wf-d"/.test(card) && /id="wf-d2"/.test(card) && /onclick="blFiles\(this\)"/.test(card) && /app\.netlify\.com\/drop/.test(card) && (card.match(/<li>/g) || []).length === 5);
+  ok("and the way to hand it back to us (the monthly plan)", /onclick="blHostAsk\(this\)"/.test(card));
+  ok("the card leads the Website tab once it's paid", PW.websitePortalHTML(paid, {}).indexOf('id="wf-card"') < PW.websitePortalHTML(paid, {}).indexOf("Your website</div>"));
+  ok("hosted clients never see it", PW.siteFilesCardHTML({ ...paid, websiteDeal: { ...paid.websiteDeal, mgmt: "care", agreement: { ...paid.websiteDeal.agreement, terms: { ...terms, mgmt: "care" } } } }) === "");
+  ok("the status says it's theirs, never 'we're putting it live'", PW.websiteStatus(paid).key === "own-ready" && !/putting your website live/.test(PW.websiteStatus(paid).text));
+  ok("🔴 the portal script parses and catches a mismatch before asking the server", (() => { try { new Function(PW.WEBSITE_PORTAL_JS); return true; } catch { return false; } })() && /if\(x!==y\)/.test(PW.WEBSITE_PORTAL_JS));
+  const dom = new Function(PW.WEBSITE_PORTAL_JS + ";return blDom;")();
+  ok("an address is compared the way people type it", dom("https://www.Desert.com/") === "desert.com" && dom("desert.com") === "desert.com");
+  ok("🔴 the server checks it all again: outright only, paid in full, both addresses the same", /if \(termsOf\(cl\)\.mgmt !== "own"\) return \{ statusCode: 403/.test(PORTAL) && /if \(!fullyPaid\(cl\)\) return \{ statusCode: 409/.test(PORTAL) && /The two addresses don't match/.test(PORTAL));
+  ok("Bryson is told when they download, and when they ask us to host", /title: `\$\{cur\.name \|\| "A client"\} downloaded their website`/.test(PORTAL) && /wants you to host their website/.test(PORTAL));
+  ok("asking us to host changes nothing about their plan", /if \(body\.hostRequest === true\)/.test(PORTAL) && !/hostRequest[\s\S]{0,900}websiteDeal: \{/.test(PORTAL.slice(PORTAL.indexOf("if (body.hostRequest === true)"), PORTAL.indexOf("if (body.hostRequest === true)") + 900)));
+  const paidMail = renderClientEmail("website_payment", { contactName: "Marco Ruiz", businessName: "Desert Shine", amount: 2500, stage: "full", own: true, portalUrl: "https://os.x/portal?token=t" });
+  ok("🔴 the paid-in-full email sends them straight to their files", /ready to download/.test(paidMail.subject) && /Get Your Website Files/.test(paidMail.html) && /portal\?token=t/.test(paidMail.html));
+  const welcome = renderClientEmail("website_welcome", { contactName: "Marco", businessName: "Desert Shine", amount: 2500, payUrl: "https://pay.x", own: true, plan: "full", care: 0, portalUrl: "https://p" });
+  ok("the welcome email (with the pay link) explains the outright steps, not hosting", /Pay the Invoice/.test(welcome.html) && /five minute guide/.test(welcome.html) && !/One small thing from you/.test(welcome.html));
+  ok("🔴 no dash or emoji in anything the client reads here", ![card, paidMail.html, welcome.html].some((h) => /[—–]/.test(text(h)) || /\p{Extended_Pictographic}/u.test(text(h))));
+  ok("the emails know it's outright", /own: termsOf\(cl\)\.mgmt === "own"/.test(read("netlify/lib/client-email-auto.mjs")));
+}
+
 console.log(`verify-demo-sites: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
