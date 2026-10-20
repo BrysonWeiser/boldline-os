@@ -68,3 +68,12 @@ me a visual preview of the whole process". Built:
   so the seed now reads the raw record), and the Send confirmation said "Care plan" for outright.
 - Visual walkthrough (private artifact, real screens): https://claude.ai/artifact/EiUz5zNhxmghyqGn21pfaa
 Tests: verify-demo-sites now 70 (section 7). Full suite 168/168.
+
+### Preview gotcha (2026-10-20): broken picture icons were the screenshot machine, not the emails
+Bryson saw broken-image icons on the email buttons and logo in the walkthrough. Cause: the screenshot browser here
+cannot reach the internet, and the email buttons are PICTURES hosted at boldlinemedia.com/email/v1/ (on purpose: Gmail's
+iPhone dark mode turns a drawn gold button olive, KB email button note in netlify/lib/email-button.mjs). Checked live:
+logo, pay-the-invoice, open-your-portal and get-your-website-files all return 200. For future previews, fetch
+boldlinemedia.com through curl in the Playwright route (as the walkthrough's shot.cjs now does) so pictures show.
+Only real-world gap: an email app that blocks pictures (mainly Outlook on a computer) shows the gold button with the
+words on it; that is the designed fallback.
