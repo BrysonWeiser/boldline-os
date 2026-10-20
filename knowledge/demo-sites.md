@@ -44,7 +44,7 @@ verified: 2026-10-20
 ## Live status
 Merged to main Tue 2026-10-20 (Phoenix morning). The sample sites on boldlinemedia.com were regenerated in the same deploy because the shared form script changed (no visible change).
 
-## 2026-10-20 (Tue, ~1:30pm Phoenix): outright sales are now hands-off after "Send the agreement"
+## 2026-10-20 (Tue, ~1:15pm Phoenix): outright sales are now hands-off after "Send the agreement"
 Bryson: *"after they pay there is a place for them to type their own web address and once they do it automatically
 sends to them that way I dont have to do it manually where there could be mistakes"*, then "yes lets do it and give
 me a visual preview of the whole process". Built:
