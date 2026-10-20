@@ -127,7 +127,11 @@ export const WEBSITE_OFFER = { build: 1500, care: 100, pages: 5, carePlanEdits: 
   emailSetup: 99,
   // Hosting only, no management (Bryson, 2026-10-11: "a version for each variation ... regular website with
   // management, website without management, custom"): kept online and secure, every change quoted. Editable per client.
-  hosting: 25 };
+  hosting: 25,
+  // Bought outright (Bryson, 2026-10-20: "lets do $2500 but if they want to include the $100/month for us to host it
+  // and do everything then itll be $1500 then the monthly"): they get the site files and host and manage it
+  // themselves, no monthly. $1,000 more than the build, about ten months of the Care Plan. KB demo-sites.
+  buyout: 2500 };
 // The premium tier (Bryson, 2026-10-09: "add the new premium package", after "add the option for a fully custom
 // build website instead of paying for one of the templates that way it allows for an upsell"). Same engine, shaped
 // around their brand: their typefaces and colours, sections and layout made for them with the AI editor, eight

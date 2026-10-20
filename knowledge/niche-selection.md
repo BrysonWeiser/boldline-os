@@ -155,3 +155,18 @@ target 2+ van operations or ceramic/paint-correction shops.
   Facebook group), and then only top producers or team leads, sold as website + seller leads ("what's my home worth"),
   never buyer leads. Property managers are the less-farmed real estate cousin worth a look later (recurring revenue,
   landlord leads).
+
+## 2026-10-20: detailers chosen for now; "ads or websites?" Answer: lead with websites, ads second
+Bryson: *"im thinking about targeting car detailers for my cold calls for right now. but do you think it would be
+better to try to sell ads or websites"*. Recommendation given: **open with the website, sell ads as the next step.**
+- Money fits: most detailers are 1 to 3 people. $1,500 once is an easier yes than about $900 a month (the $400
+  minimum plus their own $500 ad spend), which the affordability math already caps for one-van shops.
+- The problem is visible: most live on Instagram with a thin or dated site, and Lead Scout's free website check
+  names exactly what is wrong, so the call opens on something concrete (KB website-prospects).
+- Fewer moving parts: no Google Ads account, no learning month, no lead disputes; he sees the result on launch day.
+- It is the door to ads: once the site is live and trusted, ads point at the site we built (the ladder).
+- The cost: websites are one-time money; ads are the recurring income. So the split rule is
+  **one van or Instagram-only = website; 2+ vans, or a ceramic coating / paint protection shop with a decent site = ads
+  (or both)**.
+- Use Lead Scout with "What are you selling? A website", and the Outreach "Selling" filter. Still one niche, one
+  script, for the 100 calls.

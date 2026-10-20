@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 229 task-keyed entries under `knowledge/`. They surface automatically via the
+> 230 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**229 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**230 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -834,6 +834,12 @@
 - **[website-booking-intake](../knowledge/website-booking-intake.md)** &mdash; &#9989; verified &middot; 2026-10-08  
   Bryson, 2026-10-07 - the detailing business should show its number for callers but let customers book by tapping a package, picking a day and time, and giving the address and their details; then "modify websites (my other businesses and my clients) to include whatever booking system they have ... and it won't count as one of the two client edits". Built one setting per business, `cl.intake.how` (quote | book | link | call), that decides where every main website button goes, plus a built-in Book page (packages, working hours, travel time between jobs, soonest-allowed window, blocked time, never double-booked), a "How customers book" card on every website's Website tab, and agreement WA-3 saying this setup is never a round of changes. 2026-10-08 ("do all those next"): landing pages follow the same choice with the same booking steps, packages can carry a deposit paid to the business's own payment link, and his own businesses' bookings show on the OS Calendar and in the morning digest.  
   <sub>*task:* set or change how a business takes customers through its website (quote form, online booking with packages and times, its own booking link like Square or Calendly, or call first), set up booking packages and hours, block time, see or cancel bookings &nbsp;|&nbsp; *keywords:* booking, book online, online booking, packages, time slots, book page, intake, how customers book, quote form, booking link, square, calendly, housecall pro, call first, intakeOf, bookingOn, booking.mjs, book.mjs, booking-widget.mjs, BookingCard, /book, travel time, buffer, block time, WA-3, two rounds of changes, deposit, mark paid, landing page booking, calendar bookings, address question, askAddress, bk-phone</sub>
+
+## Websites
+
+- **[demo-sites](../knowledge/demo-sites.md)** &mdash; &#9989; verified &middot; 2026-10-20  
+  Built 2026-10-20 (Bryson, "i want to build it for the full website for the company im cold calling when i hop on a meeting with them that way if they like it we just need to link their payment method"; pricing "$2500 ... if they want to include the $100/month for us to host it and do everything then itll be $1500 then the monthly"). On any Lead Scout or Outreach company labelled Website or Both, "Build their demo website" writes their full 5-page site with the real builder from public research facts (stock photos), served at os.boldlinemedia.com/demo/<random token>/ with a "Preview for <name>. Not live yet." strip, a guard that stops every send, noindex + no-store, no visit count, a 3-design switcher, and a 30-day expiry (rebuild keeps the same link). "They want it" picks Monthly plan ($1,500 + $100/mo) or Buy it outright ($2,500) and creates an unsigned website-only client with the demo as their website; the agreement and payment then go out from the Website tab as usual. Outright is a fifth agreement version (WA-8, "Website Design and Purchase Agreement": no monthly, handover of files, nothing after handover is ours); once fully paid the Website tab downloads the whole site as a zip made for THEIR domain (form opens the visitor's email app, booking off, photos copied in, read-me inside).  
+  <sub>*task:* build a demo website for a company before a sales meeting, show it, turn it into a client, or sell / hand over a website bought outright ($2,500, no monthly) &nbsp;|&nbsp; *keywords:* demo website, demo site, spec site, website before the meeting, show them their site, private link, they want it, buy it outright, bought outright, own it, buyout, $2500, handover, site files, download site files, zip, export site, mgmt own, WA-8, Purchase Agreement, demo-site.mjs, demo-site-background, DemoSiteBox, clientFromDemo, SiteFilesHandover, site-export.mjs, __mailto, researchFacts</sub>
 
 ## Workflow
 

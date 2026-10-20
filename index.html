@@ -6166,7 +6166,129 @@ const SCOUT_STATUSES = [
   {id:"dead",      label:"Not a fit",     color:C.textMuted},
 ];
 
-function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
+// ─── Demo website: a full site built for a company BEFORE the meeting (KB `demo-sites`) ───────────
+// Bryson, 2026-10-20: "i want to build it for the full website for the company im cold calling when i hop on a meeting
+// with them that way if they like it we just need to link their payment method". One tap writes their five pages with
+// the real site builder; he shows the private link on the meeting; "They want it" makes them a website client carrying
+// the demo over, so nothing is written twice. The demo page itself sends nothing (netlify/lib/demo-site.mjs).
+// 🔴 THE STATE LIVES OUTSIDE THE CARD. Lead Scout's cards are re-created on every render of their screen, which
+// would forget a build in progress; one store per company id survives that, and one poller per build.
+const DEMO_STORE={}; const DEMO_SUBS=new Set();
+const demoSet=(id,patch)=>{ DEMO_STORE[id]={...(DEMO_STORE[id]||{}),...patch}; DEMO_SUBS.forEach(f=>f()); };
+const demoAuth=async()=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); return (session&&session.access_token)||""; };
+const demoCall=async(body)=>{ const r=await fetch("/.netlify/functions/demo-site",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await demoAuth())},body:JSON.stringify(body)}); const d=await r.json().catch(()=>({})); if(!r.ok||!d.ok) throw new Error(d.error||"That didn't work. Try again."); return d; };
+const DEMO_DAYS_OS=30;
+// What the card shows when the store has nothing newer: the demo saved on the company's record.
+const demoFromRecord=(p)=>{ const d=(p&&p.data&&p.data.demoSite)||null; if(!d||!d.status) return null;
+  const exp=d.builtAt?new Date(Date.parse(d.builtAt)+DEMO_DAYS_OS*864e5).toISOString():null;
+  return {status:d.status,token:d.token||"",theme:d.theme||"aurora",builtAt:d.builtAt||null,error:d.error||null,expiresAt:exp,expired:d.status==="done"&&(!exp||Date.parse(exp)<=Date.now()),
+    url:d.token?`${location.origin}/demo/${d.token}/`:""}; };
+const demoPoll=async(id)=>{
+  if(DEMO_STORE[id]&&DEMO_STORE[id].polling) return;
+  demoSet(id,{polling:true}); const started=Date.now();
+  try{
+    while(Date.now()-started<300000){
+      await new Promise(r=>setTimeout(r,5000));
+      const d=await demoCall({action:"poll",id});
+      if(d.demo&&d.demo.status!=="running"){ demoSet(id,{demo:d.demo,polling:false,msg:d.demo.status==="error"?(d.demo.error||"The build failed. Try again."):""}); return; }
+    }
+    demoSet(id,{polling:false,msg:"That's taking longer than usual. Check back in a minute."});
+  }catch(e){ demoSet(id,{polling:false,msg:e.message}); }
+};
+const DEMO_THEMES=[["aurora","Aurora"],["cinematic","Cinematic"],["editorial","Editorial"]];
+// The two ways to buy, as Bryson priced them (2026-10-20): $1,500 + $100/mo with BoldLine hosting and looking after
+// it, or $2,500 once to own it outright and host it themselves.
+const DEMO_PLANS=[{id:"care",label:"Monthly plan",sub:"$1,500 build, then $100/mo. We host it and look after everything."},
+  {id:"own",label:"Buy it outright",sub:"$2,500 once. They get the site files and host and manage it themselves."}];
+function clientFromDemo(p,demo,plan){
+  const d=(p&&p.data)||{};
+  const cl=clientFromMeeting({}, {companyName:d.dba||d.name||p.name, niche:p.niche||"", notes:""}, WEB_PKG_ID);
+  const area=[d.city,d.state].filter(Boolean).join(", ")||p.area||"";
+  return {...cl,
+    businessPhone:d.phone||"", businessAddress:d.address||"", email:d.email||"", contactName:d.ownerName||"",
+    campaignSetup:{...cl.campaignSetup, serviceArea:area, targetLocations:area},
+    // The demo becomes their website: same words, same photos, same design. Not live, and not until they pay.
+    website:{content:demo.content, stock:demo.stock||[], theme:demo.theme||"aurora", published:false, fromDemo:{prospectId:p.id, builtAt:demo.builtAt||null}},
+    websitePlanChoice:plan==="own"?"own":"care",
+    salesNotes:{...(cl.salesNotes||{}), demoSite:`Came from a demo website shown on the meeting (${plan==="own"?"buying it outright":"monthly plan"}).`},
+  };
+}
+function DemoSiteBox({prospect,onCreateClient}){
+  const id=prospect&&prospect.id;
+  const [,force]=useState(0);
+  useEffect(()=>{ const f=()=>force(x=>x+1); DEMO_SUBS.add(f); return ()=>DEMO_SUBS.delete(f); },[]);
+  const [copied,setCopied]=useState(false);
+  const [choosing,setChoosing]=useState(false);
+  // A build that was already running when the card appeared (another tab, a reload): pick it up.
+  const recStatus=prospect&&prospect.data&&prospect.data.demoSite&&prospect.data.demoSite.status;
+  useEffect(()=>{ if(id&&recStatus==="running"&&!(DEMO_STORE[id]&&(DEMO_STORE[id].polling||DEMO_STORE[id].demo))) demoPoll(id); },[id,recStatus]);
+  if(!id) return null;
+  const st=DEMO_STORE[id]||{};
+  const demo=st.demo||demoFromRecord(prospect);
+  const running=!!st.polling||(demo&&demo.status==="running"&&!st.demo);
+  const build=async()=>{
+    if(demo&&demo.status==="done"&&!window.confirm("Rebuild their demo? The words will be rewritten. The link stays the same.")) return;
+    demoSet(id,{msg:"",demo:{...(demo||{}),status:"running"}});
+    try{
+      const r=await fetch("/.netlify/functions/demo-site-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await demoAuth())},body:JSON.stringify({prospectId:id})});
+      if(r.status!==202&&!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||"Could not start."); }
+      demoPoll(id);
+    }catch(e){ demoSet(id,{demo:demo||null,msg:e.message}); }
+  };
+  const setTheme=async(t)=>{ try{ const d=await demoCall({action:"theme",id,theme:t}); demoSet(id,{demo:d.demo}); }catch(e){ demoSet(id,{msg:e.message}); } };
+  const copy=()=>{ try{ navigator.clipboard.writeText(demo.url); setCopied(true); setTimeout(()=>setCopied(false),1800); }catch(e){} };
+  const convert=async(plan)=>{
+    if(!onCreateClient) return;
+    try{
+      const full=await demoCall({action:"content",id});
+      if(!full.content) throw new Error("Their demo isn't finished yet.");
+      const cl=clientFromDemo(prospect,full,plan);
+      setChoosing(false);
+      onCreateClient(cl);
+    }catch(e){ demoSet(id,{msg:e.message}); }
+  };
+  const ready=demo&&demo.status==="done"&&!demo.expired;
+  const btn=(primary)=>({padding:"8px 12px",fontSize:12,fontWeight:700,borderRadius:9,border:primary?"none":`1px solid ${C.border}`,background:primary?C.gold:"transparent",color:primary?"#0a0800":C.textDim,cursor:"pointer",whiteSpace:"nowrap",textDecoration:"none",fontFamily:"inherit"});
+  const expTxt=demo&&demo.expiresAt?new Date(demo.expiresAt).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/Phoenix"}):"";
+  return (
+    <div style={{marginTop:10,padding:"11px 12px",borderRadius:11,border:`1px solid ${ready?C.gold+"55":C.border}`,background:ready?"rgba(200,168,75,.06)":C.bg3}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:7}}>
+        <span style={{fontSize:9.5,fontWeight:800,color:C.gold,textTransform:"uppercase",letterSpacing:".05em"}}>Demo website</span>
+        {ready&&<span style={{fontSize:10.5,color:C.textMuted}}>Private link, works until {expTxt}</span>}
+      </div>
+      {running
+        ? <div style={{fontSize:12.5,color:C.textDim,lineHeight:1.5}}>Writing their five pages now. This takes about a minute, and you can keep calling.</div>
+        : ready
+        ? <>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+              <a href={demo.url} target="_blank" rel="noopener noreferrer" style={btn(true)}>Open their site</a>
+              <button onClick={copy} style={btn(false)}>{copied?"Link copied":"Copy link to text them"}</button>
+              <button onClick={()=>setChoosing(v=>!v)} style={{...btn(false),borderColor:C.green+"66",color:C.green}}>They want it</button>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginTop:9}}>
+              <span style={{fontSize:10.5,color:C.textMuted}}>Opens in</span>
+              {DEMO_THEMES.map(([t,l])=>{ const on=demo.theme===t; return <button key={t} onClick={()=>!on&&setTheme(t)} aria-pressed={on}
+                style={{padding:"3px 10px",fontSize:11,fontWeight:700,borderRadius:999,border:`1px solid ${on?C.gold:C.border}`,background:on?C.goldDim:"transparent",color:on?C.gold:C.textDim,cursor:on?"default":"pointer"}}>{l}</button>; })}
+              <button onClick={build} style={{marginLeft:"auto",background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Rebuild</button>
+            </div>
+            {choosing&&(
+              <div style={{marginTop:10,display:"grid",gap:7}}>
+                {DEMO_PLANS.map(x=>(
+                  <button key={x.id} onClick={()=>convert(x.id)} style={{textAlign:"left",padding:"10px 12px",borderRadius:10,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,cursor:"pointer",fontFamily:"inherit"}}>
+                    <div style={{fontSize:13,fontWeight:800}}>{x.label}</div><div style={{fontSize:11.5,color:C.textMuted,marginTop:2,lineHeight:1.45}}>{x.sub}</div></button>))}
+                <div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}>This makes them a website client with this site already on their record. You then send the agreement and payment link from their Website tab. Nothing counts them as a client until they sign.</div>
+              </div>)}
+          </>
+        : <>
+            <div style={{fontSize:12,color:C.textMuted,lineHeight:1.5,marginBottom:8}}>{demo&&demo.expired?"Their demo link has ended. Rebuild it for a fresh 30 days (same link).":"Build their full website before the meeting, then show it to them. Uses stock photos until they send their own."}</div>
+            <button onClick={build} style={btn(true)}>{demo&&demo.expired?"Rebuild their demo":"Build their demo website"}</button>
+          </>}
+      {st.msg&&<div style={{fontSize:11.5,color:C.amber,marginTop:8,lineHeight:1.5}}>{st.msg}</div>}
+    </div>
+  );
+}
+
+function LeadScoutScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
   const [tab,setTab]=useState("search"); // search | list
   // What the search is for (KB `website-prospects`). "website" hunts businesses with no website or a weak
   // one, and checks every website for free before any research is paid for.
@@ -6440,6 +6562,8 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
               ? <ul style={{margin:0,paddingLeft:16}}>{(d.siteCheck.problems||[]).slice(0,5).map((x,i)=><li key={i} style={{fontSize:12,color:C.textDim,lineHeight:1.55}}>{x.label}</li>)}</ul>
               : <div style={{fontSize:12,color:C.textDim,lineHeight:1.55}}>{d.siteCheck.reason}.</div>}
           </div>)}
+
+        {outPitchOf(p)!=="ads"&&<DemoSiteBox prospect={p} onCreateClient={onCreateClient}/>}
 
         {/* CONTACT — every number and address found, each labelled with whose it is
             and where it came from. Tap any of them to dial straight from the phone. */}
@@ -7366,7 +7490,7 @@ const outRollup = (touches) => {
     showRate:(showed+noShowed)>0?showed/(showed+noShowed):null };
 };
 
-function OutreachScreen({onBack,isDesktop,onDealPrep}){
+function OutreachScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
   const [tab,setTab]=useState("work");            // work | messages | numbers
   const [channel,setChannel]=useState("call");
   const [queue,setQueue]=useState([]);
@@ -7838,6 +7962,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                     style={{padding:"4px 11px",fontSize:11,fontWeight:700,borderRadius:999,cursor:on||pitchBusy?"default":"pointer",
                       border:`1px solid ${on?C.gold:C.border}`,background:on?C.goldDim:"transparent",color:on?C.gold:C.textDim}}>{x.label}</button>); })}
               </div>
+              {outPitchOf(cur)!=="ads"&&<div style={{marginBottom:10}}><DemoSiteBox prospect={cur} onCreateClient={onCreateClient}/></div>}
               {/* Tap to dial or mail straight from the phone. 🔴 BEST BET FIRST AND LABELLED: three
                   bare numbers is three decisions per prospect, and the point of this screen is that
                   there are none. Every label is hedged because the research is a likelihood, not a
@@ -10747,7 +10872,7 @@ function BlogCard({client}){
 // The OS only READS cl.websiteDeal; the server owns it (SERVER_OWNED_KEYS). WD-MIRROR-START
 const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut","siteAiJob","websiteIntake","payConnect","payLog"];   // emails: KB business-emails; siteAiJob: KB site-editor; websiteIntake: KB website-needs (the client writes it in the portal); pay*: KB payments-connect
 // Mirror of WEBSITE_OFFER in netlify/lib/pricing-shared.mjs (pinned by tests/verify-website-deal.mjs).
-const WEBSITE_OFFER={build:1500,care:100,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:150,blogPostsPerMonth:4,emailSetup:99,hosting:25};
+const WEBSITE_OFFER={build:1500,care:100,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:150,blogPostsPerMonth:4,emailSetup:99,hosting:25,buyout:2500};
 const WD_DEFAULTS={price:WEBSITE_OFFER.build,plan:"full",care:WEBSITE_OFFER.care};
 // Mirror of WEBSITE_SIGNATURE (the premium tier, KB site-editor).
 const WEBSITE_SIGNATURE={build:3500,care:150,pages:8,includedExtraPages:3,carePlanEdits:4,revisionRounds:3};
@@ -10761,13 +10886,16 @@ const wdInt=(v,d,max)=>Math.max(0,Math.min(max,Math.floor(wdNum(v,d))));
 // Mirror of cleanSpecial (the Special Terms) and the four versions (tier x management), KB website-builder WA-7.
 const wdSpecText=(s,n)=>String(s==null?"":s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"").replace(/\s*[\u2014\u2013]\s*/g,", ").replace(/[ \t]+/g," ").trim().slice(0,n);
 const wdSpecial=(v)=>(Array.isArray(v)?v:[]).map(c=>({heading:wdSpecText(c&&c.heading,80),text:wdSpecText(c&&c.text,1500)})).filter(c=>c.text).slice(0,12);
-const wdNorm=(t0)=>{ const t=t0||{}; const tier=t.tier==="signature"?"signature":"standard"; const mgmt=t.mgmt==="hosting"?"hosting":"care"; const D=tier==="signature"?{price:WEBSITE_SIGNATURE.build,care:WEBSITE_SIGNATURE.care}:WD_DEFAULTS;
-  return {tier,mgmt,price:wdNum(t.price,D.price),plan:t.plan==="half"?"half":"full",care:wdNum(t.care,mgmt==="hosting"?WEBSITE_OFFER.hosting:D.care),
+const wdNorm=(t0)=>{ const t=t0||{}; const tier=t.tier==="signature"?"signature":"standard"; const mgmt=t.mgmt==="hosting"||t.mgmt==="own"?t.mgmt:"care";
+  // Bought outright (WA-8, KB demo-sites): the buyout difference on top of the tier's build, never a monthly fee.
+  const own=mgmt==="own", lift=WEBSITE_OFFER.buyout-WEBSITE_OFFER.build;
+  const D=tier==="signature"?{price:WEBSITE_SIGNATURE.build+(own?lift:0),care:WEBSITE_SIGNATURE.care}:{...WD_DEFAULTS,price:own?WEBSITE_OFFER.buyout:WD_DEFAULTS.price};
+  return {tier,mgmt,price:wdNum(t.price,D.price),plan:t.plan==="half"?"half":"full",care:own?0:wdNum(t.care,mgmt==="hosting"?WEBSITE_OFFER.hosting:D.care),
   extraPages:wdInt(t.extraPages,0,20),extraPagePrice:wdNum(t.extraPagePrice,WEBSITE_OFFER.extraPage),
   blog:mgmt==="care"&&t.blog===true,blogSetup:wdNum(t.blogSetup,WEBSITE_OFFER.blogSetup),blogMonthly:wdNum(t.blogMonthly,WEBSITE_OFFER.blogMonthly),
   blogPosts:Math.max(1,wdInt(t.blogPosts,WEBSITE_OFFER.blogPostsPerMonth,8)),
   emailSetup:t.emailSetup===true,emailSetupPrice:wdNum(t.emailSetupPrice,WEBSITE_OFFER.emailSetup),special:wdSpecial(t.special)}; };
-const wdVariantName=(t0)=>{ const t=wdNorm(t0); return `${t.tier==="signature"?"Signature (custom) website":"Standard website"}${t.mgmt==="hosting"?", hosting only":" with Care Plan"}`; };
+const wdVariantName=(t0)=>{ const t=wdNorm(t0); return `${t.tier==="signature"?"Signature (custom) website":"Standard website"}${t.mgmt==="hosting"?", hosting only":t.mgmt==="own"?", bought outright":" with Care Plan"}`; };
 const wdR2=(n)=>Math.round(n*100)/100;
 const wdExtraAllowance=(t0)=>{ const t=wdNorm(t0); return t.extraPages+(t.tier==="signature"?WEBSITE_SIGNATURE.includedExtraPages:0); };
 const wdBuildTotal=(t0)=>{ const t=wdNorm(t0); return wdR2(t.price+t.extraPages*t.extraPagePrice+(t.blog?t.blogSetup:0)+(t.emailSetup?t.emailSetupPrice:0)); };
@@ -11046,11 +11174,14 @@ function WebsiteSpecialTerms({client,terms,locked,busy,call}){
 function WebsiteDealCard({client,onUpdate}){
   const d=wdDeal(client), t=wdTerms(client), m=wdAmounts(t), a=d.agreement, live=wdAgreementLive(client);
   const termsForm=(x)=>{ const n=wdNorm(x); return {tier:n.tier,mgmt:n.mgmt,price:String(n.price),plan:n.plan,care:String(n.care),extraPages:String(n.extraPages),extraPagePrice:String(n.extraPagePrice),blog:n.blog,blogSetup:String(n.blogSetup),blogMonthly:String(n.blogMonthly),blogPosts:String(n.blogPosts),emailSetup:n.emailSetup,emailSetupPrice:String(n.emailSetupPrice)}; };
-  const [form,setForm]=useState(termsForm(d));
+  // A client made from a demo (KB demo-sites) arrives with the plan picked on the meeting; it is the starting point
+  // until terms are saved.
+  const dSeed=(d&&(d.price!=null||d.mgmt))?d:{...d,mgmt:client.websitePlanChoice==="own"?"own":"care"};
+  const [form,setForm]=useState(termsForm(dSeed));
   const [busy,setBusy]=useState("");
   const [msg,setMsg]=useState("");
   const [preview,setPreview]=useState("");
-  useEffect(()=>{ setForm(termsForm(d)); },[client.id,JSON.stringify(wdNorm(d))]);
+  useEffect(()=>{ setForm(termsForm(dSeed)); },[client.id,JSON.stringify(wdNorm(dSeed))]);
   const call=async(action,extra={},label)=>{
     setBusy(action); setMsg("");
     try{
@@ -11111,10 +11242,11 @@ function WebsiteDealCard({client,onUpdate}){
             {[["standard","care","Standard website, with Care Plan",`${wdMoney(WEBSITE_OFFER.build)} build · one of our 3 designs · 5 pages · then ${wdMoney(WEBSITE_OFFER.care)}/mo: hosting plus ${WEBSITE_OFFER.carePlanEdits} small changes a month`],
               ["standard","hosting","Standard website, hosting only",`${wdMoney(WEBSITE_OFFER.build)} build · then ${wdMoney(WEBSITE_OFFER.hosting)}/mo to keep it online · no changes included, every change quoted`],
               ["signature","care","Signature (custom) website, with Care Plan",`${wdMoney(WEBSITE_SIGNATURE.build)} build · designed around their brand · ${WEBSITE_SIGNATURE.pages} pages · then ${wdMoney(WEBSITE_SIGNATURE.care)}/mo with ${WEBSITE_SIGNATURE.carePlanEdits} changes a month`],
-              ["signature","hosting","Signature (custom) website, hosting only",`${wdMoney(WEBSITE_SIGNATURE.build)} build · designed around their brand · then ${wdMoney(WEBSITE_OFFER.hosting)}/mo to keep it online · every change quoted`]].map(([tier,mgmt,l,sub])=>{
+              ["signature","hosting","Signature (custom) website, hosting only",`${wdMoney(WEBSITE_SIGNATURE.build)} build · designed around their brand · then ${wdMoney(WEBSITE_OFFER.hosting)}/mo to keep it online · every change quoted`],
+              ["standard","own","Standard website, bought outright",`${wdMoney(WEBSITE_OFFER.buyout)} once · no monthly · they get the site files and host and manage it themselves`]].map(([tier,mgmt,l,sub])=>{
               const on=form.tier===tier&&form.mgmt===mgmt;
               return (<button key={tier+mgmt} onClick={()=>{ const was=wdNorm({tier:form.tier,mgmt:form.mgmt}), now=wdNorm({tier,mgmt});
-                  setForm({...form,tier,mgmt,price:String(form.price)===String(was.price)?String(now.price):form.price,care:String(form.care)===String(was.care)?String(now.care):form.care,blog:mgmt==="hosting"?false:form.blog}); }}
+                  setForm({...form,tier,mgmt,price:String(form.price)===String(was.price)?String(now.price):form.price,care:String(form.care)===String(was.care)?String(now.care):form.care,blog:mgmt!=="care"?false:form.blog}); }}
                 style={{textAlign:"left",padding:"10px 12px",borderRadius:10,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${on?C.gold:C.border}`,backgroundColor:on?C.goldDim:"transparent"}}>
                 <div style={{fontSize:12.5,fontWeight:800,color:on?C.gold:C.text}}>{on?"✓ ":""}{l}</div>
                 <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:2}}>{sub}</div></button>); })}
@@ -11122,12 +11254,12 @@ function WebsiteDealCard({client,onUpdate}){
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:10}}>
             <label style={{fontSize:11,color:C.textMuted}}>Build price ($)<input inputMode="decimal" value={form.price} onChange={e=>setForm({...form,price:e.target.value})} style={{...inp,marginTop:4}}/></label>
             <label style={{fontSize:11,color:C.textMuted}}>How they pay<select value={form.plan} onChange={e=>setForm({...form,plan:e.target.value})} style={{...inp,marginTop:4}}><option value="full">All up front</option><option value="half">Half now, half before launch</option></select></label>
-            <label style={{fontSize:11,color:C.textMuted}}>{form.mgmt==="hosting"?"Hosting ($ a month)":"Care plan ($ a month)"}<input inputMode="decimal" value={form.care} onChange={e=>setForm({...form,care:e.target.value})} style={{...inp,marginTop:4}}/></label>
+            {form.mgmt!=="own"&&<label style={{fontSize:11,color:C.textMuted}}>{form.mgmt==="hosting"?"Hosting ($ a month)":"Care plan ($ a month)"}<input inputMode="decimal" value={form.care} onChange={e=>setForm({...form,care:e.target.value})} style={{...inp,marginTop:4}}/></label>}
             <label style={{fontSize:11,color:C.textMuted}}>Extra pages (beyond the 5)<input inputMode="numeric" value={form.extraPages} onChange={e=>setForm({...form,extraPages:e.target.value})} style={{...inp,marginTop:4}}/></label>
             <label style={{fontSize:11,color:C.textMuted}}>Price per extra page ($)<input inputMode="decimal" value={form.extraPagePrice} onChange={e=>setForm({...form,extraPagePrice:e.target.value})} style={{...inp,marginTop:4}}/></label>
           </div>
-          {form.mgmt!=="hosting"&&<label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:C.text,margin:"2px 0 8px",cursor:"pointer"}}><input type="checkbox" checked={!!form.blog} onChange={e=>setForm({...form,blog:e.target.checked})}/>Add a blog (we write and publish articles for them every month)</label>}
-          {form.mgmt!=="hosting"&&form.blog&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:10}}>
+          {form.mgmt==="care"&&<label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:C.text,margin:"2px 0 8px",cursor:"pointer"}}><input type="checkbox" checked={!!form.blog} onChange={e=>setForm({...form,blog:e.target.checked})}/>Add a blog (we write and publish articles for them every month)</label>}
+          {form.mgmt==="care"&&form.blog&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:10}}>
             <label style={{fontSize:11,color:C.textMuted}}>Blog setup ($ once)<input inputMode="decimal" value={form.blogSetup} onChange={e=>setForm({...form,blogSetup:e.target.value})} style={{...inp,marginTop:4}}/></label>
             <label style={{fontSize:11,color:C.textMuted}}>Blog plan ($ a month)<input inputMode="decimal" value={form.blogMonthly} onChange={e=>setForm({...form,blogMonthly:e.target.value})} style={{...inp,marginTop:4}}/></label>
             <label style={{fontSize:11,color:C.textMuted}}>Articles a month<input inputMode="numeric" value={form.blogPosts} onChange={e=>setForm({...form,blogPosts:e.target.value})} style={{...inp,marginTop:4}}/></label>
@@ -11161,7 +11293,8 @@ function WebsiteDealCard({client,onUpdate}){
           {step(wdFirstPaid(client),m.final?"First half":"Payment",<>{invLine(m.firstStage,m.first)}{invButtons(m.firstStage,m.first,true)}</>)}
           {step(built,"Build",built?<>{d.reviewSentAt?`Built. Preview link emailed to them ${wdFmt(d.reviewSentAt)}.`:"Built."}{!d.launchedAt&&wdFirstPaid(client)&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}><button disabled={!!busy||!client.email} onClick={()=>{ if(window.confirm(`Email ${client.email} the private preview link so they can look it over?${inv("final")&&!inv("final").paidAt&&inv("final").url?" It includes the link to pay the second half.":""}`)) call("send-review",{},"✓ Sent. They have the private link to look it over."); }} style={btn(false,!!busy||!client.email)}>{busy==="send-review"?"Sending…":d.reviewSentAt?"Send the preview again":"Email them the preview"}</button></div>}</>:wdFirstPaid(client)?"Unlocked. Build it below.":"Unlocks when the payment is in.")}
           {m.final>0&&step(wdStagePaid(client,"final"),"Second half",<>{invLine("final",m.final)}{invButtons("final",m.final,built&&wdFirstPaid(client))}{!built&&wdFirstPaid(client)&&!inv("final")&&<div style={{marginTop:4}}>Send it once the site is finished and they're happy with it.</div>}</>)}
-          {step(!!d.launchedAt,"Live",d.launchedAt?`Went live ${wdFmt(d.launchedAt)}.${careOn?` ${t.mgmt==="hosting"?"Hosting":"Care plan"} ${d.careSub.status==="active"?"active":d.careSub.status||"started"} (${d.careSub.collection==="card"?"card on file":"invoiced monthly"}).`:""}`:wdFullyPaid(client)?"Paid in full. Put it live below.":"Unlocks when it's paid in full.")}
+          {t.mgmt==="own"&&step(!!d.handedOverAt,"Handover",<SiteFilesHandover client={client} paid={wdFullyPaid(client)}/>)}
+          {t.mgmt!=="own"&&step(!!d.launchedAt,"Live",d.launchedAt?`Went live ${wdFmt(d.launchedAt)}.${careOn?` ${t.mgmt==="hosting"?"Hosting":"Care plan"} ${d.careSub.status==="active"?"active":d.careSub.status||"started"} (${d.careSub.collection==="card"?"card on file":"invoiced monthly"}).`:""}`:wdFullyPaid(client)?"Paid in full. Put it live below.":"Unlocks when it's paid in full.")}
         </div>)}
       {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:10,lineHeight:1.5,wordBreak:"break-word"}}>{msg}</div>}
       {preview&&(
@@ -11170,6 +11303,38 @@ function WebsiteDealCard({client,onUpdate}){
           <iframe title="Website agreement preview" srcDoc={preview} sandbox="" style={{width:"100%",height:560,border:`1px solid ${C.border}`,borderRadius:10,background:"#fff"}}/>
         </div>)}
     </div>);
+}
+
+// Bought outright (agreement WA-8, KB demo-sites): once it's paid in full, their whole site as one zip, made for THEIR
+// web address, to send to them or their web person. The server refuses before full payment.
+function SiteFilesHandover({client,paid}){
+  const d=wdDeal(client);
+  const [domain,setDomain]=useState((d.handedOverTo)||((d.domain&&d.domain.host)||""));
+  const [busy,setBusy]=useState(false);
+  const [msg,setMsg]=useState("");
+  const go=async()=>{
+    setBusy(true); setMsg("");
+    try{
+      const { data:{ session } }=await supabaseClient.auth.getSession();
+      const r=await fetch("/.netlify/functions/site",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+((session&&session.access_token)||"")},body:JSON.stringify({action:"export",clientId:client.id,domain})});
+      const out=await r.json().catch(()=>({}));
+      if(!r.ok||!out.ok) throw new Error(out.error||"Couldn't make the files. Try again.");
+      const bin=atob(out.zip), bytes=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+      const url=URL.createObjectURL(new Blob([bytes],{type:"application/zip"}));
+      const a=document.createElement("a"); a.href=url; a.download=out.filename||"website.zip"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000);
+      setMsg(`✓ Downloaded: ${out.pages} pages${out.photos?`, ${out.photos} photos`:""}. Send the zip to them or their web person. Instructions are inside.`);
+    }catch(e){ setMsg(e.message); }
+    setBusy(false);
+  };
+  if(!paid) return <span>They bought it outright. Once it's paid in full, you download their site files here and send them over.</span>;
+  return (<div>
+    {d.handedOverAt?<div>Files handed over {wdFmt(d.handedOverAt)}{d.handedOverTo?` for ${d.handedOverTo}`:""}. Download again any time.</div>:<div>Paid in full. Type the web address they'll use, then download their site files.</div>}
+    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
+      <input value={domain} onChange={e=>setDomain(e.target.value)} placeholder="theirbusiness.com" style={{flex:"1 1 180px",minWidth:0,padding:"8px 10px",fontSize:12.5,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,fontFamily:"inherit"}}/>
+      <button disabled={busy||!domain.trim()} onClick={go} style={{padding:"8px 12px",fontSize:12,fontWeight:700,borderRadius:8,border:"none",background:busy||!domain.trim()?"rgba(255,255,255,.06)":C.gold,color:busy||!domain.trim()?C.textMuted:"#0a0800",cursor:busy||!domain.trim()?"default":"pointer"}}>{busy?"Making the files…":"Download their site files"}</button>
+    </div>
+    {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:6,lineHeight:1.5}}>{msg}</div>}
+  </div>);
 }
 
 const SITE_THEME_LIST=[["cinematic","Cinematic","Light and airy, huge type, a glass orb that reacts to the cursor."],["aurora","Aurora","Dark and bold, with a moving 3D backdrop matched to the trade."],["editorial","Editorial","Bright and refined, elegant serif headlines, photo-led."]];
@@ -22853,10 +23018,10 @@ function App({onLogout}) {
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
         {screen==="home"&&<HomeScreen clients={realClients} onOpenBusinesses={()=>setScreen("businesses")} businessCount={myBusinesses.length} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onAddDemo={addDemoClient} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} onOutreach={()=>setScreen("outreach")} hasMyAccount={!!myAccount} isDesktop={isDesktop} leads={leads} onLeads={()=>setScreen("leads")} onARIA={()=>setShowARIA(true)} onCalendar={()=>setScreen("calendar")}/>}
         {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)} clients={clients} onCreateClient={addClient}/>}
-        {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
+        {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep} onCreateClient={addClient}/>}
         {/* Lead Scout finds them, Outreach works them. Two screens because they are two jobs:
             one is a search you run occasionally, the other is a thing you sit down and do. */}
-        {screen==="outreach"&&<OutreachScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
+        {screen==="outreach"&&<OutreachScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep} onCreateClient={addClient}/>}
         {screen==="campaigns"&&<CampaignManagerScreen clients={clients} onBack={()=>{setFocusCampaign(null);setScreen("home");}} isDesktop={isDesktop} onSelectClient={selectClient} onUpdate={updateClient} focusKey={focusCampaign}/>}
         {screen==="content"&&<ContentStudioScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} account={myAccount} onSaveAccount={updateClient}/>}
         {screen==="calendar"&&<CalendarScreen clients={[...realClients,...myBusinesses]} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}

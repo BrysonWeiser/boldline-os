@@ -55,7 +55,11 @@ export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: W
 // Also WA-7 (Bryson, same night: "if you can't answer me within two weeks then that's just ghosting"): a client who
 // goes quiet for 14 days lets BoldLine pause the project with written notice, and 14 more days of silence after that
 // notice lets BoldLine close it (was 60 days straight to closing). The notice step is what makes it fair and holdable.
-export const AGREEMENT_VERSION = "WA-7";
+// WA-8 (2026-10-20, Bryson: "$2500 ... if they want to include the $100/month for us to host it and do everything then
+// itll be $1500 then the monthly"): a fifth version, BOUGHT OUTRIGHT. No monthly charge; on full payment BoldLine hands
+// over the complete site files, Client owns and hosts them, and nothing after handover is BoldLine's to keep running.
+// The other four versions read exactly as they did in WA-7. KB demo-sites.
+export const AGREEMENT_VERSION = "WA-8";
 export const PLANS = { full: "Paid in full up front", half: "Half now, half before launch" };
 
 const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : d; };
@@ -86,7 +90,7 @@ const int = (v, d, max) => Math.max(0, Math.min(max, Math.floor(num(v, d))));
 export const TIERS = { standard: "Standard website", signature: "Signature website" };
 // Management: the Care Plan (hosting, upkeep and small changes every month) or hosting only (kept online and secure,
 // every change quoted). An agreement from before this reads as the Care Plan, exactly what it was signed with.
-export const MGMT = { care: "Care Plan", hosting: "Hosting only" };
+export const MGMT = { care: "Care Plan", hosting: "Hosting only", own: "Bought outright" };
 // Special Terms: what he agreed beyond the price list, typed by hand or written up by the AI (contract-terms.mjs).
 // Plain text only, a dash becomes a comma (house rule), at most twelve. Mirrored in index.html (wdSpecial).
 const specText = (s, n) => String(s == null ? "" : s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/\s*[\u2014\u2013]\s*/g, ", ").replace(/[ \t]+/g, " ").trim().slice(0, n);
@@ -95,12 +99,14 @@ export const normTerms = (t0) => {
   const t = t0 || {};
   // The tier sets the defaults; any price he typed still wins. An agreement from before tiers reads as standard.
   const tier = t.tier === "signature" ? "signature" : "standard";
-  const mgmt = t.mgmt === "hosting" ? "hosting" : "care";
-  const D = tier === "signature" ? { price: WEBSITE_SIGNATURE.build, care: WEBSITE_SIGNATURE.care } : DEAL_DEFAULTS;
+  const mgmt = t.mgmt === "hosting" || t.mgmt === "own" ? t.mgmt : "care";
+  // Bought outright costs the buyout difference on top of the tier's build, and never has a monthly fee.
+  const own = mgmt === "own", lift = WEBSITE_OFFER.buyout - WEBSITE_OFFER.build;
+  const D = tier === "signature" ? { price: WEBSITE_SIGNATURE.build + (own ? lift : 0), care: WEBSITE_SIGNATURE.care } : { ...DEAL_DEFAULTS, price: own ? WEBSITE_OFFER.buyout : DEAL_DEFAULTS.price };
   return {
     tier, mgmt,
     // `care` is the monthly fee either way: the Care Plan's, or hosting's.
-    price: num(t.price, D.price), plan: t.plan === "half" ? "half" : "full", care: num(t.care, mgmt === "hosting" ? WEBSITE_OFFER.hosting : D.care),
+    price: num(t.price, D.price), plan: t.plan === "half" ? "half" : "full", care: own ? 0 : num(t.care, mgmt === "hosting" ? WEBSITE_OFFER.hosting : D.care),
     extraPages: int(t.extraPages, 0, 20), extraPagePrice: num(t.extraPagePrice, WEBSITE_OFFER.extraPage),
     // The blog is written and published every month, which is management, so hosting only has none.
     blog: mgmt === "care" && t.blog === true, blogSetup: num(t.blogSetup, WEBSITE_OFFER.blogSetup), blogMonthly: num(t.blogMonthly, WEBSITE_OFFER.blogMonthly),
@@ -113,8 +119,8 @@ export const normTerms = (t0) => {
 export const variantOf = (t0) => {
   const t = normTerms(t0);
   return { key: `${t.tier}-${t.mgmt}`,
-    name: `${t.tier === "signature" ? "Signature (custom) website" : "Standard website"}${t.mgmt === "hosting" ? ", hosting only" : " with Care Plan"}`,
-    title: t.mgmt === "hosting" ? "Website Design and Hosting Agreement" : "Website Design and Care Agreement" };
+    name: `${t.tier === "signature" ? "Signature (custom) website" : "Standard website"}${t.mgmt === "hosting" ? ", hosting only" : t.mgmt === "own" ? ", bought outright" : " with Care Plan"}`,
+    title: t.mgmt === "hosting" ? "Website Design and Hosting Agreement" : t.mgmt === "own" ? "Website Design and Purchase Agreement" : "Website Design and Care Agreement" };
 };
 const r2 = (n) => Math.round(n * 100) / 100;
 // One-time: the website, its extra pages and the blog setup. Monthly: care plus the blog.
@@ -122,8 +128,8 @@ const r2 = (n) => Math.round(n * 100) / 100;
 export const tierIncludes = (t0) => {
   const t = normTerms(t0);
   return t.tier === "signature"
-    ? { basePages: WEBSITE_SIGNATURE.pages, includedExtraPages: WEBSITE_SIGNATURE.includedExtraPages, rounds: WEBSITE_SIGNATURE.revisionRounds, careEdits: t.mgmt === "hosting" ? 0 : WEBSITE_SIGNATURE.carePlanEdits }
-    : { basePages: WEBSITE_OFFER.pages, includedExtraPages: 0, rounds: WEBSITE_OFFER.revisionRounds, careEdits: t.mgmt === "hosting" ? 0 : WEBSITE_OFFER.carePlanEdits };
+    ? { basePages: WEBSITE_SIGNATURE.pages, includedExtraPages: WEBSITE_SIGNATURE.includedExtraPages, rounds: WEBSITE_SIGNATURE.revisionRounds, careEdits: t.mgmt !== "care" ? 0 : WEBSITE_SIGNATURE.carePlanEdits }
+    : { basePages: WEBSITE_OFFER.pages, includedExtraPages: 0, rounds: WEBSITE_OFFER.revisionRounds, careEdits: t.mgmt !== "care" ? 0 : WEBSITE_OFFER.carePlanEdits };
 };
 // How many extra pages (beyond the five main ones) may be written for this client.
 export const extraPageAllowance = (t0) => normTerms(t0).extraPages + tierIncludes(t0).includedExtraPages;
@@ -206,7 +212,7 @@ export function websiteAgreementHTML(cl, terms = termsOf(cl), { now = new Date()
   const pay = t.plan === "half"
     ? `<p>The Build Fee is paid in two parts: <strong>${money(m.first)}</strong> when this Agreement is signed, and <strong>${money(m.final)}</strong> when the Website is finished and before it goes live. Work starts when the first payment is received. <strong>The Website will not be published until the second payment is received.</strong></p>`
     : `<p>The Build Fee of <strong>${money(total)}</strong> is paid in full when this Agreement is signed. Work starts when it is received.</p>`;
-  const hosting = t.mgmt === "hosting", V = variantOf(t);
+  const hosting = t.mgmt === "hosting", owned = t.mgmt === "own", V = variantOf(t);
   const care = t.care > 0
     ? `<p>The Care Plan costs <strong>${money(t.care)} per month</strong>. It starts on the day the Website goes live and is billed monthly in advance.</p>`
     : `<p>The Care Plan fee is waived. BoldLine will host and look after the Website at no monthly charge.</p>`;
@@ -237,7 +243,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}td{borde
 <h2>Key terms</h2><table>
 <tr><td>Build Fee</td><td>${money(total)}${parts.length > 1 ? ` (${parts.join(", ")})` : ""}</td></tr>
 <tr><td>Payment</td><td>${t.plan === "half" ? `${money(m.first)} on signing, ${money(m.final)} before the Website goes live` : `${money(total)} on signing`}</td></tr>
-${hosting ? `<tr><td>Hosting</td><td>${t.care > 0 ? `${money(t.care)} per month, starting the day the Website goes live` : "No monthly charge"}. Hosting only: changes after launch are quoted first</td></tr>` : `<tr><td>Care Plan</td><td>${t.care > 0 ? `${money(t.care)} per month, starting the day the Website goes live` : "Waived"}</td></tr>`}
+${owned ? `<tr><td>Ownership</td><td>Bought outright. No monthly charge. Once the Build Fee is paid in full, BoldLine hands over the complete Website files and Client hosts and maintains the Website from then on</td></tr>` : hosting ? `<tr><td>Hosting</td><td>${t.care > 0 ? `${money(t.care)} per month, starting the day the Website goes live` : "No monthly charge"}. Hosting only: changes after launch are quoted first</td></tr>` : `<tr><td>Care Plan</td><td>${t.care > 0 ? `${money(t.care)} per month, starting the day the Website goes live` : "Waived"}</td></tr>`}
 ${t.blog ? `<tr><td>Blog Plan</td><td>${money(t.blogMonthly)} per month for about ${t.blogPosts} article${t.blogPosts > 1 ? "s" : ""} a month, starting the day the Website goes live</td></tr>
 ` : ""}<tr><td>Website</td><td>${sig ? "Signature website, designed around Client&rsquo;s own brand" : "Standard website, in one of BoldLine&rsquo;s designs"}</td></tr>
 <tr><td>Included</td><td>A website of ${sig ? `${words[inc.basePages]} pages (Home, Services, About, Reviews, Contact, and ${words[inc.includedExtraPages]} more agreed with Client)` : "five pages (Home, Services, About, Reviews, Contact)"}${t.extraPages ? ` plus ${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} agreed with Client` : ""}${t.blog ? ", a blog" : ""}${t.emailSetup ? ", business email set up on Client&rsquo;s domain" : ""}, a contact form that sends enquiries to Client, mobile friendly design, ${words[inc.rounds]} rounds of changes before launch</td></tr>
@@ -257,22 +263,27 @@ ${pay}
 
 <h2>4. Changes before launch</h2>
 <p>${words[inc.rounds][0].toUpperCase() + words[inc.rounds].slice(1)} rounds of changes before launch are included. A round is one list of changes sent together. New pages, a different design after work has started, or changes beyond ${words[inc.rounds]} rounds are quoted separately and only done if Client agrees to the quote in writing.</p>
-${hosting ? `<p>Setting up how customers reach Client through the website (a quote form, online booking, a link to a booking system Client already uses, or calling) is part of the build and never counts as a round of changes. After launch, changing it is quoted like any other change (section 7).</p>` : `<p>Setting up, and later changing, how customers reach Client through the website (a quote form, online booking, a link to a booking system Client already uses, or calling) is part of the build and the care plan. It never counts as a round of changes and is never charged separately.</p>`}
+${hosting || owned ? `<p>Setting up how customers reach Client through the website (a quote form, online booking, a link to a booking system Client already uses, or calling) is part of the build and never counts as a round of changes. After launch, changing it is quoted like any other change (section 7).</p>` : `<p>Setting up, and later changing, how customers reach Client through the website (a quote form, online booking, a link to a booking system Client already uses, or calling) is part of the build and the care plan. It never counts as a round of changes and is never charged separately.</p>`}
 <p>The same goes for how Client&rsquo;s customers pay through the website: connecting Client&rsquo;s own Stripe or Square account, a payment link from Client&rsquo;s own account, or payment in person. Every such payment goes straight from the customer to Client&rsquo;s own account. Client is the seller, and refunds, chargebacks, processing fees and any taxes on those sales are Client&rsquo;s. BoldLine never receives, holds or handles that money, takes no share of it, and Client may disconnect its account at any time.</p>
 
 <h2>5. Timing</h2>
 <p>BoldLine aims to have a first version ready for Client to review within fourteen (14) days of receiving the first payment and the information it needs. If BoldLine has not delivered a first version within sixty (60) days of receiving both, Client may end this Agreement by written notice and receive a refund of the Build Fee paid.</p>
 <p>If Client does not respond to BoldLine for fourteen (14) days in a row while the Website is being built, BoldLine may pause the project and tell Client so in writing (email is fine), and the timing in this section stops while it is paused. If Client still has not responded fourteen (14) days after that notice, BoldLine may close the project by written notice. Payments already made are not refunded, and nothing further is owed for the build.</p>
 
-<h2>6. Going live and the domain</h2>
+${owned ? `<h2>6. Handover</h2>
+<p>When the Website is finished, approved by Client and paid for in full, BoldLine will hand over the complete Website files (every page, ready to put online) to Client by download. If Client asks, BoldLine will put the Website online once on a host and domain Client owns and gives BoldLine access to. Client owns its domain name and keeps it registered in its own name, at its own cost.</p>
+<p>Until handover the Website is shown to Client only through private preview links. BoldLine does not host the Website after handover.</p>
+
+` : `<h2>6. Going live and the domain</h2>
 <p>When the Website is finished, paid for in full and approved by Client, BoldLine will publish it on Client&rsquo;s domain name. Client owns its domain name and keeps it registered in its own name, at its own cost. If Client does not have one, BoldLine will help Client register one in Client&rsquo;s name.</p>
 <p>BoldLine manages the domain&rsquo;s settings for Client, so Client does not need anyone else to look after the Website. To do this, Client will give BoldLine access to the account where the domain is registered, limited to managing its settings where the provider allows it, for as long as BoldLine hosts the Website. BoldLine will use that access only to connect the domain to the Website and keep it working. Without Client&rsquo;s written approval (email is fine), BoldLine will not transfer the domain, change who owns it, cancel it, or change the settings Client&rsquo;s email depends on. Keeping the domain renewed and paid for remains Client&rsquo;s responsibility.</p>
 <p>The domain and the account stay Client&rsquo;s at all times, and Client may remove BoldLine&rsquo;s access whenever it chooses. While BoldLine hosts the Website, removing that access or changing those settings may stop the Website working on the domain, which will not be a breach by BoldLine. When BoldLine stops hosting the Website, it will stop using the access, and on request will tell Client exactly which settings it made so they can be pointed wherever Client chooses. This does not depend on any amount being owed.</p>
 
-${t.emailSetup ? `<h2>6a. Business email setup</h2>
+`}${t.emailSetup ? `<h2>6a. Business email setup</h2>
 <p>BoldLine will set up email on Client&rsquo;s domain (for example hello@ followed by Client&rsquo;s domain) with an email provider Client chooses, such as Google Workspace or Microsoft 365. The email account is in Client&rsquo;s name and Client pays the provider directly for it; that monthly fee is not part of this Agreement. Setup includes creating the mailbox or mailboxes Client asks for (up to three), adding the domain settings email needs, checking that mail sends and arrives, and connecting the address so emails the Website sends to Client&rsquo;s customers come from it. It is a one-time service, included in the Build Fee shown above.</p>
 ` : ""}
-${hosting ? `<h2>7. Hosting</h2>
+${owned ? `<h2>7. After handover</h2>
+<p>There is no monthly charge. After handover Client hosts, runs and looks after the Website, and BoldLine is not responsible for keeping it online, for security updates, or for its forms, booking or payment connections continuing to work. The contact form in the handed-over files opens the visitor&rsquo;s own email app addressed to Client, and Client&rsquo;s own web developer may connect it to any form service instead. Any change Client asks BoldLine to make after handover is quoted first and only done if Client agrees to the quote in writing (email is fine). Client may later move to BoldLine&rsquo;s Care Plan at its then current monthly price.</p>` : hosting ? `<h2>7. Hosting</h2>
 ${host}` : `<h2>7. The Care Plan</h2>
 ${care}
 <p>The Care Plan covers hosting, security updates, keeping the Website online, and up to ${words[inc.careEdits]} small content changes per month (for example text, photos, hours or prices). Larger changes are quoted separately. Client may cancel the Care Plan at any time with thirty (30) days&rsquo; written notice. If a Care Plan invoice is unpaid fifteen (15) days after its due date, BoldLine may take the Website offline until it is paid.</p>`}
@@ -280,7 +291,7 @@ ${care}
 ${blog}
 
 <h2>8. Who owns what</h2>
-<p>Once the Build Fee is paid in full, Client owns the words written for the Website, and always owns its own name, logo, photos, content and domain. BoldLine keeps ownership of its design templates, code and tools, and grants Client a license to use them as part of the Website. If ${hosting ? "hosting" : "the Care Plan"} ends, and once everything owed has been paid, BoldLine will on request provide a copy of the Website&rsquo;s pages and images as standard web files, which Client may host anywhere and keep using.</p>
+${owned ? `<p>Once the Build Fee is paid in full, Client owns the Website as handed over: its words, its pages and its files, and may host, copy, change and keep using them as it chooses. Client always owns its own name, logo, photos, content and domain. Stock photos in the Website are licensed for free commercial use by their source and may be replaced with Client&rsquo;s own at any time. BoldLine keeps the right to use its general designs, code patterns and tools in its other work.</p>` : `<p>Once the Build Fee is paid in full, Client owns the words written for the Website, and always owns its own name, logo, photos, content and domain. BoldLine keeps ownership of its design templates, code and tools, and grants Client a license to use them as part of the Website. If ${hosting ? "hosting" : "the Care Plan"} ends, and once everything owed has been paid, BoldLine will on request provide a copy of the Website&rsquo;s pages and images as standard web files, which Client may host anywhere and keep using.</p>`}
 <p>BoldLine may show the finished Website, Client&rsquo;s business name and pictures of the Website in its portfolio and marketing, including on BoldLine&rsquo;s own website, as an example of its work. BoldLine will not share Client&rsquo;s private information, enquiries or results without Client&rsquo;s written approval. Client may ask BoldLine in writing (email is fine) to stop at any time, and BoldLine will remove it from anything BoldLine controls within thirty (30) days.</p>
 
 <h2>9. No guarantees about results</h2>

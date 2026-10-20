@@ -3,6 +3,7 @@
 //   GET  /site/<slug>/[page]/        the live website (published), or a preview link (?preview=key)
 //   POST { action:"preview", client, page, theme }   owner only: the exact page, for the OS preview
 //   POST { action:"poll", clientId }                  owner only: the background build's result
+//   POST { action:"export", clientId, domain }        owner only: the site as a zip, for a client who bought it outright
 //
 // Rendering lives in ../lib/site-render.mjs; the copy is written by site-build-background.
 // KB `website-builder`.
@@ -12,7 +13,8 @@ import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { isBillingPaused } from "../lib/late-payment.mjs";
 import { renderSite, pageById, THEME_IDS, siteReady, brandName, pageByPath, pagesFor } from "../lib/site-render.mjs";
 import { supabaseStore, loadIndex, loadPost, publishedPosts, isPublished, setHeld, removePost, applyEdit } from "../lib/site-blog.mjs";
-import { publishLock } from "../lib/website-deal.mjs";
+import { publishLock, termsOf, fullyPaid, exempt } from "../lib/website-deal.mjs";
+import { exportSiteFiles, zipFiles } from "../lib/site-export.mjs";
 import { cleanDomain, altHost, liveDomain, domainRequest, sitemapXML, robotsTXT } from "../lib/site-domain.mjs";
 
 const json = (body, status = 200) =>
@@ -88,6 +90,27 @@ export default async (req) => {
         if (body.action === "blog-hold") return json({ ok: true, posts: await setHeld(store, id, String(body.slug || ""), !!body.held) });
         if (body.action === "blog-save") { const r = await applyEdit(store, id, String(body.slug || ""), body, "boldline"); return json({ ok: true, post: r.post, posts: r.index }); }
         return json({ ok: true, posts: await removePost(store, id, String(body.slug || "")) });
+      } catch (e) { return json({ ok: false, error: String(e.message || e) }, 400); }
+    }
+    // Bought outright (agreement WA-8, KB demo-sites): every page as files on THEIR domain, once it is paid in full.
+    if (body.action === "export") {
+      const id = String(body.clientId || "");
+      const { data: row, error } = await supabase.from("clients").select("data").eq("id", id).maybeSingle();
+      if (error || !row || !row.data) return json({ ok: false, error: "Client not found" }, 404);
+      const cl = { ...row.data, id };
+      if (!siteReady(cl)) return json({ ok: false, error: "Their website isn't written yet." }, 409);
+      if (!exempt(cl) && termsOf(cl).mgmt !== "own") return json({ ok: false, error: "Only a website they bought outright is handed over as files. This one stays hosted by us." }, 409);
+      if (!exempt(cl) && !fullyPaid(cl)) return json({ ok: false, error: "The files are handed over once it's paid in full." }, 409);
+      try {
+        const out = await exportSiteFiles(cl, { domain: body.domain, email: (cl.website && cl.website.publicEmail) || cl.email });
+        const zip = zipFiles(out.files);
+        // Recorded on the deal so the Website tab shows the handover as done. Read-merge-write of that one key.
+        const deal = cl.websiteDeal || {};
+        if (!deal.handedOverAt) {
+          const next = { ...row.data, websiteDeal: { ...deal, handedOverAt: new Date().toISOString(), handedOverTo: out.host } };
+          await supabase.from("clients").update({ data: next, updated_at: new Date().toISOString() }).eq("id", id);
+        }
+        return json({ ok: true, filename: `${out.host.replace(/[^a-z0-9.-]/gi, "")}-website.zip`, zip: zip.toString("base64"), pages: out.pages, photos: out.photos, linked: out.linked, handedOverAt: deal.handedOverAt || new Date().toISOString() });
       } catch (e) { return json({ ok: false, error: String(e.message || e) }, 400); }
     }
     if (body.action === "preview") {
