@@ -34,7 +34,7 @@ system ffmpeg here) encodes H.264 yuv420p, faststart. Fonts load through curl in
 Transitions: scenes crossfade over 0.3s with the next headline starting 0.05s early; the first render had a ~0.4s empty black gap at every change.
 File sent: BoldLine-promo-detailers.mp4 (1080x1920, 30fps, H.264, 45s, ~8MB). Posting advice: add a trending sound in TikTok/Instagram (none baked in), caption without emojis or dashes, pin a comment with the booking link.
 
-## v2 (2026-10-20, ~10:15pm Phoenix): narrated, website-first, ends on the URL
+## v2 (2026-10-20, ~10pm Phoenix): narrated, website-first, ends on the URL
 Bryson: *"Make sure there is a voice narrating it also I think instead of a book a call we give a url because people
 can't press a button that doesn't work also is it supposed to sell ads or websites"*.
 - **It now sells WEBSITES first, ads as the step up** (matches KB niche-selection: lead with websites for detailers).
