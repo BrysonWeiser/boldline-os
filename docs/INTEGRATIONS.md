@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 230 task-keyed entries under `knowledge/`. They surface automatically via the
+> 231 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**230 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**231 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -762,6 +762,12 @@
 - **[pricing-model](../knowledge/pricing-model.md)** &mdash; &#9989; verified &middot; 2026-08-18  
   Rewritten 2026-08-18 after Stencil & Thread turned the old model down. There is NO management fee. A package's `price` is a monthly MINIMUM and the performance fee counts toward it — the client pays whichever is HIGHER, never both. Lead gen bills per qualified lead; e-commerce bills 15% of ad spend (12% at the top tier). Ad budget decides the tier ($500-2.5k min $400 / $2.5k-10k min $700 / $10k+ min $1,200). Platform is a choice not a price: Google and Meta are identical at the same tier. Combined unlocks at $5,000/mo of ad budget, which is why there is no combined Launch tier. Hard floor of $500/mo ad budget to be a client at all. 1,140 assertions in tests/verify-packages.mjs.  
   <sub>*task:* quote a price, change package pricing, explain what a client pays, or work out why a bill is what it is &nbsp;|&nbsp; *keywords:* pricing, monthly minimum, greater of, whichever is higher, per-lead fee, ad spend percentage, package price, retainer, management fee, tier, ad budget, MIN_AD_BUDGET, COMBO_MIN_BUDGET, calcMonthlyBill, packageForBudget, pricingModel, adSpendPct, minBudget, combined unlock, Stencil, setup fee, e-commerce pricing, ROAS bonus</sub>
+
+## Prospects
+
+- **[unique-tile-renovation-prospect](../knowledge/unique-tile-renovation-prospect.md)** &mdash; &#9989; verified &middot; 2026-10-21  
+  2026-10-21 Bryson: the owner of Unique Tile Renovation (Instagram @unique_tile_renovation_, verified, ~7.8k followers, 6 posts, Arizona; owner Gabriel Portillo @gportilloo) follows him on Instagram. No website; unknown if running ads. High-end tile work (kitchens, backsplashes, showers, floors, outdoor, pools). Plan given: website first via a demo site built before reaching out, monthly plan recommended (ads later need a site we manage for tracking and quick changes), Google search ads as step two once the site is live. Instagram category is set to "Personal blog", a free tip to open with.  
+  <sub>*task:* pitch, follow up with, or build a demo site for Unique Tile Renovation (Gabriel Portillo, Arizona tile and remodel) &nbsp;|&nbsp; *keywords:* unique tile renovation, unique_tile_renovation_, gabriel portillo, gportilloo, tile, shower remodel, backsplash, warm lead, instagram dm, website first then ads</sub>
 
 ## Reporting
 
