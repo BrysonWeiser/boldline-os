@@ -77,3 +77,6 @@ logo, pay-the-invoice, open-your-portal and get-your-website-files all return 20
 boldlinemedia.com through curl in the Playwright route (as the walkthrough's shot.cjs now does) so pictures show.
 Only real-world gap: an email app that blocks pictures (mainly Outlook on a computer) shows the gold button with the
 words on it; that is the designed fallback.
+
+## 2026-10-21: booking and payments on the handed-over site
+The download card now asks how customers book (their booking app link, call, or request form) plus an optional payment link before it downloads, checks the links, and lets them switch apps later by downloading again. The Download button itself was broken until then (read the server answer twice). Full detail in KB `own-site-booking`.

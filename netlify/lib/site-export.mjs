@@ -6,7 +6,8 @@
 //  - links point at THEIR domain, never ours;
 //  - the contact form opens the visitor's email app addressed to the business (site-render `__mailto`), because our
 //    lead intake will not be there for them;
-//  - online booking is switched to the quote form, because it runs on our servers;
+//  - our online booking runs on our servers, so the buttons go where the client chose on the download card instead
+//    (their own booking app, their phone, or the form), plus their payment link if they gave one (own-site-setup);
 //  - no visitor counter, no preview guard, nothing indexed as "noindex";
 //  - the photos are copied into the zip when they fit, so they keep working if their source ever moves.
 // A README tells their developer what is in it and how to connect the form to a form service if they want one.
@@ -14,6 +15,7 @@
 import { deflateRawSync } from "node:zlib";
 import { renderSite, pagesFor } from "./site-render.mjs";
 import { sitemapXML, robotsTXT, cleanDomain } from "./site-domain.mjs";
+import { applySetup, setupWords } from "./own-site-setup.mjs";
 
 // ── A small zip writer (no dependency). Deflate where it helps, store where it does not (photos). ──────────────
 const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -55,7 +57,7 @@ const extOf = (u) => ((u.split("?")[0].match(/\.(jpe?g|png|webp|gif)$/i) || [, "
 
 // The site as files. `fetchImpl` copies the photos in (skipped, and left pointing at their source, if they would make
 // the download too big for one response or a photo will not come).
-export async function exportSiteFiles(cl, { domain, email, fetchImpl = fetch, maxImageBytes = 3.2e6, timeoutMs = 4500 } = {}) {
+export async function exportSiteFiles(cl, { domain, email, setup = null, fetchImpl = fetch, maxImageBytes = 3.2e6, timeoutMs = 4500 } = {}) {
   const host = cleanDomain(domain);
   if (!host) throw new Error("Type the web address they'll use, like theirbusiness.com.");
   const mail = String(email || "").trim();
@@ -63,7 +65,8 @@ export async function exportSiteFiles(cl, { domain, email, fetchImpl = fetch, ma
   const base = `https://${host}`;
   const intake = { ...((cl && cl.intake) || {}) };
   if (intake.how === "book") intake.how = "quote";
-  const site = { ...cl, intake, booking: { ...((cl && cl.booking) || {}), on: false }, __mailto: mail };
+  let site = { ...cl, intake, booking: { ...((cl && cl.booking) || {}), on: false }, __mailto: mail };
+  if (setup) site = applySetup(site, setup);
   const pages = pagesFor(site).filter((p) => p.id !== "blog" && p.id !== "book");
   let rendered = pages.map((p) => ({ name: p.path ? `${p.path}/index.html` : "index.html", html: renderSite(site, p.id, { base }) }));
 
@@ -95,6 +98,14 @@ export async function exportSiteFiles(cl, { domain, email, fetchImpl = fetch, ma
     `  folders as they are. The pages expect to live at ${base}/, so point that address at your host.`,
     "  images/  the photos used on the site.",
     "  sitemap.xml and robots.txt  help search engines find every page.",
+    "",
+    "Booking and payments",
+    `  ${setup ? setupWords(setup, cl) : "Every Book button opens your contact form, which sends the request to your email."}`,
+    ...(setup && (setup.link || setup.pay) ? [
+      "  Switched to a different app? Change it on the Website tab of your BoldLine portal and download a fresh copy,",
+      "  then upload it the same way as before. Or your web developer can replace the address below in every .html file:",
+      ...[setup.link, setup.pay].filter(Boolean).map((u) => `  ${u}`),
+    ] : ["  To change this, update it on the Website tab of your BoldLine portal and download a fresh copy."]),
     "",
     "The contact form",
     `  It opens the visitor's own email app with their message addressed to ${mail}. If you'd rather it sent`,

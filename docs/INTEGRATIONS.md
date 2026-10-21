@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 232 task-keyed entries under `knowledge/`. They surface automatically via the
+> 233 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**232 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**233 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -837,6 +837,9 @@
 
 ## Website
 
+- **[own-site-booking](../knowledge/own-site-booking.md)** &mdash; &#9989; verified &middot; 2026-10-21  
+  Bryson 2026-10-21 - "make sure they dont get a website they cant use because they cant book people or take payments and make sure its fully automated so i dont have to do anything on my end", and asked whether they should be able to switch apps (Square to PayPal) without contacting us. Our Book page and card payments run on our servers (the monthly plan), so they can't go in handed-over files. The portal download card now asks, before the download: how customers book (their booking app link / they call me / they send a request) plus an optional payment link shown as "Pay online". Nothing is preselected (unless they chose before, or Bryson set a booking link or phone in the OS); both links are opened server-side first (404 or no such site refused, 403 and slow pages allowed); BoldLine links refused. Saved on websiteDeal.siteSetup (server-owned). Switching later = change it on the same card and download again, then drag the folder onto Netlify Deploys. Deliberately NOT a live redirect through us. Also fixed: the Download button (and Have BoldLine host it) read the server answer twice and showed "That did not work" on EVERY successful download.  
+  <sub>*task:* change how a client who BOUGHT their website outright lets customers book and pay (their own booking app, phone, request form, payment link), or how they switch apps later without contacting us &nbsp;|&nbsp; *keywords:* outright booking, bought outright, own booking app, square appointments, calendly, booksy, payment link, paypal, venmo, pay online, switch booking app, site files booking, download card, siteSetup, handover booking, blFiles</sub>
 - **[site-editor](../knowledge/site-editor.md)** &mdash; &#9989; verified &middot; 2026-10-09  
   2026-10-09 (later the same day) - CLIENT SIDE + SIGNATURE TIER LIVE: every website now has the editor (words, sections show/hide/reorder, photos); the AI editor and new sections are for his own businesses and clients on the new Signature website ($3,500 build, $150/mo care, 8 pages incl. 3 extra, 3 rounds, 4 care edits a month, designed around their brand); clients' Assets tab has the Brand kit. Original: Bryson, 2026-10-09 - wanted to "modify my own website and a clients own website more" (all of edit any text, show/hide/reorder, add new sections, choose each photo) plus "talk to the ai like how I talk to you and have it edit the website based off of what I say and then also have it give suggestions and also tell me if it's a bad idea and why". Built for HIS OWN businesses first (the card and the AI endpoint are owned-only); clients next. An "Edit the website" card on the Website tab with four tabs (Ask the AI, Sections, Words, Photos) editing a DRAFT shown in a live preview; Save puts it on the site and keeps the previous version for Undo (15 kept). The AI answers with a fixed menu of changes, each checked by applySiteOps, so it can only ever produce a draft he throws away.  
   <sub>*task:* edit a website from the OS (any text, show/hide/reorder home page sections, add sections like prices, gallery, video, areas, team, text; choose photos per spot) or by talking to the AI, which edits a draft, suggests ideas and pushes back on bad ones; undo a save &nbsp;|&nbsp; *keywords:* site editor, edit website, sections, layout, reorder, hide section, add section, blocks, pricing section, gallery, video, areas we serve, team, photo pick, AI editor, talk to the AI, site-ai, applySiteOps, homeLayout, SiteEditorCard, SiteAIChat, undo, history, custom website</sub>

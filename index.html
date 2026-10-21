@@ -11309,6 +11309,10 @@ function WebsiteDealCard({client,onUpdate}){
 
 // Bought outright (agreement WA-8, KB demo-sites): once it's paid in full, their whole site as one zip, made for THEIR
 // web address, to send to them or their web person. The server refuses before full payment.
+// What the client chose on their portal download card (netlify/lib/own-site-setup.mjs). Shown so he knows; they
+// change it themselves any time.
+const setupHost=(u)=>{try{return new URL(u).hostname.replace(/^www\./,"");}catch(e){return "";}};
+const setupLine=(s)=>!s||!s.how?"":`Customers book ${s.how==="link"?`through their booking app (${setupHost(s.link)})`:s.how==="call"?"by calling them":"with the request form"}${s.pay?`, and can pay online (${setupHost(s.pay)})`:""}. They can switch apps themselves from their portal.`;
 function SiteFilesHandover({client,paid}){
   const d=wdDeal(client);
   const [domain,setDomain]=useState((d.handedOverTo)||((d.domain&&d.domain.host)||""));
@@ -11330,7 +11334,8 @@ function SiteFilesHandover({client,paid}){
   };
   if(!paid) return <span>They bought it outright. Once it's paid in full, you download their site files here and send them over.</span>;
   return (<div>
-    {d.handedOverAt?<div>Files handed over {wdFmt(d.handedOverAt)}{d.handedOverTo?` for ${d.handedOverTo}`:""}. Download again any time.</div>:<div>Paid in full. Type the web address they'll use, then download their site files.</div>}
+    {d.handedOverAt?<div>Files handed over {wdFmt(d.handedOverAt)}{d.handedOverTo?` for ${d.handedOverTo}`:""}. Download again any time.</div>:<div>Paid in full. They download it themselves from their portal and choose how customers book and pay as they go, so there's nothing for you to do. You can also download a copy here.</div>}
+    {setupLine(d.siteSetup)&&<div style={{marginTop:4,color:C.textMuted}}>{setupLine(d.siteSetup)}</div>}
     <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
       <input value={domain} onChange={e=>setDomain(e.target.value)} placeholder="theirbusiness.com" style={{flex:"1 1 180px",minWidth:0,padding:"8px 10px",fontSize:12.5,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,fontFamily:"inherit"}}/>
       <button disabled={busy||!domain.trim()} onClick={go} style={{padding:"8px 12px",fontSize:12,fontWeight:700,borderRadius:8,border:"none",background:busy||!domain.trim()?"rgba(255,255,255,.06)":C.gold,color:busy||!domain.trim()?C.textMuted:"#0a0800",cursor:busy||!domain.trim()?"default":"pointer"}}>{busy?"Making the files…":"Download their site files"}</button>

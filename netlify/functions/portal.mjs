@@ -1,5 +1,6 @@
 import { PORTAL_FONTS_HREF, PORTAL_LOOK_CSS, PORTAL_LOOK_JS } from "../lib/portal-look.mjs";
 import { exportSiteFiles, zipFiles } from "../lib/site-export.mjs";
+import { cleanSetup, checkLinks, setupWords, setupOf } from "../lib/own-site-setup.mjs";
 import { cleanDomain } from "../lib/site-domain.mjs";
 import { weeklyChartHTML, WEEKLY_CHART_CSS } from "../lib/portal-chart.mjs";
 import { createClient } from "@supabase/supabase-js";
@@ -932,17 +933,27 @@ const handler = async (event) => {
         const a = cleanDomain(body.siteFiles.domain), b = cleanDomain(body.siteFiles.confirm);
         if (!a) return { statusCode: 400, body: JSON.stringify({ ok: false, error: "Type your web address, like yourbusiness.com." }) };
         if (a.replace(/^www\./, "") !== String(b || "").replace(/^www\./, "")) return { statusCode: 400, body: JSON.stringify({ ok: false, error: "The two addresses don't match. Check them and try again." }) };
+        // How their customers book and pay (own-site-setup.mjs): chosen on the card, both links opened before use, so
+        // nobody downloads a site that cannot take a customer. Saved on the deal (server-owned) so the card remembers it.
+        let setup;
+        try { setup = cleanSetup(body.siteFiles.setup, cl); await checkLinks(setup); }
+        catch (e) { return { statusCode: 400, body: JSON.stringify({ ok: false, error: String(e.message || e) }) }; }
         let out;
-        try { out = await exportSiteFiles(cl, { domain: a, email: (cur.website && cur.website.publicEmail) || cur.email, maxImageBytes: 2.4e6 }); }
+        try { out = await exportSiteFiles(cl, { domain: a, email: (cur.website && cur.website.publicEmail) || cur.email, setup, maxImageBytes: 2.4e6 }); }
         catch (e) { return { statusCode: 400, body: JSON.stringify({ ok: false, error: String(e.message || e) }) }; }
         const at = new Date().toISOString();
         const first = !(cur.websiteDeal && cur.websiteDeal.handedOverAt);
         const again = !first && cur.websiteDeal.handedOverTo !== out.host;
-        const next = { ...cur, websiteDeal: { ...(cur.websiteDeal || {}), handedOverAt: (cur.websiteDeal && cur.websiteDeal.handedOverAt) || at, handedOverTo: out.host, lastDownloadAt: at },
-          commLog: [{ date: new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Phoenix" }), note: `Downloaded their website files for ${out.host} in the portal.`, cat: "website" }, ...(cur.commLog || [])].slice(0, 200) };
+        const was = setupOf(cl);
+        const switched = !first && was.saved && (was.how !== setup.how || was.link !== setup.link || was.pay !== setup.pay);
+        const words = setupWords(setup, cur);
+        const day = new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Phoenix" });
+        const next = { ...cur, websiteDeal: { ...(cur.websiteDeal || {}), handedOverAt: (cur.websiteDeal && cur.websiteDeal.handedOverAt) || at, handedOverTo: out.host, lastDownloadAt: at, siteSetup: { ...setup, savedAt: at } },
+          commLog: [{ date: day, note: switched ? `Changed how customers book or pay and downloaded a fresh copy for ${out.host}. ${words}` : `Downloaded their website files for ${out.host} in the portal. ${words}`, cat: "website" }, ...(cur.commLog || [])].slice(0, 200) };
         await supabaseAdmin.from("clients").update({ data: next, updated_at: at }).eq("id", data.id);
-        if (first || again) { try { await dispatchAlert({ severity: "green", title: `${cur.name || "A client"} downloaded their website`, body: `${cur.name || "They"} downloaded their website files for ${out.host}. The handover is done. If they want help putting it online, they can ask in their portal.`, smsText: `${cur.name || "A client"} downloaded their website files (${out.host}).` }); } catch (e) { console.error("portal: files alert failed:", e.message); } }
-        return { statusCode: 200, body: JSON.stringify({ ok: true, filename: `${out.host}-website.zip`, zip: zipFiles(out.files).toString("base64") }) };
+        // Bryson hears about the handover itself; switching apps later is theirs to do and needs nothing from him.
+        if (first || again) { try { await dispatchAlert({ severity: "green", title: `${cur.name || "A client"} downloaded their website`, body: `${cur.name || "They"} downloaded their website files for ${out.host}. ${words} The handover is done, nothing for you to do. If they want help putting it online, they can ask in their portal.`, smsText: `${cur.name || "A client"} downloaded their website files (${out.host}).` }); } catch (e) { console.error("portal: files alert failed:", e.message); } }
+        return { statusCode: 200, body: JSON.stringify({ ok: true, filename: `${out.host}-website.zip`, zip: zipFiles(out.files).toString("base64"), words }) };
       }
       // "Have BoldLine host it": tells Bryson. Moving them to the monthly plan takes a new agreement, so nothing changes here.
       if (body.hostRequest === true) {

@@ -11,6 +11,7 @@
 
 import { dealOf, termsOf, amountsOf, buildTotal, monthlyTotal, isSigned, firstPaid, fullyPaid, agreementLive, exempt } from "./website-deal.mjs";
 import { needsStatus, intakeOf, INTAKE_FIELDS } from "./website-needs.mjs";
+import { setupOf, setupWords } from "./own-site-setup.mjs";
 
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const money = (n) => `$${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
@@ -103,6 +104,14 @@ export function siteFilesCardHTML(cl) {
   if (!paid || !ready) return `<div class="card" id="wf-card"><div class="lbl">Your website files</div><div style="font-size:12.5px;color:#9CA3AF;line-height:1.6">${!paid ? "Ready to download here the moment your payment is in. You'll get an email too." : "We're putting the finishing touches on it. You'll get an email the moment it's ready to download."}</div></div>`;
   const prev = d.handedOverTo ? esc(d.handedOverTo) : "";
   const inp = (id, ph) => `<input class="inp" id="${id}" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="${ph}" value="${prev}">`;
+  // How customers book and pay (own-site-setup.mjs). Nothing is chosen for them unless they chose before, or Bryson
+  // set their booking link or phone in the OS; the download waits for a choice.
+  const su = setupOf(cl);
+  const phone = String(cl.businessPhone || cl.callTrackingNumber || "").trim();
+  const email = String((cl.website && cl.website.publicEmail) || cl.email || "").trim();
+  const way = (v, title, sub) => `<label class="wf-way" style="display:flex;gap:10px;align-items:flex-start;padding:11px 12px;margin-top:8px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.02);cursor:pointer"><input type="radio" name="wf-how" value="${v}"${su.how === v ? " checked" : ""} onchange="blHow()" style="margin-top:3px;accent-color:#C8A84B;flex-shrink:0"><span><span style="display:block;font-size:13.5px;font-weight:650;color:#F5F3ED">${title}</span><span style="display:block;font-size:12px;color:#9CA3AF;line-height:1.55;margin-top:2px">${sub}</span></span></label>`;
+  const urlInp = (id, ph, val) => `<input class="inp" id="${id}" type="url" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="${ph}" value="${esc(val)}">`;
+  const step = (n, t) => `<div style="font-size:13px;font-weight:700;color:#F5F3ED;margin:16px 0 2px">${n}. ${t}</div>`;
   const steps = [
     "Download your files below. You'll get one zip file.",
     "Double click the zip to open it. You'll see a folder with your website inside.",
@@ -111,13 +120,24 @@ export function siteFilesCardHTML(cl) {
     "In that site's Domain settings, add your web address and follow the two steps it shows you at the company you bought the address from.",
   ];
   return `<div class="card" id="wf-card"><div class="lbl">Your website files</div>`
-    + `<div style="font-size:12.5px;color:#9CA3AF;line-height:1.6;margin-bottom:10px">It's paid in full and it's yours. Type the web address you'll use (twice, so a typo can't slip through) and download your website.${d.handedOverAt ? ` You last downloaded it on ${esc(date(d.handedOverAt))}${prev ? ` for ${prev}` : ""}. Download again any time.` : ""}</div>`
+    + `<div style="font-size:12.5px;color:#9CA3AF;line-height:1.6;margin-bottom:4px">It's paid in full and it's yours. Two quick questions and you can download it.${d.handedOverAt ? ` You last downloaded it on ${esc(date(d.handedOverAt))}${prev ? ` for ${prev}` : ""}. Download again any time.` : ""}</div>`
+    + step(1, "Your web address")
     + `<label style="font-size:11.5px;color:#9CA3AF">Your web address${inp("wf-d", "e.g. desertshinedetail.com")}</label>`
-    + `<label style="font-size:11.5px;color:#9CA3AF">Type it again${inp("wf-d2", "same address again")}</label>`
-    + `<div id="wf-msg" role="status" style="font-size:12px;line-height:1.5;margin:2px 0 4px;color:#9CA3AF"></div>`
+    + `<label style="font-size:11.5px;color:#9CA3AF">Type it again (so a typo can't slip through)${inp("wf-d2", "same address again")}</label>`
+    + step(2, "How will customers book?")
+    + way("link", "Online, with my booking app", "Square, Calendly, Booksy, Housecall Pro, Urable and others. Most of them take deposits and payments for you too.")
+    + `<div id="wf-link-wrap" style="display:${su.how === "link" ? "block" : "none"};margin:8px 0 0 4px"><label style="font-size:11.5px;color:#9CA3AF">Your booking page link${urlInp("wf-link", "e.g. https://yourbusiness.square.site", su.link)}</label><div style="font-size:11.5px;color:#9CA3AF;line-height:1.5;margin-top:-4px">In your booking app, look for Share or Booking link. Copy it and paste it here.</div></div>`
+    + way("call", "They call or text me", phone ? `Every Book button calls ${esc(phone)}.` : `Add your business phone under <a href="#" onclick="blGoTo('phone');return false" style="color:#C8A84B">Your Information</a> first.`)
+    + way("quote", "They send a request and I reply", email ? `The form opens their email app, addressed to ${esc(email)}.` : "The form opens their email app, addressed to you.")
+    + step(3, "Take payments online too? (optional)")
+    + `<label style="font-size:11.5px;color:#9CA3AF">Payment link${urlInp("wf-pay", "e.g. https://paypal.me/yourbusiness", su.pay)}</label>`
+    + `<div style="font-size:11.5px;color:#9CA3AF;line-height:1.5;margin-top:-4px">A PayPal, Venmo, Square or Stripe payment link. It shows on your site as "Pay online". Leave it empty if your booking app takes payment or you get paid in person.</div>`
+    + `<div id="wf-msg" role="status" style="font-size:12px;line-height:1.5;margin:10px 0 4px;color:#9CA3AF">${su.saved ? esc(setupWords(su, cl)) : ""}</div>`
     + `<button class="btn" id="wf-btn" onclick="blFiles(this)">Download my website</button>`
     + `<div class="lbl" style="margin-top:18px">Put it online in about five minutes</div>`
     + `<ol style="margin:0;padding-left:20px;color:#D1D5DB;font-size:13px;line-height:1.7">${steps.map((x) => `<li>${x}</li>`).join("")}</ol>`
+    + `<div class="lbl" style="margin-top:18px">Switching apps later</div>`
+    + `<div style="font-size:12.5px;color:#9CA3AF;line-height:1.6">Moved to a different booking or payment app? Change it above and download again. Then in Netlify, open your site, go to Deploys and drag the new folder onto the box at the bottom. Your buttons switch over in seconds, and you never need to ask us.</div>`
     + `<div style="margin-top:16px;padding:12px 14px;border-radius:12px;border:1px solid rgba(200,168,75,.3);background:rgba(200,168,75,.06)"><div style="font-size:13.5px;font-weight:700;color:#F5F3ED">Rather not deal with it?</div><div style="font-size:12.5px;color:#9CA3AF;line-height:1.6;margin:3px 0 8px">Switch to our monthly plan and we'll put it online, keep it running and make small changes for you.</div><button class="btn ghost" id="wf-host" style="margin-top:0" onclick="blHostAsk(this)">Have BoldLine host it for me</button></div>`
     + `</div>`;
 }
@@ -196,14 +216,19 @@ function blBlogHold(slug,held,btn){if(held&&!confirm('Hold this article? It will
 function blWebReq(btn){var ta=document.getElementById('web-req'),msg=document.getElementById('web-req-msg');var t=(ta&&ta.value||'').trim();if(!t){if(msg)msg.textContent='Tell us what you would like changed first.';return;}btn.disabled=true;btn.textContent='Sending...';fetch('/.netlify/functions/portal?token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({websiteRequest:{text:t}})}).then(function(r){return r.json().then(function(d){if(!r.ok||!d||!d.ok)throw new Error((d&&d.error)||'');return d;});}).then(function(){ta.value='';btn.textContent='Sent';if(msg){msg.style.color='#10B981';msg.textContent='Got it. We will be in touch, usually within one business day.';}setTimeout(function(){btn.disabled=false;btn.textContent='Send request';},2500);}).catch(function(e){btn.disabled=false;btn.textContent='Send request';if(msg){msg.style.color='#F59E0B';msg.textContent=(e&&e.message)||'That did not send. Please try again.';}});}
 function blGoTo(where){var bs=document.querySelectorAll('.nb');for(var i=0;i<bs.length;i++){if((bs[i].getAttribute('onclick')||'').indexOf("'account'")>0){show('account',bs[i]);break;}}var el=where==='media'?document.querySelector('.media-card'):document.querySelector('[data-key="businessPhone"]');if(!el)return;var d=el.closest('details');if(d)d.open=true;setTimeout(function(){try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}},80);}
 function blDom(v){var s=String(v||'').trim().toLowerCase();s=s.split('://').pop();s=s.split('/')[0];return s.indexOf('www.')===0?s.slice(4):s;}
+function blHow(){var c=document.querySelector('input[name="wf-how"]:checked'),w=document.getElementById('wf-link-wrap');if(w)w.style.display=c&&c.value==='link'?'block':'none';}
 function blFiles(btn){var a=document.getElementById('wf-d'),b=document.getElementById('wf-d2'),m=document.getElementById('wf-msg');var x=blDom(a&&a.value),y=blDom(b&&b.value);
-if(!x||x.indexOf('.')<1){m.style.color='#F59E0B';m.textContent='Type your web address, like yourbusiness.com.';return;}
-if(x!==y){m.style.color='#F59E0B';m.textContent="The two addresses don't match. Check them and try again.";return;}
+var bad=function(t){m.style.color='#F59E0B';m.textContent=t;};
+if(!x||x.indexOf('.')<1){bad('Type your web address, like yourbusiness.com.');return;}
+if(x!==y){bad("The two addresses don't match. Check them and try again.");return;}
+var c=document.querySelector('input[name="wf-how"]:checked'),how=c?c.value:'';
+var ln=document.getElementById('wf-link'),py=document.getElementById('wf-pay');var link=ln?ln.value.trim():'',pay=py?py.value.trim():'';
+if(!how){bad('Choose how your customers will book first.');return;}
+if(how==='link'&&!link){bad('Paste the link to your booking page first.');return;}
 btn.disabled=true;var lbl=btn.textContent;btn.textContent='Getting your files ready...';m.style.color='#9CA3AF';m.textContent='';
-blPost({siteFiles:{domain:a.value,confirm:b.value}}).then(function(r){return r.json();}).then(function(d){btn.disabled=false;btn.textContent=lbl;
-if(!d||!d.ok){m.style.color='#F59E0B';m.textContent=(d&&d.error)||'That did not work. Please try again.';return;}
+blPost({siteFiles:{domain:a.value,confirm:b.value,setup:{how:how,link:how==='link'?link:'',pay:pay}}}).then(function(d){btn.disabled=false;btn.textContent=lbl;
 var s=atob(d.zip),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);var url=URL.createObjectURL(new Blob([u],{type:'application/zip'}));
 var l=document.createElement('a');l.href=url;l.download=d.filename||'website.zip';document.body.appendChild(l);l.click();l.remove();setTimeout(function(){URL.revokeObjectURL(url);},4000);
-m.style.color='#10B981';m.textContent='Downloaded. Follow the steps below to put it online.';}).catch(function(){btn.disabled=false;btn.textContent=lbl;m.style.color='#F59E0B';m.textContent='That did not work. Please try again.';});}
-function blHostAsk(btn){btn.disabled=true;blPost({hostRequest:true}).then(function(r){return r.json();}).then(function(d){btn.textContent=d&&d.ok?"Thanks, we'll be in touch to set it up":'That did not work. Please try again.';if(!(d&&d.ok))btn.disabled=false;}).catch(function(){btn.disabled=false;});}
+m.style.color='#10B981';m.textContent='Downloaded. '+(d.words?d.words+' ':'')+'Follow the steps below to put it online.';}).catch(function(e){btn.disabled=false;btn.textContent=lbl;bad((e&&e.message)||'That did not work. Please try again.');});}
+function blHostAsk(btn){btn.disabled=true;blPost({hostRequest:true}).then(function(){btn.textContent="Thanks, we'll be in touch to set it up";}).catch(function(){btn.disabled=false;btn.textContent='That did not work. Please try again.';});}
 function blNeedsSave(btn){var o={};var fs=document.querySelectorAll('.wn-f');for(var i=0;i<fs.length;i++)o[fs[i].getAttribute('data-f')]=fs[i].value;var msg=document.getElementById('wn-msg');btn.disabled=true;btn.textContent='Saving...';blPost({websiteIntake:o}).then(function(d){btn.disabled=false;btn.textContent='Save my answers';var ids=d.needs||{};var rows=document.querySelectorAll('.wn-row');for(var j=0;j<rows.length;j++){var id=rows[j].getAttribute('data-id');if(ids[id]){var t=rows[j].firstChild;if(t&&t.tagName==='SPAN'&&!t.textContent){t.style.cssText='flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#10B981;color:#07080C;display:grid;place-items:center;font-size:13px;font-weight:900';t.innerHTML='&#10003;';}}}var c=document.getElementById('wn-count');if(c&&d.total)c.textContent=d.done+' of '+d.total;var b=document.getElementById('wn-bar');if(b&&d.total)b.style.width=Math.round(d.done/d.total*100)+'%';if(msg){msg.style.color='#10B981';msg.textContent=d.done>=d.total?'Saved. That is everything we need, thank you.':'Saved. Send the rest whenever you have it.';}}).catch(function(e){btn.disabled=false;btn.textContent='Save my answers';if(msg){msg.style.color='#F59E0B';msg.textContent=(e&&e.message)||'That did not save. Please try again.';}});}`;
