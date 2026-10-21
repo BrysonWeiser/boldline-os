@@ -33,3 +33,20 @@ system ffmpeg here) encodes H.264 yuv420p, faststart. Fonts load through curl in
 
 Transitions: scenes crossfade over 0.3s with the next headline starting 0.05s early; the first render had a ~0.4s empty black gap at every change.
 File sent: BoldLine-promo-detailers.mp4 (1080x1920, 30fps, H.264, 45s, ~8MB). Posting advice: add a trending sound in TikTok/Instagram (none baked in), caption without emojis or dashes, pin a comment with the booking link.
+
+## v2 (2026-10-20, ~10:15pm Phoenix): narrated, website-first, ends on the URL
+Bryson: *"Make sure there is a voice narrating it also I think instead of a book a call we give a url because people
+can't press a button that doesn't work also is it supposed to sell ads or websites"*.
+- **It now sells WEBSITES first, ads as the step up** (matches KB niche-selection: lead with websites for detailers).
+  Order: hook "No website? They booked someone else." > website that books the job > booking + deposit > every call
+  and form caught > reviews > portal chart > "Ready for more? Top of Google." (ads) > all connected > closer > end.
+- **End card has no button** (nothing is tappable in a video): "See what we'd build for you at" + big
+  **boldlinemedia.com**. Tagline "Websites and ads for detailers".
+- **Narration**: Piper TTS (local, free) with the **"joe" voice, dataset CC0** (cleared for commercial use; "ryan" and
+  "hfc_male" are CC BY-NC-SA, NOT usable for a business ad; "john" is public domain, libritts_r CC BY 4.0). One clip per
+  scene (`docs/promo-video/narration-lines.json`), length-scale 0.93; each scene lasts max(4.4s, line + 0.9s), voice
+  starts 0.3s in, mixed with ffmpeg adelay + amix, loudnorm to -14 LUFS (TikTok level). "BoldLine" is spelled "Bold Line"
+  for the voice. 52.4s total.
+- 🔴 I cannot listen to audio, so the voice's naturalness was not judged here; told Bryson his own voice (CapCut
+  voiceover over the no-voice version) usually performs better than any AI voice. Files sent: -voice.mp4; the
+  -novoice.mp4 and script are ready if he wants to record his own.
