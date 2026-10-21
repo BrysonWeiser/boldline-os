@@ -202,7 +202,7 @@ const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const ease=x=>1-Math.pow(1-clamp(x),3);
 const easeIO=x=>{x=clamp(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;};
 const pr=(t,s,d)=>ease((t-s)/d);
-const ORDER=[[0, 6.0], [2, 4.6], [4, 6.18], [3, 5.47], [5, 4.85], [6, 4.4], [1, 4.4], [7, 5.6], [8, 4.4], [9, 6.5]];
+const ORDER=[[0, 6.0], [2, 4.6], [4, 5.74], [3, 5.47], [5, 4.4], [6, 4.4], [1, 4.4], [7, 4.87], [8, 4.4], [9, 6.5]];
 const S={}; let ACC=0; ORDER.forEach(([id,d])=>{S[id]=[ACC,ACC+d];ACC+=d;});
 const DUR=ACC;
 // Headline words: [text, gold]

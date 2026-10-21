@@ -50,3 +50,16 @@ can't press a button that doesn't work also is it supposed to sell ads or websit
 - 🔴 I cannot listen to audio, so the voice's naturalness was not judged here; told Bryson his own voice (CapCut
   voiceover over the no-voice version) usually performs better than any AI voice. Files sent: -voice.mp4; the
   -novoice.mp4 and script are ready if he wants to record his own.
+
+## v3 (2026-10-20, ~10:45pm Phoenix): ARIA's voice, every word verified
+Bryson: *"lets use arias voice and make sure it says every word correctly. it didnt say detailing correctly and make
+sure it sounds human what you just showed me sounded very robitic"*. The Piper "joe" voice (v2) is retired for this.
+- **Voice = ARIA's locked recipe** (KB os-redesign): kokoro-onnx (Apache 2.0) with `kokoro-v1.0.int8.onnx` +
+  `voices-v1.0.bin` from the kokoro-onnx GitHub release `model-files-v1.0`; style 0.6 bf_emma + 0.4 bf_isabella,
+  speed 0.98, lang en-gb; then ffmpeg `asetrate=24000*0.92,aresample=24000,atempo=1/0.92,bass=g=3:f=140,
+  acompressor=threshold=0.12:ratio=2.5:attack=8:release=120,volume=1.4`. Mixed at -14 LUFS.
+- **Pronunciation proof, not hope**: (1) each line's phonemes printed from Kokoro's own tokenizer (detailing =
+  dˈiːteɪlɪŋ, detailer = dˈiːteɪlə, British non-rhotic); (2) faster-whisper `small.en` transcribed every clip AND the
+  final video back, compared word for word to the script: 10 of 10 lines exact, "Bold Line Media dot com" heard as
+  "boldlinemedia.com". Re-run this check whenever a line changes (scratchpad `kokoro/verify.py`).
+- Re-timed to her pacing: 50.8s. File sent: BoldLine-promo-detailers-aria.mp4.
