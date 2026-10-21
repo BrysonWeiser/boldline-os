@@ -3,7 +3,7 @@ name: agency-promo-video
 topic: Marketing
 task: make, change or re-render BoldLine's own short promo video (TikTok / Reels / Shorts), or make another motion-graphics video in that style
 keywords: [promo video, tiktok, reels, shorts, motion graphics, agency video, detailers video, render video, ffmpeg, frames, webx style, jp.scales, scaling businesses, video for the agency]
-status: rendered 2026-10-20 and sent to Bryson (not posted yet)
+status: v7 rendered 2026-10-21 and sent to Bryson (not posted yet)
 summary: Bryson, 2026-10-20 sent a TikTok by @jp.scales ("Joseph | Scaling Businesses", WebX Marketing Agency): a ~55s text-led motion-graphics promo, black + neon green, one feature per beat ("You missed a call today. That was a $3,000 job", "Built to convert", "Never lose a lead", "Works while you sleep", "Five stars. Automatically", "All connected. One system", logo end card), letterboxed 16:9 in a vertical frame. He wanted OUR OWN version, not a copy: detailers, full phone screen, end on "Book a free call". Built a 45s 1080x1920 video in BoldLine black + gold, rendered frame by frame from an HTML animation in this container (Playwright screenshots + ffmpeg). No music on purpose: he adds a trending sound in TikTok.
 verified: 2026-10-20
 ---
@@ -20,7 +20,8 @@ websites and booking for detailers", Book a free call, boldlinemedia.com.
 ## 🔴 Honesty rules applied (do not loosen)
 - Only features BoldLine delivers TODAY. Left out on purpose: an AI phone assistant (not offered) and "we text every
   lead in seconds" (built but SWITCHED OFF until Twilio is paid and A2P clears, KB client-text-back). Meta ads not
-  shown (still gated behind Meta approval, KB site-coming-soon). Add them back only when they are live.
+  shown in v1 to v6. 🔴 THAT WAS A MISTAKE from a stale KB read: Meta has been fully approved since 2026-09-14 (KB
+  meta-marketing-api). Meta ads are shown from v7 on.
 - All numbers are a made-up SAMPLE business (Northline Auto Detailing, the marketing site's detailer sample), shown
   as product UI. Never captioned or narrated as a client's result (Content Studio guardrail: no invented results).
 - No emojis (a phone glyph was swapped for an SVG icon), no em dashes.
@@ -125,3 +126,19 @@ mobile detailer'"* and *"make sure at the end of the video the website and last 
   (the crossfade in), median 0.12, no pops.
 - Verified: 126 of 126 words exact, the only pause over 0.4s is the deliberate beat before "Automatically.",
   -14.7 LUFS, 45.8s. File sent: BoldLine-promo-detailers-v6.mp4.
+
+## v7 (2026-10-21, ~12:30am Phoenix): Meta ads and landing pages shown
+Bryson: *"when it shows the list of things we do connected to the b it only shows Google ads not meta and I feel like
+we should showcase the ads a bit more (meta and google) and that they are paired with a landing page"*.
+- Story stays website-first; "when you're ready for more" is now an ads section: Google (top of Google, as before) >
+  **new s10** "And in front of car owners nearby, on Facebook and Instagram." (a phone feed: the sample detailer's
+  Sponsored post scrolls in, a like, "Book now" tapped; "Facebook" / "Instagram" chips, no platform logos) > **new
+  s11** "Your ads send people to a landing page, built to turn that click into a booking." (northlinedetailing.com/ceramic:
+  form fills, "Got it, Jordan.", banner "New lead: Jordan R. Ceramic coating, from your Instagram ad").
+- Hub now 8 items on an ellipse: Google Ads, Meta Ads, Landing pages, Website, Booking, Calls & forms, Reviews, Your
+  portal. Line: "Your website, ads, landing pages, booking and reviews. All connected, in one system."
+- Honesty kept: no texting claim on the landing page (text-back is still off), sample business only.
+- The whisper check caught two bad takes ("Your abs send people", "Your website adds landing pages"). 155 of 155 words
+  exact, first line still has the "a", -14.7 LUFS, 55.4s. File sent: BoldLine-promo-detailers-v7.mp4.
+- 🔴 Running two Chatterbox jobs at once (4 threads each on 4 cores) slowed both about 20x. Run one at a time
+  (pause the other with kill -STOP / -CONT).
