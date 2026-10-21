@@ -8646,12 +8646,20 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
 // Two ways she speaks:
 //   • Fixed lines (greetings, "Power Hour is live", "That one's booked") are pre-recorded in that exact voice
 //     in /aria/*.mp3, so they play instantly everywhere, phones included.
-//   • Anything with live numbers or names is spoken by the same voice model running IN THE BROWSER, in a
-//     background worker so the OS never stutters. Computers only: it is a one-time ~90 MB download that the
-//     browser then keeps. Phones show the words instead of reading them in a robotic device voice.
+//   • Anything with live numbers or names WAS spoken by the same voice model running IN THE BROWSER, in a
+//     background worker so the OS never stutters (computers only, a one-time ~90 MB download). Switched off
+//     2026-10-21 because it sounded robotic next to the new recordings (ARIA_LIVE below). Phones never had it.
 // "Hey ARIA" uses the browser's own speech recognition (in Chrome that is Google's service), only while the
 // OS tab is open, only after he switches it on, and never while ARIA herself is talking.
 const ARIA_LOCK = { blend: [["bf_emma", 0.6], ["bf_isabella", 0.4]], speed: 0.98, pitch: 0.92, bassHz: 140, bassDb: 3, ratio: 2.5, thresholdDb: -18.4, gain: 1.4 };
+// 🔴 THE NATURAL VOICE (Bryson, 2026-10-21: "make sure this new more human sounding version of aria is implemented
+// into the os because right now she sounds robotic in the os"). The recordings in /aria/ are now made with Chatterbox
+// (MIT), cloned from her original voice, four takes a line with the best kept (KB aria-natural-voice). The model above
+// only exists in the browser as Kokoro, which is the robotic sound he heard, and the natural model is far too big to
+// run in a browser. So live sentences (the briefing, her answers) are OFF: she says the matching recording and the
+// words stay on screen, the same as on his phone. "kokoro" brings the in-browser model back; a hosted natural voice
+// is the planned way to have her read everything aloud again.
+const ARIA_LIVE = "off";
 const ARIA_CLIPS = ["greet_morning","greet_afternoon","greet_evening","greet_late","yes","on_it","power_start","booked_1","booked_2","recap","thinking","sorry",
   "open_today","open_outreach","open_leadscout","open_dealprep","open_calendar","open_leads","open_campaigns","open_website","open_content","open_revenue","open_alerts","objections"];
 const ARIA_WAKE = /\b(?:hey|hi|okay|ok)?\s*(?:aria|arya|ariah|area|aaria|maria|ariya)\b[\s,.!?]*/i;
@@ -8753,7 +8761,7 @@ const ARIA_VOICE = (() => {
     const b = await c.decodeAudioData(ab.slice(0)); stopNow(); lastClip = name; await play(b, false);
   });
   const ensureWorker = () => {
-    if (worker || isPhone() || !W.Worker || !W.caches) return worker;
+    if (ARIA_LIVE !== "kokoro" || worker || isPhone() || !W.Worker || !W.caches) return worker;
     try { worker = new Worker(URL.createObjectURL(new Blob([ARIA_WORKER_SRC], { type: "text/javascript" })), { type: "module" }); }
     catch (e) { patch({ neural: "off" }); return null; }
     worker.onmessage = (e) => { const d = e.data || {};
@@ -8773,7 +8781,9 @@ const ARIA_VOICE = (() => {
   // Sentence by sentence: the next one is being made while the current one plays.
   const say = (text, fallback) => run(async () => {
     if (!st.voiceOn) return; const clean = String(text || "").replace(/[*_#`>]/g, "").replace(/\s+/g, " ").trim(); if (!clean) return;
-    if (isPhone() || st.neural === "off" || !W.Worker) { if (fallback) await clip(fallback); return; }
+    // No live voice: the matching recording, or, when the answer has none, the "thinking" line stops because the
+    // answer is here (on screen), which also opens the follow-up window like a spoken answer does.
+    if (ARIA_LIVE !== "kokoro" || isPhone() || st.neural === "off" || !W.Worker) { if (fallback) await clip(fallback); else { stopNow(); lastClip = ""; } return; }
     // Until the voice model has downloaded once, a fixed line stands in (or the words stay on screen), and
     // the download carries on in the background. Waiting would make her answer a minute late.
     if (st.neural !== "ready") { warm(); if (fallback) await clip(fallback); return; }
@@ -8785,7 +8795,7 @@ const ARIA_VOICE = (() => {
     queue = [];
   });
   const stop = () => { stopNow(); convoAt = 0; done(); };
-  const warm = () => { const w = ensureWorker(); if (w && st.neural === "idle") { patch({ neural: "loading", pct: 0 }); w.postMessage({ type: "warm", id: ++seq, blend: ARIA_LOCK.blend }); } };
+  const warm = () => { if (ARIA_LIVE !== "kokoro") return; const w = ensureWorker(); if (w && st.neural === "idle") { patch({ neural: "loading", pct: 0 }); w.postMessage({ type: "warm", id: ++seq, blend: ARIA_LOCK.blend }); } };
   // ── "Hey ARIA" ──
   // 🔴 A FRESH LISTENER EVERY TIME. One listener object used to be stopped and restarted for the whole visit,
   // and Chrome sometimes lets a restarted one run without ever hearing anything again: the light says

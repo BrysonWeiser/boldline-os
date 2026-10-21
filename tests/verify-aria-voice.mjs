@@ -42,6 +42,14 @@ const asked = [...S.matchAll(/ARIA_VOICE\.(?:clip|say)\([^)]*?"([a-z_0-9]+)"\)/g
 const unknown = [...new Set(asked)].filter((c) => !CLIPS.includes(c));
 ok("every line the code plays is a real recording", unknown.length === 0, unknown.join(", "));
 ok("no stray recordings", readdirSync(join(ROOT, "aria")).filter((f) => f.endsWith(".mp3")).every((f) => CLIPS.includes(f.replace(/\.mp3$/, ""))));
+// The natural voice (KB aria-natural-voice): every recording's words are written down, so a line can be re-recorded
+// from the same reference and says exactly what the OS expects.
+{
+  const lines = JSON.parse(readFileSync(join(ROOT, "docs/aria-voice/lines.json"), "utf8"));
+  ok("every recording has its words written down, and nothing extra", CLIPS.every((c) => typeof lines[c] === "string" && lines[c].length > 1) && Object.keys(lines).every((k) => CLIPS.includes(k)));
+  ok("the words read naturally (no dashes) and say the screen names properly", Object.values(lines).every((t) => !/[—–]/.test(t)) && lines.open_dealprep === "Opening Deal Prep." && lines.on_it === "On it.");
+  ok("the voice reference is kept, so any line can be re-recorded in the same voice", existsSync(join(ROOT, "docs/aria-voice/reference.flac")));
+}
 
 // 3. Spoken commands are safe
 const route = new Function(slice("const ARIA_SCREENS = [", "\n\nfunction useAriaVoice(") + "\nreturn ariaRoute;")();
@@ -71,8 +79,11 @@ ok("a blocked microphone turns the switch off and says how to fix it", /not-allo
 ok("the switch says Chrome uses Google's speech service", /Chrome uses Google's speech service/.test(S));
 
 // 5. Phones
-ok("🔴 phones never start the voice model download", /if \(worker \|\| isPhone\(\) \|\| !W\.Worker \|\| !W\.caches\) return worker;/.test(VOICE));
-ok("phones (and the first visit, before the download) use the recordings", /if \(isPhone\(\) \|\| st\.neural === "off" \|\| !W\.Worker\) \{ if \(fallback\) await clip\(fallback\); return; \}/.test(VOICE)
+ok("🔴 phones never start the voice model download", /if \(ARIA_LIVE !== "kokoro" \|\| worker \|\| isPhone\(\) \|\| !W\.Worker \|\| !W\.caches\) return worker;/.test(VOICE));
+// Bryson, 2026-10-21: "right now she sounds robotic in the os". The in-browser model is the robotic one, so it is off
+// and nothing downloads it; she uses the natural recordings everywhere (KB aria-natural-voice).
+ok("🔴 the robotic in-browser voice is off: no download, no live sentences, recordings only", /const ARIA_LIVE = "off";/.test(VOICE) && /const warm = \(\) => \{ if \(ARIA_LIVE !== "kokoro"\) return;/.test(VOICE));
+ok("phones (and the first visit, before the download) use the recordings", /if \(ARIA_LIVE !== "kokoro" \|\| isPhone\(\) \|\| st\.neural === "off" \|\| !W\.Worker\) \{ if \(fallback\) await clip\(fallback\); else \{ stopNow\(\); lastClip = ""; \} return; \}/.test(VOICE)
   && /if \(st\.neural !== "ready"\) \{ warm\(\); if \(fallback\) await clip\(fallback\); return; \}/.test(VOICE));
 ok("the model runs in a background worker, so the OS never freezes while she thinks", /new Worker\(URL\.createObjectURL\(new Blob\(\[ARIA_WORKER_SRC\]/.test(VOICE));
 const G = slice("// She greets him when the OS opens", "\n  const [leads,setLeads]");

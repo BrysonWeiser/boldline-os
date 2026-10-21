@@ -105,3 +105,23 @@ smooth make sure to do the same but with ARIA's voice"*.
 - 🔴 Still true: I cannot listen to audio. The checks prove every word is right, no dead air, and that it is ARIA's
   voice; "does it sound human" is Bryson's ear. If it still isn't smooth enough, the next step up is a paid voice
   (ElevenLabs, about $5/mo) or his own voiceover.
+
+## v6 (2026-10-20, ~midnight Phoenix): "for A mobile detailer", and a smooth ending
+Bryson: *"make sure in the beginning she says 'someone searched for A mobile detailer' not 'someone searched for
+mobile detailer'"* and *"make sure at the end of the video the website and last part of the video come up smoothly"*.
+- 🔴 **He was right and whisper was wrong.** The v5 take went straight from "for" into "mobile" (phonemes `f ɚ ɹ m oʊ
+  b`), yet whisper wrote "for a" because its language model fills in small words. A phoneme recogniser with no
+  language model (`facebook/wav2vec2-lv-60-espeak-cv-ft`, Apache 2.0, `docs/promo-video/voice/ear_ph.py`) shows it.
+  The picker now REQUIRES a second vowel between "for" and "m" on the first line. 8 new takes; 6 had it. Chosen take:
+  `f ɔːɹ ɹ ɐ m oʊ b aɪ l` (also says "mobile" as MOH-bile). Lesson for any narration: whisper-exact is not proof that
+  a short word (a, the, to) is audible; use the phoneme check.
+- Measures that did NOT work, so don't retry them: letter-level CTC frame counts (every letter is a one-frame spike)
+  and counting loudness beats between "for" and "mobile" (always 2).
+- **End card rebuilt** (`edit_end.py`): logo, then name, then tagline come up one after another on ease-in-out curves
+  with a little blur-to-sharp (the name's letter-spacing animation, which reflows text every frame and can jitter, is
+  gone); "See what we'd build for you at" rises just before she says the address; the address rises with her words
+  (`URL9`, injected by apply_flow from whisper word timing), then one slow shine across it; the whole card drifts in
+  3% over the hold so it never looks frozen. Checked by frame-to-frame change across the end card: largest step 0.97
+  (the crossfade in), median 0.12, no pops.
+- Verified: 126 of 126 words exact, the only pause over 0.4s is the deliberate beat before "Automatically.",
+  -14.7 LUFS, 45.8s. File sent: BoldLine-promo-detailers-v6.mp4.
