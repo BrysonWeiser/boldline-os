@@ -170,3 +170,10 @@ better to try to sell ads or websites"*. Recommendation given: **open with the w
   (or both)**.
 - Use Lead Scout with "What are you selling? A website", and the Outreach "Selling" filter. Still one niche, one
   script, for the 100 calls.
+
+## 2026-10-21: detailers first, other niches too (Bryson's call)
+Bryson: *"lets not only focus on getting detailers im going to cold call businesses starting with detailers but ill
+hit other niches as well"*, including e-commerce. So marketing assets must not be detailer-only: a GENERAL promo video
+was made (KB agency-promo-video v8, three sample businesses: a detailer, a handyman and an online candle shop) and the
+detailer version (v7) is kept for detailer outreach. The "one niche, one script for 100 calls" advice above still
+stands as advice; he has chosen to start with detailers and branch out, which is his call.
