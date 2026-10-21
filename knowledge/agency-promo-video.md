@@ -168,3 +168,7 @@ outreach; this one is for everyone else and for the profile.
   docs/promo-video/every-business/.
 - 🔴 Gotcha (twice): `pkill -f "gen2.py jobs..."` inside a bash command kills that same command (its own command line
   matches). Use the PID.
+- 2026-10-21: Bryson heard NO sound on v8 in the app, though the file's audio was present and identical in layout to
+  v6 (which he had heard). Re-sent as STEREO 44.1 kHz AAC 192k (`-ac 2 -ar 44100`, the usual social-upload format)
+  plus the voiceover alone as an MP3 to check. Encode stereo from now on. First thing to check on his side: the
+  iPhone silent switch, which mutes many in-app players even with the volume up.
