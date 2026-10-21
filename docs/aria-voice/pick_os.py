@@ -16,6 +16,10 @@ ve = VoiceEncoder(); ve.load_state_dict(load_file(glob.glob(f"{SP}/hf/hub/models
 wh = WhisperModel("small.en", device="cpu", compute_type="int8", download_root=f"{SP}/tools/whisper-models")
 SR = 24000; MAXPAUSE = 0.42
 LINES = json.load(open(f"{SP}/osclips/lines.json")); TAKES = sys.argv[1]; OUT = sys.argv[2]
+# 🔴 Whisper fills in what it expects, so it passed "Opening Lead Scout" said as LED scout, a garbled "how you did" and
+# "Yes?" with an "uh" in front. A phoneme recogniser with no language model (ear_ph) must also hear these sounds.
+from ear_ph import phones
+SOUNDS = {"open_leadscout": r"l iː d", "recap": r"h aʊ", "open_leads": r"l iː d z", "yes": r"^j ɛ s"}
 norm = lambda s: re.sub(r"[^a-z0-9 ]", " ", s.lower().replace("’", "'").replace("'", "")).split()
 def emb(w16): e = np.asarray(ve.embeds_from_wavs([w16], sample_rate=16000)).mean(0); return e / np.linalg.norm(e)
 ref = emb(librosa.load(f"{D}/aria-ref.wav", sr=16000)[0])
@@ -41,13 +45,16 @@ for lid, text in LINES.items():
         f0, _, _ = librosa.pyin(w16, fmin=80, fmax=400, sr=16000); f0 = f0[~np.isnan(f0)]
         sd = float(np.std(12 * np.log2(f0 / np.median(f0)))) if len(f0) > 5 else 0
         gap = longest_gap(a); dur = len(a) / SR; expect = 0.3 + 0.36 * len(text.split())
+        ph = phones(w16) if lid in SOUNDS else ""; sounds = not ph or bool(re.search(SOUNDS[lid], ph))
+        # a breath between two sentences is natural in a short line; inside a sentence it is dead air
+        maxp = 0.6 if len(re.findall(r"[.?!]\s", text + " ")) >= 2 else MAXPAUSE
         sane = 0.5 * expect <= dur <= 1.8 * expect
         asks = text.count("?")
-        score = u + 3 * (sim - 0.95) + 0.05 * sd + (0.15 if asks and heard.count("?") >= asks else 0) - (0 if gap <= MAXPAUSE else 2) - (0 if ok else 10) - (0 if sane else 5)
-        rows.append(dict(f=tmp, ok=ok, score=score, heard=heard, u=u, sim=sim, gap=gap, dur=dur, sane=sane))
-        print(f"{lid:16s} {os.path.basename(f):20s} {'OK ' if ok else 'BAD'} mos {u:.2f} sim {sim:.3f} gap {gap:.2f} dur {dur:.2f}{'' if sane else ' ODD-LENGTH'} -> {score:.2f} | {heard}", flush=True)
+        score = u + 3 * (sim - 0.95) + 0.05 * sd + (0.15 if asks and heard.count("?") >= asks else 0) - (0 if gap <= maxp else 2) - (0 if ok else 10) - (0 if sane else 5) - (0 if sounds else 10)
+        rows.append(dict(f=tmp, ok=ok and sounds, score=score, heard=heard, u=u, sim=sim, gap=gap, dur=dur, sane=sane, maxp=maxp))
+        print(f"{lid:16s} {os.path.basename(f):20s} {'OK ' if ok else 'BAD'} mos {u:.2f} sim {sim:.3f} gap {gap:.2f} dur {dur:.2f}{'' if sane else ' ODD-LENGTH'} -> {score:.2f} | {heard}{'' if sounds else '  WRONG SOUNDS ' + ph}", flush=True)
     if not rows: print(f"{lid}: NO TAKES"); continue
-    best = max(rows, key=lambda r: r["score"]); good = best["ok"] and best["gap"] <= MAXPAUSE and best["sane"]
+    best = max(rows, key=lambda r: r["score"]); good = best["ok"] and best["gap"] <= best["maxp"] and best["sane"]
     print(f"  chose {os.path.basename(best['f'])}{'' if good else '  <<< NEEDS MORE TAKES'}", flush=True)
     report[lid] = {"take": os.path.basename(best["f"]), "good": good, "heard": best["heard"], "mos": round(best["u"], 2), "sim": round(best["sim"], 3), "dur": round(best["dur"], 2)}
     if not good: continue

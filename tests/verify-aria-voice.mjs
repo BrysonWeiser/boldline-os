@@ -49,6 +49,10 @@ ok("no stray recordings", readdirSync(join(ROOT, "aria")).filter((f) => f.endsWi
   ok("every recording has its words written down, and nothing extra", CLIPS.every((c) => typeof lines[c] === "string" && lines[c].length > 1) && Object.keys(lines).every((k) => CLIPS.includes(k)));
   ok("the words read naturally (no dashes) and say the screen names properly", Object.values(lines).every((t) => !/[—–]/.test(t)) && lines.open_dealprep === "Opening Deal Prep." && lines.on_it === "On it.");
   ok("the voice reference is kept, so any line can be re-recorded in the same voice", existsSync(join(ROOT, "docs/aria-voice/reference.flac")));
+  // "Yes?" alone came out as "kess" or "uh, yes"; one word is too short for the voice model. And "Lead Scout" was read
+  // as LED scout every time until the voice was given "Leed" (the written line stays "Lead Scout").
+  const say = JSON.parse(readFileSync(join(ROOT, "docs/aria-voice/pronounce.json"), "utf8"));
+  ok("she answers 'Hey ARIA' with 'Yes, Bryson?', and says Lead Scout as 'leed'", lines.yes === "Yes, Bryson?" && say.open_leadscout === "Opening Leed Scout." && Object.keys(say).every((k) => k in lines));
 }
 
 // 3. Spoken commands are safe

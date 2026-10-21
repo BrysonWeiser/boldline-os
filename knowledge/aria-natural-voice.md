@@ -14,6 +14,8 @@ verified: 2026-10-21
 - The old recordings had a slip: "Opening Deal Prep" sounded like "Opening deal prepped" (whisper heard it that way).
   Wording is now written down in `docs/aria-voice/lines.json` and pinned by verify-aria-voice ("Opening Deal Prep.",
   "On it.", "Yes?" as a question when he says "Hey ARIA").
+- "Yes?" (after "Hey ARIA" alone) is now **"Yes, Bryson."**: a one-word line was too short for the model (takes came
+  out as "kess", "Yves" or "uh, yes"), and it reads like Jarvis's "Yes, sir."
 - On a computer she no longer reads the briefing or answers in the robotic voice. She plays the matching recording
   ("Here's your day.", or "Let me look into that." then the answer on screen).
 
@@ -49,3 +51,13 @@ make a DeepInfra account, add a card, create an API key, add it in Netlify (10pm
 live voice, `say(text)` with no fallback stops "thinking" and clears `lastClip`, so the follow-up listening window
 still opens after an answer appears. verify-aria-conversation runs the conversation twice: with a live voice (the
 hand-offs stay proven for the hosted day) and as shipped (no model download ever, recordings only).
+
+## 🔴 Checking a recording: whisper is not enough
+Whisper "heard" every first-round take exactly, yet the phoneme recogniser (`docs/aria-voice/ear_ph.py`,
+`facebook/wav2vec2-lv-60-espeak-cv-ft`, no language model) showed: all 6 "Opening Lead Scout" takes said LED (`l ɛ d`),
+"Here's how you did" came out `h aɪ iː d ɪd`, "Here are your leads" lost its final s, "Yes?" had a g/k onset.
+`pick_os.py` now requires the right sounds on those lines (`SOUNDS`) and allows a natural breath (<= 0.6s) between two
+sentences. Fix for a misread word: give the voice a respelling in `docs/aria-voice/pronounce.json`
+(`"open_leadscout": "Opening Leed Scout."`); the written line in `lines.json` stays correct.
+- Re-running gen2.py on the same line with the same settings gives the SAME audio (seed comes from line id + take
+  number). For genuinely new takes, change the settings or the seed.
