@@ -4,8 +4,8 @@ topic: Prospects
 task: pitch, follow up with, or build a demo site for Unique Tile Renovation (Gabriel Portillo, Arizona tile and remodel)
 keywords: [unique tile renovation, unique_tile_renovation_, gabriel portillo, gportilloo, tile, shower remodel, backsplash, warm lead, instagram dm, website first then ads]
 status: open (warm prospect, not contacted about this yet)
-summary: 2026-10-21 Bryson: the owner of Unique Tile Renovation (Instagram @unique_tile_renovation_, verified, ~7.8k followers, 6 posts, Arizona; owner Gabriel Portillo @gportilloo) follows him on Instagram. No website; unknown if running ads. High-end tile work (kitchens, backsplashes, showers, floors, outdoor, pools). Plan given: website first via a demo site built before reaching out, monthly plan recommended (ads later need a site we manage for tracking and quick changes), Google search ads as step two once the site is live. Instagram category is set to "Personal blog", a free tip to open with.
-verified: 2026-10-21
+summary: 2026-10-20 Bryson: the owner of Unique Tile Renovation (Instagram @unique_tile_renovation_, verified, ~7.8k followers, 6 posts, Arizona; owner Gabriel Portillo @gportilloo) follows him on Instagram. No website; unknown if running ads. High-end tile work (kitchens, backsplashes, showers, floors, outdoor, pools). Plan given: website first via a demo site built before reaching out, monthly plan recommended (ads later need a site we manage for tracking and quick changes), Google search ads as step two once the site is live. Instagram category is set to "Personal blog", a free tip to open with.
+verified: 2026-10-20
 ---
 
 ## Plan given
