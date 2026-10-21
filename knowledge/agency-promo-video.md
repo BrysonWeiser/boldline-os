@@ -142,3 +142,29 @@ we should showcase the ads a bit more (meta and google) and that they are paired
   exact, first line still has the "a", -14.7 LUFS, 55.4s. File sent: BoldLine-promo-detailers-v7.mp4.
 - 🔴 Running two Chatterbox jobs at once (4 threads each on 4 cores) slowed both about 20x. Run one at a time
   (pause the other with kill -STOP / -CONT).
+
+## v8 "every business" (2026-10-21, ~11:30am Phoenix): one video for any business, online stores included
+Bryson: *"redo the video ... so it works with all businesses that I can work with including ecom"* and *"make sure it
+doesnt isolate niches but it shows that we work with every business"*. The detailer video (v7) is KEPT for detailer
+outreach; this one is for everyone else and for the profile.
+- Story: hook (one search box cycling "mobile detailer near me" > "handyman near me" > "soy candles", other searches
+  floating in: plumber, custom t-shirts, dentist, wedding photographer, dog grooming, roof repair) > "Whatever you sell,
+  online or in person," over a wall of 18 business types (Online stores highlighted) > "we put you at the top of
+  Google," (a handyman's sponsored result) > "and in their feed on Facebook and Instagram." (an online candle shop's
+  post) > two landing pages side by side, "Service business" (quote form > New lead) and "Online store" (product page >
+  Buy now > Order placed): "Every ad lands on a page built to turn that click into a customer. Whether that's a booked
+  job or a sale." > leads caught > "Need a website too?" (the detailer site) > portal > hub > "You run the business.
+  We bring the customers." > end card "Ads, landing pages and websites / for any business".
+- 🔴 Honest about e-commerce: we run their ads and build store-mode landing pages that send shoppers to THEIR store's
+  checkout (KB store-mode). We do NOT build online stores, and "Order placed" is shown on the shop's own page, never as
+  a BoldLine alert (we don't track their orders).
+- Sample businesses are invented: Summit Handyman Co. (photo: marketing-site/img/sample/handy-1249611.jpg, Pexels),
+  Ember & Oak Candle Co. (the candle is drawn as SVG, no stock photo), Northline Auto Detailing.
+- Voice checks: whisper exact twice (145/145), plus the phoneme check caught "someone's searching" blurring into
+  "someone searching" (two s sounds merge), so the line is "someone IS searching" (also matches the screen).
+- New in the picker: pauses inside a passage are trimmed to 0.4s (`tighten`, quiet = 36 dB under the peak) and a
+  0.5s beat is allowed after a question mid-passage. Only pauses over 0.4s left: one scene change and the beat after
+  "Need a website too?". -14.8 LUFS, 49.2s. File sent: BoldLine-promo-every-business.mp4. Source in
+  docs/promo-video/every-business/.
+- 🔴 Gotcha (twice): `pkill -f "gen2.py jobs..."` inside a bash command kills that same command (its own command line
+  matches). Use the PID.
