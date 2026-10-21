@@ -18,3 +18,11 @@ verified: 2026-10-20
    only reaches people who already follow him. Steer to the monthly plan.
 5. Ads later: once live, Google search ads for "shower remodel <city>" style searches pointed at his site.
    Remodel jobs are high ticket, so the ads math works; housing-ad rules don't apply (he's a contractor, not housing).
+
+## 2026-10-20 evening: opener changed to a story reply
+He posted a story showing a botched tile install from another contractor that he's now fixing for a client. Advised
+replying to THAT story instead of a cold DM (a story reply lands in his DMs as a natural reaction), leading with a
+genuine reaction, then the hook: fix-it jobs make the best website content (the builder has a before-and-after
+section that appears once before/after photos are uploaded to the Brand kit), and "I mocked one up for Unique, want
+the link?". Ads angle for later: people burned by a bad install search for tile repair / redo, a high-intent search.
+Build the demo BEFORE sending, so the link is ready the moment he says yes.
