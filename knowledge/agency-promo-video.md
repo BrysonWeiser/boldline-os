@@ -80,3 +80,28 @@ emphasized"*.
   time-warped to the real scene length (designed at 4.6s).
 - Script: `docs/promo-video/narration-script.json` (text, speed, gain dB, gap per sentence). Transcribed back: every
   line exact. 42.7s. Phonetic note: British accent says "mobile" as MOH-bile and "detailer" as DEE-tay-luh.
+
+## v5 (2026-10-20, ~11:30pm Phoenix): a smoother, more human ARIA (new voice engine)
+Bryson: *"its better but its still robotic and not smooth. remember the reference video i gave how their ai talked
+smooth make sure to do the same but with ARIA's voice"*.
+- **Why v4 sounded robotic**: Kokoro's compressed (int8) model, the pitch-down step (asetrate + atempo adds a metallic
+  edge), and lines stitched sentence by sentence (no flow between them).
+- **New engine: Chatterbox (Resemble AI, MIT licence, model weights MIT on Hugging Face `ResembleAI/chatterbox`)**, a
+  voice-cloning model trained on real speech. It copies ARIA's voice from her own OS clips (`aria/greet_morning`,
+  `booked_2`, `power_start`, `greet_afternoon`, `recap` joined into a 16s reference). No pitch shifting afterwards.
+  Each scene is read as ONE connected passage, so the pauses and emphasis come from the model, not from cut points.
+  Its output carries Resemble's inaudible "Perth" watermark (marks it as AI audio; harmless).
+- **Four takes per scene, best kept automatically** (`docs/promo-video/voice/pick.py`): must be heard back word for
+  word by faster-whisper; no silence over 0.42s inside a scene; then the most natural (UTMOS naturalness score), the
+  closest to ARIA (speaker-embedding similarity 0.92 to 0.96), livelier pitch as a tie-break, and a bonus when "No
+  website?" is heard as a question. Takes alternate exaggeration/cfg 0.6/0.45 and 0.75/0.35.
+- Result: 126 of 126 words exact in the finished video; the only pause over 0.4s is the deliberate beat before
+  "Automatically."; -14.7 LUFS. 45.6s. File sent: BoldLine-promo-detailers-aria-smooth.mp4.
+- 🔴 Gotchas: whisper writes the brand as "boldlinemedia .com" (compare with the brand collapsed); whisper word timings
+  map to script words through contractions ("we'd" is one whisper word, two script tokens); a glob of `*.wav` also
+  picks up the `.trim.wav` copies, so exclude them.
+- Re-render recipe: `docs/promo-video/voice/` (gen.py > pick.py > apply_flow.py, then frames.cjs + ffmpeg). Runs on
+  CPU here: ~27s per take, ~20 min for 40 takes. Paths inside point at that session's scratchpad.
+- 🔴 Still true: I cannot listen to audio. The checks prove every word is right, no dead air, and that it is ARIA's
+  voice; "does it sound human" is Bryson's ear. If it still isn't smooth enough, the next step up is a paid voice
+  (ElevenLabs, about $5/mo) or his own voiceover.

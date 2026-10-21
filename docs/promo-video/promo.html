@@ -202,7 +202,7 @@ const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const ease=x=>1-Math.pow(1-clamp(x),3);
 const easeIO=x=>{x=clamp(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;};
 const pr=(t,s,d)=>ease((t-s)/d);
-const ORDER=[[0, 5.952], [2, 2.921], [4, 5.083], [3, 4.79], [5, 4.194], [6, 3.218], [1, 2.885], [7, 4.237], [8, 3.38], [9, 5.998]];
+const ORDER=[[0, 5.26], [2, 3.61], [4, 5.38], [3, 5.97], [5, 4.18], [6, 3.7], [1, 3.27], [7, 5.2], [8, 3.12], [9, 5.9]];
 const S={}; let ACC=0; ORDER.forEach(([id,d])=>{S[id]=[ACC,ACC+d];ACC+=d;});
 const DUR=ACC;
 // Headline words: [text, gold]
@@ -257,7 +257,7 @@ function render(t0){
   { const q="mobile detailer near me", n=Math.floor(clamp((t-.55)/1.25)*q.length);
     $("s0a").style.opacity=pr(t,.15,.5); $("s0a").style.transform=`translateY(${(1-pr(t,.15,.5))*30}px)`;
     $("s0bar").style.opacity=pr(t,.5,.5); $("s0q").textContent=q.slice(0,n); $("s0c").style.opacity=(Math.floor(t*2.5)%2)?1:.15;
-    [...$("s0h").querySelectorAll(".w")].forEach((w,i)=>{ const st=i<2?2.96+i*.08:4.34+(i-2)*.09; const p=pr(t,st,.5); w.style.opacity=p; w.style.transform=`translateY(${(1-p)*46}px)`; w.style.filter=`blur(${(1-p)*10}px)`; }); }
+    [...$("s0h").querySelectorAll(".w")].forEach((w,i)=>{ const st=i<2?2.98+i*.08:4.00+(i-2)*.09; const p=pr(t,st,.5); w.style.opacity=p; w.style.transform=`translateY(${(1-p)*46}px)`; w.style.filter=`blur(${(1-p)*10}px)`; }); }
   // S1
   { const s=S[1][0]; const t=s+(t0-s)*4.6/(S[1][1]-S[1][0]); wordsIn($("s1h"),t,s-.05); const pp=pr(t,s+.05,.6); $("s1p").style.opacity=pp; $("s1p").style.transform=`translateY(${(1-pp)*60}px)`;
     const up=easeIO((t-(s+1.2))/1.0); const slot=i=>170+i*215;
@@ -292,12 +292,12 @@ function render(t0){
   { const s=S[7][0]; const t=s+(t0-s)*4.6/(S[7][1]-S[7][0]); wordsIn($("s7h"),t,s-.05); drawHub(t,s); const c=pr(t,s+.1,.6); $("s7c").style.opacity=c; $("s7c").style.transform=`scale(${.6+.4*c})`;
     NODES.forEach((_,i)=>{const q=pr(t,s+.9+i*.18,.5);$("nd"+i).style.opacity=q;$("nd"+i).style.transform=`scale(${.7+.3*q})`;}); }
   // S8
-  { const s=S[8][0]; wordsIn($("s8a"),t,s); wordsIn($("s8b"),t,s+1.66); }
+  { const s=S[8][0]; wordsIn($("s8a"),t,s); wordsIn($("s8b"),t,s+1.63); }
   // S9
   { const s=S[9][0]; const l=pr(t,s,.8); $("s9logo").style.opacity=l; $("s9logo").style.transform=`scale(${.7+.3*l})`; $("s9logo").style.filter=`drop-shadow(0 0 ${40*l}px rgba(212,176,90,.5))`;
     const n=pr(t,s+.7,.6); $("s9n").style.opacity=n; $("s9n").style.letterSpacing=`${(1-n)*.3+.01}em`;
     $("s9t").style.opacity=pr(t,s+1.2,.5); const b=pr(t,s+1.6,.5); $("s9b").style.opacity=b; $("s9b").style.transform=`translateY(${(1-b)*40}px)`;
-    $("s9u").style.opacity=pr(t,s+2.0,.5); }
+    $("s9u").style.opacity=pr(t,s+1.53,.5); }
 }
 window.render=render; window.DUR=DUR;
 render(0);
