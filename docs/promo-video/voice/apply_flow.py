@@ -12,7 +12,7 @@ for name in ["promo.html", "promo-built.html"]:
     # S8: "We bring the customers." lands on her words (offset inside the scene)
     s, n3 = re.subn(r'wordsIn\(\$\("s8b"\),t,s\+[\d.]+\)', f'wordsIn($("s8b"),t,s+{seg["s8.1"]-start[8]-0.05:.2f})', s)
     # S9: the web address fades in as she starts saying it
-    s, n4 = re.subn(r'\$\("s9u"\)\.style\.opacity=pr\(t,s\+[\d.]+,\.5\)', f'$("s9u").style.opacity=pr(t,s+{seg["s9.url"]-start[9]-0.15:.2f},.5)', s)
+    s, n4 = re.subn(r"const URL9=[\d.]+;", f"const URL9={seg['s9.url']-start[9]:.2f};", s)
     assert (n1, n2, n3, n4) == (1, 1, 1, 1), (name, n1, n2, n3, n4)
     open(p, "w").write(s)
 print("ok", f["order"], {k: seg[k] for k in ("s0.1", "s0.2", "s8.1", "s9.url")})

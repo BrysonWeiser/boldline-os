@@ -48,12 +48,17 @@ class FakeWorker { postMessage(m) { setTimeout(() => this.onmessage({ data: m.ty
 const store = {};
 const W = { AudioContext: FakeAC, SpeechRecognition: FakeSR, Worker: FakeWorker, caches: {}, innerWidth: 1400, navigator: {},
   matchMedia: () => ({ matches: false }) };
-const ctx = vm.createContext({ window: W, Worker: FakeWorker, navigator: W.navigator, matchMedia: W.matchMedia, console, setTimeout, clearTimeout, setInterval, URL: { createObjectURL: () => "blob:x" }, Blob: class {},
+const fetched = [];
+const makeCtx = (Wk) => vm.createContext({ window: { ...W, Worker: Wk }, Worker: Wk, navigator: W.navigator, matchMedia: W.matchMedia, console, setTimeout, clearTimeout, setInterval, URL: { createObjectURL: () => "blob:x" }, Blob: class {},
   localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
   requestAnimationFrame: () => 0, Float32Array, Uint8Array, Promise, Date, Math, Number, String, Object, Set, Array,
-  fetch: async (u) => { const name = String(u).replace(/^.*\/|\.mp3$/g, ""); return { arrayBuffer: async () => new Uint8Array([...name].map((c) => c.charCodeAt(0))).buffer }; } });
+  fetch: async (u) => { const name = String(u).replace(/^.*\/|\.mp3$/g, ""); fetched.push(name); return { arrayBuffer: async () => new Uint8Array([...name].map((c) => c.charCodeAt(0))).buffer }; } });
+const ctx = makeCtx(FakeWorker);
 let V;
-try { vm.runInContext(SRC + "\nthis.ARIA_VOICE = ARIA_VOICE;", ctx); V = ctx.ARIA_VOICE; } catch (e) { fails.push("the engine runs: " + e.message); }
+// The conversation below runs with a live voice switched on, so the speaking/listening hand-offs stay proven for the
+// day a natural hosted voice reads answers aloud. What the OS ships today (live voice off) is checked in part 6.
+ok("the live voice switch is there to flip", SRC.includes('const ARIA_LIVE = "off";'));
+try { vm.runInContext(SRC.replace('const ARIA_LIVE = "off";', 'const ARIA_LIVE = "kokoro";') + "\nthis.ARIA_VOICE = ARIA_VOICE;", ctx); V = ctx.ARIA_VOICE; } catch (e) { fails.push("the engine runs: " + e.message); }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const live = () => recs.filter((r) => r.started && !r.ended);
@@ -103,6 +108,33 @@ if (V) {
   // Switching off really stops it.
   V.setMic(false); await wait(30);
   ok("switching Hey ARIA off stops listening", !V.state().listening && live().length === 0);
+}
+
+// 6. What the OS ships (Bryson, 2026-10-21: "right now she sounds robotic in the os"): the in-browser voice model,
+//    the robotic one, is OFF. She uses only the natural recordings, and a conversation still flows.
+{
+  let made = 0;
+  class CountingWorker extends FakeWorker { constructor() { super(); made++; } }
+  const ctx2 = makeCtx(CountingWorker); let V2;
+  try { vm.runInContext(SRC + "\nthis.ARIA_VOICE = ARIA_VOICE;", ctx2); V2 = ctx2.ARIA_VOICE; } catch (e) { fails.push("the shipped engine runs: " + e.message); }
+  if (V2) {
+    V2.warm(); V2.setVoice(true); await wait(80);
+    ok("🔴 nothing ever starts the robotic voice model", made === 0 && V2.state().neural === "idle");
+    const asked = [];
+    V2.setHandler((t) => { asked.push(t); if (/question/.test(t)) { V2.clip("thinking"); setTimeout(() => V2.say("Here is the answer. And one more line."), 120); } });
+    V2.setMic(true); await wait(30);
+    const m2 = () => live()[0] || { say() {} };
+    m2().say("hey aria I have a question about pricing");
+    await wait(60);
+    ok("she says 'let me look into that' while the answer comes", V2.state().speaking && asked[0] === "I have a question about pricing");
+    await wait(400);
+    const s2 = V2.state();
+    ok("🔴 the answer (on screen) ends 'thinking': not stuck speaking, mic back", !s2.speaking && s2.listening);
+    ok("and she still listens for a follow-up, as after a spoken answer", s2.awake);
+    fetched.length = 0; V2.say("Opening Desert Shine.", "on_it"); await wait(250);
+    ok("🔴 a line with a name plays its natural recording instead", fetched.includes("on_it") && made === 0);
+    V2.setMic(false); await wait(30);
+  }
 }
 
 if (fails.length) console.log(fails.map((f) => "  FAIL  " + f).join("\n"));

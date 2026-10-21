@@ -28,6 +28,16 @@ def longest_gap(a):
     db = frames_db(a) < -42; best = run = 0
     for x in db: run = run + 1 if x else 0; best = max(best, run)
     return best * 240 / SR
+# 🔴 Bryson, 2026-10-21: "make sure in the beginning she says 'someone searched for A mobile detailer'". Whisper
+# writes "for a" even when the "a" was swallowed (its language model fills it in), so the first line is also checked
+# by a phoneme recogniser with no language model: between "for" and "mobile" there must be a second vowel.
+from ear_ph import phones as _phones
+def article_ok(w16):
+    t = _phones(w16[: 16000 * 3]).split()
+    try: f = next(i for i in range(len(t)) if t[i] == "f" and i > 3); m_ = next(i for i in range(f, len(t)) if t[i] == "m")
+    except StopIteration: return False, " ".join(t)
+    vow = [x for x in t[f + 1:m_] if x != "ɹ" and re.search("[aeiouəɐʌɛɪɔɑæɜɚ]", x)]
+    return len(vow) >= 2, " ".join(t[f:m_ + 4])
 script = json.load(open(f"{D}/script.json")); chosen = {}
 ONLY = os.environ.get("ONLY")   # score just these scenes (comma list), no assembly
 if ONLY: script = [x for x in script if x[0] in ONLY.split(",")]
@@ -44,8 +54,10 @@ for sid, sents in script:
         f0, _, _ = librosa.pyin(w16, fmin=80, fmax=400, sr=16000); f0 = f0[~np.isnan(f0)]
         sd = float(np.std(12 * np.log2(f0 / np.median(f0)))) if len(f0) else 0
         gap = longest_gap(a)
+        art, ph = article_ok(w16) if sid == "s0" else (True, "")
+        if sid == "s0": print(f"   {os.path.basename(f)} article {'yes' if art else 'NO '} | {ph}", flush=True)
         asks = " ".join(sents).count("?")   # a question should sound like one; whisper only writes "?" when it rises
-        score = u + 3 * (sim - 0.95) + 0.05 * sd + (0.15 if asks and heard.count("?") >= asks else 0) - (0 if gap <= MAXPAUSE else 2) - (0 if ok else 10)
+        score = u + 3 * (sim - 0.95) + 0.05 * sd + (0.15 if asks and heard.count("?") >= asks else 0) - (0 if gap <= MAXPAUSE else 2) - (0 if ok else 10) - (0 if art else 10)
         rows.append(dict(f=tmp, ok=ok, mos=u, sim=sim, sd=sd, gap=gap, dur=len(a) / SR, score=score, heard=heard, words=[(w.word.strip(), w.start, w.end) for w in words]))
         print(f"{sid} {os.path.basename(f):10s} {'OK ' if ok else 'BAD'} mos {u:.2f} sim {sim:.3f} f0sd {sd:.2f} gap {gap:.2f} dur {len(a)/SR:.2f} -> {score:.2f} | {heard}", flush=True)
     best = max(rows, key=lambda r: r["score"]); chosen[sid] = best
