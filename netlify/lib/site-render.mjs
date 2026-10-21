@@ -770,6 +770,9 @@ ${pages.map((p) => linkTo(base, p.id, esc(p.label))).join("")}
 ${phone ? `<a href="tel:${esc(digits(phone))}">${esc(phone)}</a>` : ""}</div>`;
 }
 
+// A payment link of the business's own (PayPal, Venmo, a Square or Stripe link). Only set on files handed over to a
+// client who bought the site outright (own-site-setup.mjs); hosted sites take payment through their Book page.
+const payLinkOf = (cl) => (/^https:\/\/[^\s"'<>]+$/.test(String((cl && cl.__payLink) || "")) ? cl.__payLink : "");
 function footer(cl, base, C, pages = SITE_PAGES) {
   const phone = (cl && (cl.businessPhone || cl.callTrackingNumber)) || "";
   const email = String((cl && cl.website && cl.website.publicEmail) || "").trim();
@@ -777,7 +780,7 @@ function footer(cl, base, C, pages = SITE_PAGES) {
   return `<footer class="ft"><div class="wrap">
 <div><div class="big disp">${esc(C.name)}</div>${C.area ? `<p style="color:var(--mute)">Serving ${esc(C.area)}</p>` : ""}</div>
 <div><h4>Pages</h4>${pages.map((p) => linkTo(base, p.id, esc(p.label))).join("")}</div>
-<div><h4>Contact</h4>${phone ? `<a href="tel:${esc(digits(phone))}">${esc(phone)}</a>` : ""}${email ? `<a href="mailto:${esc(email)}">${esc(email)}</a>` : ""}${addr ? `<p>${esc(addr)}</p>` : ""}</div>
+<div><h4>Contact</h4>${phone ? `<a href="tel:${esc(digits(phone))}">${esc(phone)}</a>` : ""}${email ? `<a href="mailto:${esc(email)}">${esc(email)}</a>` : ""}${payLinkOf(cl) ? `<a href="${esc(payLinkOf(cl))}" target="_blank" rel="noopener">Pay online</a>` : ""}${addr ? `<p>${esc(addr)}</p>` : ""}</div>
 <div class="fine">&copy; ${new Date().getFullYear()} ${esc(C.name)}. All rights reserved.</div>
 </div></footer>
 <div class="pill">${ctaBtn(C, base)}${phone ? `<a class="btn ghost" href="tel:${esc(digits(phone))}" aria-label="Call ${esc(phone)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg><span class="pl-t">Call</span></a>` : ""}</div>`;
@@ -1035,7 +1038,7 @@ function contactBody(theme, cl, C, base) {
 ${isHealth(cl) ? "" : `<label>How can we help?<textarea name="msg" rows="4"></textarea></label>`}
 <p class="err" role="alert"></p><button class="btn" type="submit">${esc(C.cta.send)}</button></form>
 <div class="thanks" id="sthx"><h3 class="disp" style="font-size:30px">Thanks, we got it.</h3><p style="color:var(--mute);margin-top:8px">We'll be in touch shortly.</p></div></div>
-<div><dl class="info rv d1">${phone ? `<dt>Call</dt><dd><a href="tel:${esc(digits(phone))}">${esc(phone)}</a></dd>` : ""}${email ? `<dt>Email</dt><dd><a href="mailto:${esc(email)}">${esc(email)}</a></dd>` : ""}${addr ? `<dt>Visit</dt><dd>${esc(addr)}</dd>` : ""}${hours ? `<dt>Hours</dt><dd>${esc(hours)}</dd>` : ""}${C.area ? `<dt>Service area</dt><dd>${esc(C.area)}</dd>` : ""}</dl>
+<div><dl class="info rv d1">${phone ? `<dt>Call</dt><dd><a href="tel:${esc(digits(phone))}">${esc(phone)}</a></dd>` : ""}${email ? `<dt>Email</dt><dd><a href="mailto:${esc(email)}">${esc(email)}</a></dd>` : ""}${payLinkOf(cl) ? `<dt>Pay</dt><dd><a href="${esc(payLinkOf(cl))}" target="_blank" rel="noopener">Pay online</a></dd>` : ""}${addr ? `<dt>Visit</dt><dd>${esc(addr)}</dd>` : ""}${hours ? `<dt>Hours</dt><dd>${esc(hours)}</dd>` : ""}${C.area ? `<dt>Service area</dt><dd>${esc(C.area)}</dd>` : ""}</dl>
 ${map ? `<div style="margin-top:30px">${map}</div>` : ""}</div></div></section>`;
 }
 

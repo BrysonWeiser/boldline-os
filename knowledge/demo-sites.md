@@ -44,7 +44,7 @@ verified: 2026-10-20
 ## Live status
 Merged to main Tue 2026-10-20 (Phoenix morning). The sample sites on boldlinemedia.com were regenerated in the same deploy because the shared form script changed (no visible change).
 
-## 2026-10-20 (Tue, ~1:30pm Phoenix): outright sales are now hands-off after "Send the agreement"
+## 2026-10-20 (Tue, ~1:15pm Phoenix): outright sales are now hands-off after "Send the agreement"
 Bryson: *"after they pay there is a place for them to type their own web address and once they do it automatically
 sends to them that way I dont have to do it manually where there could be mistakes"*, then "yes lets do it and give
 me a visual preview of the whole process". Built:
@@ -68,3 +68,15 @@ me a visual preview of the whole process". Built:
   so the seed now reads the raw record), and the Send confirmation said "Care plan" for outright.
 - Visual walkthrough (private artifact, real screens): https://claude.ai/artifact/EiUz5zNhxmghyqGn21pfaa
 Tests: verify-demo-sites now 70 (section 7). Full suite 168/168.
+
+### Preview gotcha (2026-10-20): broken picture icons were the screenshot machine, not the emails
+Bryson saw broken-image icons on the email buttons and logo in the walkthrough. Cause: the screenshot browser here
+cannot reach the internet, and the email buttons are PICTURES hosted at boldlinemedia.com/email/v1/ (on purpose: Gmail's
+iPhone dark mode turns a drawn gold button olive, KB email button note in netlify/lib/email-button.mjs). Checked live:
+logo, pay-the-invoice, open-your-portal and get-your-website-files all return 200. For future previews, fetch
+boldlinemedia.com through curl in the Playwright route (as the walkthrough's shot.cjs now does) so pictures show.
+Only real-world gap: an email app that blocks pictures (mainly Outlook on a computer) shows the gold button with the
+words on it; that is the designed fallback.
+
+## 2026-10-21: booking and payments on the handed-over site
+The download card now asks how customers book (their booking app link, call, or request form) plus an optional payment link before it downloads, checks the links, and lets them switch apps later by downloading again. The Download button itself was broken until then (read the server answer twice). Full detail in KB `own-site-booking`.

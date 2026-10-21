@@ -15,6 +15,7 @@ import { renderSite, pageById, THEME_IDS, siteReady, brandName, pageByPath, page
 import { supabaseStore, loadIndex, loadPost, publishedPosts, isPublished, setHeld, removePost, applyEdit } from "../lib/site-blog.mjs";
 import { publishLock, termsOf, fullyPaid, exempt } from "../lib/website-deal.mjs";
 import { exportSiteFiles, zipFiles } from "../lib/site-export.mjs";
+import { setupOf } from "../lib/own-site-setup.mjs";
 import { cleanDomain, altHost, liveDomain, domainRequest, sitemapXML, robotsTXT } from "../lib/site-domain.mjs";
 
 const json = (body, status = 200) =>
@@ -102,7 +103,9 @@ export default async (req) => {
       if (!exempt(cl) && termsOf(cl).mgmt !== "own") return json({ ok: false, error: "Only a website they bought outright is handed over as files. This one stays hosted by us." }, 409);
       if (!exempt(cl) && !fullyPaid(cl)) return json({ ok: false, error: "The files are handed over once it's paid in full." }, 409);
       try {
-        const out = await exportSiteFiles(cl, { domain: body.domain, email: (cl.website && cl.website.publicEmail) || cl.email });
+        // The booking and payment choice the client made on their download card, so his copy matches theirs.
+        const su = setupOf(cl);
+        const out = await exportSiteFiles(cl, { domain: body.domain, email: (cl.website && cl.website.publicEmail) || cl.email, setup: su.how ? su : null });
         const zip = zipFiles(out.files);
         // Recorded on the deal so the Website tab shows the handover as done. Read-merge-write of that one key.
         const deal = cl.websiteDeal || {};
