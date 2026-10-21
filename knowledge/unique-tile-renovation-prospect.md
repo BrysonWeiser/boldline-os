@@ -26,3 +26,5 @@ genuine reaction, then the hook: fix-it jobs make the best website content (the 
 section that appears once before/after photos are uploaded to the Brand kit), and "I mocked one up for Unique, want
 the link?". Ads angle for later: people burned by a bad install search for tile repair / redo, a high-intent search.
 Build the demo BEFORE sending, so the link is ready the moment he says yes.
+
+Scheduling: Bryson works his day job Mon to Fri 2 to 10pm (KB morning-brief-routine), so meetings go before 1pm; around noon (contractor lunch) suggested. Backup if no time fits: send the link with a 1 to 2 minute screen-recorded walkthrough.
