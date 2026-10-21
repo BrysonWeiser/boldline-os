@@ -1,0 +1,12 @@
+[
+ ["s0", [["Someone near you just searched for a mobile detailer.", 1.0, 0, 0.22], ["No website?", 0.98, 0, 0.12], ["They booked someone else.", 0.9, 2.0, 0]]],
+ ["s2", [["So we build you a website that actually books the job.", 1.0, 0, 0]]],
+ ["s4", [["Customers pick a package, choose a time, and pay a deposit, even while you're out working.", 1.02, 0, 0]]],
+ ["s3", [["Every call and every form lands in one place, so no lead slips through the cracks.", 1.02, 0, 0]]],
+ ["s5", [["After every job, we ask for a Google review.", 1.0, 0, 0.1], ["Automatically.", 0.9, 2.0, 0]]],
+ ["s6", [["And you watch it grow, right from your own client portal.", 1.0, 0, 0]]],
+ ["s1", [["When you're ready for more, we put you at the top of Google.", 0.98, 1.0, 0]]],
+ ["s7", [["Your website, booking, reviews and ads. All connected, in one system.", 1.0, 0, 0]]],
+ ["s8", [["You do the detailing.", 0.98, 0, 0.18], ["We bring the customers.", 0.9, 2.0, 0]]],
+ ["s9", [["See what we'd build for you, at Bold Line Media dot com.", 0.92, 1.5, 0]]]
+]

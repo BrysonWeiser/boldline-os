@@ -63,3 +63,20 @@ sure it sounds human what you just showed me sounded very robitic"*. The Piper "
   final video back, compared word for word to the script: 10 of 10 lines exact, "Bold Line Media dot com" heard as
   "boldlinemedia.com". Re-run this check whenever a line changes (scratchpad `kokoro/verify.py`).
 - Re-timed to her pacing: 50.8s. File sent: BoldLine-promo-detailers-aria.mp4.
+
+## v4 (2026-10-20, ~11pm Phoenix): one flowing read, matched to the screen, punchlines emphasized
+Bryson: *"make sure she says just search for a mobile detailer (basically the words that are on screen)"* and *"make
+sure there are no unnecessary pauses like there are now. it should flow smoothly with certain points that are
+emphasized"*.
+- **Voice drives the edit now, not the reverse.** Each sentence is synthesized, its silence trimmed, then laid end to
+  end with designed gaps (0.1 to 0.22s inside a scene, 0.28s between scenes). Scene changes land 0.2s before each
+  line starts. The only silence over 0.45s in the whole video is the 2.5s hold on the end card so people can read the
+  address (checked with ffmpeg silencedetect).
+- **Emphasis** = the punchline as its own sentence at a slower speed (0.9) and +2 dB: "They booked someone else.",
+  "Automatically.", "We bring the customers.", plus "top of Google" (+1 dB) and the web address (0.92, +1.5 dB).
+- **Matches the screen**: search box now types "mobile detailer near me"; she says "searched for a mobile detailer.
+  No website? They booked someone else." with "No website?" and "They booked someone else." appearing as she says
+  each. "You do the detailing" / "We bring the customers" also land on her words. Scenes 1 to 7 play their animation
+  time-warped to the real scene length (designed at 4.6s).
+- Script: `docs/promo-video/narration-script.json` (text, speed, gain dB, gap per sentence). Transcribed back: every
+  line exact. 42.7s. Phonetic note: British accent says "mobile" as MOH-bile and "detailer" as DEE-tay-luh.
