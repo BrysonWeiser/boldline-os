@@ -3,8 +3,8 @@ name: aria-natural-voice
 topic: OS
 task: change, re-record or extend ARIA's voice in the OS (the /aria/ recordings), bring back live spoken answers, or set up the hosted natural voice
 keywords: [aria voice, natural voice, robotic, chatterbox, voice clone, aria recordings, aria mp3, re-record aria, live voice, kokoro off, ARIA_LIVE, deepinfra, hosted voice, aria sounds robotic]
-status: built 2026-10-21 (recordings replaced; live voice off; hosted voice proposed, not set up)
-summary: Bryson 2026-10-21 - "make sure this new more human sounding version of aria is implemented into the os because right now she sounds robotic in the os". All 24 fixed lines in /aria/ re-recorded with Chatterbox (MIT) cloned from her original voice (docs/aria-voice/reference.flac), several takes per line, best kept automatically (every word heard back exactly, no dead air, natural, closest to ARIA), same format and loudness as before (mp3 56k mono 24 kHz, -20 LUFS). The in-browser Kokoro model (the robotic sound, computers only) is switched OFF (ARIA_LIVE = "off"): live sentences (briefing, chat answers, "Opening <client>") now play the matching recording and the words stay on screen, as on his phone. To have her READ live sentences in the natural voice again: hosted Chatterbox on DeepInfra ($10 per million characters, about $1 to $3 a month; custom voice_id, exaggeration, cfg, mp3) via a small server function. Proposed to Bryson, needs his OK and an account.
+status: built 2026-10-21 (recordings replaced; live voice off; hosted voice ON HOLD by Bryson's choice)
+summary: Bryson 2026-10-21 - "make sure this new more human sounding version of aria is implemented into the os because right now she sounds robotic in the os". All 24 fixed lines in /aria/ re-recorded with Chatterbox (MIT) cloned from her original voice (docs/aria-voice/reference.flac), several takes per line, best kept automatically (every word heard back exactly, no dead air, natural, closest to ARIA), same format and loudness as before (mp3 56k mono 24 kHz, -20 LUFS). The in-browser Kokoro model (the robotic sound, computers only) is switched OFF (ARIA_LIVE = "off"): live sentences (briefing, chat answers, "Opening <client>") now play the matching recording and the words stay on screen, as on his phone. To have her READ live sentences in the natural voice again: hosted Chatterbox on DeepInfra ($10 per million characters, about $1 to $3 a month; custom voice_id, exaggeration, cfg, mp3) via a small server function. Proposed to Bryson 2026-10-21; he said "no we can hold off on that". Do not build it unless he raises it again.
 verified: 2026-10-21
 ---
 
@@ -24,7 +24,7 @@ The natural model (Chatterbox, 0.5B parameters, PyTorch) cannot run in a browser
 Netlify function. The only in-browser option is Kokoro, which is what sounded robotic. So: recordings everywhere now,
 and a hosted voice for live sentences if he wants it.
 
-## The hosted option (proposed 2026-10-21, not built)
+## The hosted option (proposed 2026-10-21, ON HOLD: Bryson "no we can hold off on that")
 DeepInfra runs `ResembleAI/chatterbox` (MIT): `POST https://api.deepinfra.com/v1/inference/ResembleAI/chatterbox`
 with `text` (max 5000), `voice_id` (a custom voice created on DeepInfra from our reference clip), `exaggeration`,
 `cfg`, `temperature`, `seed`, `response_format` mp3. Price from their model list: 0.001 cents per input character

@@ -221,6 +221,11 @@ export async function setBudget(accessToken, customerId, budgetResourceName, dol
 // they have never heard of, asking for control of their ad account. The convenience is worth
 // nothing next to that, so the OS shows the number back and waits for a press.
 //
+// The ONE automatic sender is the client portal (2026-10-21, KB ad-account-link), and only
+// because the danger above does not apply there: the OWNER types their own number, from their
+// own screen, twice, and the two must match before anything is saved or sent. Bryson's OS edit
+// sheet, where he types it on a call, stays manual.
+//
 // The link is created PENDING against the MANAGER account, not the client's: the client then
 // approves it on their side. We cannot grant ourselves access, which is exactly right.
 export async function linkClientAccount(accessToken, clientCustomerId) {
