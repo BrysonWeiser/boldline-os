@@ -1,0 +1,87 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Inter:wght@500;600;700;800&display=swap">
+<style>
+:root{--gold:#D4B05A;--gold2:#F0D27A;--ink:#F2EEDF;--D:'Chakra Petch',Inter,sans-serif;--B:Inter,system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#050608;color:var(--ink);font-family:var(--B)}
+#bg{position:absolute;inset:0}
+.head{position:absolute;left:60px;right:60px;top:110px;text-align:center;font-family:var(--D);font-weight:700;font-size:78px;line-height:1.05}
+.head .w{display:inline-block}.g{color:var(--gold2)}
+.phone{position:absolute;left:198px;top:300px;width:684px;height:1480px;border-radius:84px;background:#000;box-shadow:0 0 0 14px #15171f,0 0 0 16px rgba(212,176,90,.35),0 60px 160px -30px #000}
+.scr{position:absolute;inset:0;border-radius:84px;overflow:hidden;background:#07080B}
+.scr img{position:absolute;left:0;top:0;width:684px;will-change:transform,opacity}
+.notch{position:absolute;top:22px;left:50%;width:190px;height:52px;margin-left:-95px;border-radius:30px;background:#000;z-index:9}
+.hl{position:absolute;border:4px solid var(--gold2);border-radius:22px;box-shadow:0 0 40px rgba(240,210,122,.55);opacity:0}
+.chip{position:absolute;display:inline-flex;align-items:center;gap:14px;padding:18px 30px;border-radius:44px;background:rgba(18,21,32,.94);border:2px solid rgba(212,176,90,.5);font-size:34px;font-weight:700;white-space:nowrap;box-shadow:0 24px 60px -20px #000;opacity:0}
+.chip i{width:14px;height:14px;border-radius:50%;background:var(--gold2);box-shadow:0 0 16px var(--gold2)}
+.tap{position:absolute;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;border:6px solid var(--gold2);opacity:0}
+#orbwrap{position:absolute;left:0;right:0;top:330px;height:900px;display:none}
+#orbimg{position:absolute;left:50%;top:50%;width:1080px;transform:translate(-50%,-50%)}
+#orbglow{position:absolute;left:50%;top:44%;width:900px;height:900px;margin:-450px 0 0 -450px;border-radius:50%;background:radial-gradient(circle,rgba(240,210,122,.32),rgba(240,210,122,0) 60%);mix-blend-mode:screen}
+#orbimg{-webkit-mask-image:radial-gradient(ellipse 60% 62% at 50% 50%,#000 55%,transparent 100%);mask-image:radial-gradient(ellipse 60% 62% at 50% 50%,#000 55%,transparent 100%)}
+#end{position:absolute;inset:0;display:none;text-align:center}
+</style></head><body>
+<canvas id="bg" width="1080" height="1920"></canvas>
+<div class="head" id="head"></div>
+<div class="phone" id="phone"><div class="notch"></div><div class="scr" id="scr"><img id="a"><img id="b"></div></div>
+<div class="hl" id="hl"></div><div class="hl" id="hl2"></div>
+<div class="tap" id="tap"></div>
+<div class="chip" id="chip"><i></i><span id="chipt"></span></div>
+<div id="orbwrap"><img id="orbimg" src="orb.png"><div id="orbglow"></div></div>
+<div id="end"><img src="logo.png" id="elogo" style="position:absolute;left:50%;top:640px;width:230px;margin-left:-115px">
+  <div id="ename" style="position:absolute;left:0;right:0;top:960px;font-family:var(--D);font-size:100px;font-weight:700">BoldLine <span class="g">Media</span></div>
+  <div id="eurl" style="position:absolute;left:0;right:0;top:1150px;font-family:var(--D);font-size:92px;font-weight:700;color:var(--gold2);text-shadow:0 0 50px rgba(212,176,90,.35)">boldlinemedia.com</div></div>
+<script>
+const $=id=>document.getElementById(id), clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)), easeIO=x=>{x=clamp(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;}, ease=x=>1-Math.pow(1-clamp(x),3), pr=(t,s,d)=>ease((t-s)/d);
+const Q=new URLSearchParams(location.search), SEG=Q.get("seg"), DUR=+Q.get("dur")||6;
+const S=684/390, PX=198, PY=300;               // phone scale and position: CSS px of the OS -> px of the video
+const box=(el,x,y,w,h,scroll,a)=>{el.style.left=(PX+x*S-8)+"px";el.style.top=(PY+(y-scroll)*S-8)+"px";el.style.width=(w*S+16)+"px";el.style.height=(h*S+16)+"px";el.style.opacity=a;};
+let ENV={}; fetch("env.json").then(r=>r.json()).then(j=>ENV=j);
+// Each part of the script: which screen(s), how it moves, what gets pointed at. Times are seconds into the clip.
+const SEGS={
+  hook:{head:[["My agency runs on",0],"\n",["its own AI.",1]],orb:"greet"},
+  leadscout:{head:[["Finds who",0],["to call",1]],img:"leadscout-full.png",scroll:[[0.3,0],[3.6,430]],chip:["Ranked by how good a fit they are",3.4,1640]},
+  demo:{head:[["Their website,",0],["built first",1]],seq:["demo-y0.png","demo-y520.png","demo-y1040.png","demo-y1560.png"],chip:["Built before the first call",1.2,1640]},
+  contract:{head:[["Contracts and billing,",0],["handled",1]],img:"contract.png",hl:[[13,143,177,74,0.7],[285,468,78,24,2.2]],chip:["Signed, then billing runs itself",2.6,1640]},
+  build:{head:[["Ads and pages,",0],"\n",["built for me",1]],seq2:["pipeline.png","landing-full.png"],chip:["I just approve them",3.3,1640]},
+  portal:{head:[["Every lead,",0],["one place",1]],seq2:["client-leads.png","portal-full.png"],chip:["Clients watch it live",3.4,1640]},
+  aria:{head:[["Meet",0],["ARIA",1]],orb:"intro"},
+  powerhour:{head:[["Power",0],["Hour",1]],seq3:["outreach.png","outreach-running.png"],tap:[141,280,1.2]},
+  today:{head:[["My day,",0],["planned",1]],img:"home.png",zoom:true,chip:["Calls, bookings, what needs me",1.4,1640]},
+  end:{end:true}
+};
+const seg=SEGS[SEG]; if(Q.get("chips")==="0") delete seg.chip;   // his captions carry the words in the final cut
+function words(parts){ $("head").innerHTML=parts.map(p=>p==="\n"?"<br>":p[0].split(" ").map(x=>`<span class="w${p[1]?" g":""}">${x}</span>`).join(" ")).join(" "); }
+if(seg.head) words(seg.head);
+const imgA=$("a"), imgB=$("b");
+if(seg.img){ imgA.src=seg.img; } if(seg.seq){ imgA.src=seg.seq[0]; } if(seg.seq2){ imgA.src=seg.seq2[0]; imgB.src=seg.seq2[1]; } if(seg.seq3){ imgA.src=seg.seq3[0]; imgB.src=seg.seq3[1]; }
+if(seg.chip){ $("chipt").textContent=seg.chip[0]; }
+if(seg.orb||seg.end){ $("phone").style.display="none"; } if(seg.orb){ $("orbwrap").style.display="block"; } if(seg.end){ $("end").style.display="block"; }
+// background: grid, slow glow, dust (as in the promo)
+const bg=$("bg").getContext("2d"); const DUST=Array.from({length:70},(_,i)=>({x:(i*397)%1080,y:(i*911)%1920,s:1+(i%3),v:8+(i%7)*3}));
+function drawBg(t){ bg.fillStyle="#050608";bg.fillRect(0,0,1080,1920); const gy=760+Math.sin(t*.35)*120; const g=bg.createRadialGradient(540,gy,40,540,gy,980);g.addColorStop(0,"rgba(212,176,90,.14)");g.addColorStop(1,"rgba(212,176,90,0)");bg.fillStyle=g;bg.fillRect(0,0,1080,1920);
+  bg.strokeStyle="rgba(212,176,90,.05)";bg.lineWidth=1; for(let x=0;x<=1080;x+=72){bg.beginPath();bg.moveTo(x+.5,0);bg.lineTo(x+.5,1920);bg.stroke();} for(let y=0;y<=1920;y+=72){bg.beginPath();bg.moveTo(0,y+.5);bg.lineTo(1080,y+.5);bg.stroke();}
+  for(const d of DUST){const y=(d.y-t*d.v+1920*4)%1920;bg.fillStyle=`rgba(240,210,122,${.12+.1*Math.sin(t+d.x)})`;bg.beginPath();bg.arc(d.x,y,d.s,0,7);bg.fill();} }
+function env(name,t){ const e=ENV[name]||[]; const i=Math.floor(t*30); return e[i]||0; }
+function render(t){
+  drawBg(t);
+  [...$("head").querySelectorAll(".w")].forEach((w,i)=>{const p=pr(t,.05+i*.08,.5);w.style.opacity=p;w.style.transform=`translateY(${(1-p)*40}px)`;w.style.filter=`blur(${(1-p)*8}px)`;});
+  const ph=$("phone"); const pin=pr(t,0,.6); ph.style.opacity=pin; ph.style.transform=`translateY(${(1-pin)*70}px) scale(${.97+.03*pin})`;
+  const out=clamp((DUR-t)/.35); document.body.style.opacity=SEG==="end"?1:out;   // fades out at the end of the clip for a clean cut
+  if(seg.img&&seg.scroll){ const [[a0,y0],[a1,y1]]=seg.scroll; const y=y0+(y1-y0)*easeIO((t-a0)/(a1-a0)); imgA.style.transform=`translateY(${-y*S}px)`; }
+  if(seg.img&&seg.zoom){ const z=1+.06*easeIO(t/DUR); imgA.style.transformOrigin="50% 30%"; imgA.style.transform=`scale(${z})`; }
+  if(seg.seq){ const n=seg.seq.length, step=(DUR-.6)/n; const k=Math.min(n-1,Math.floor(t/step)); const f=clamp((t-k*step)/.45);
+    if(imgA.dataset.k!=k){ imgB.src=seg.seq[Math.max(0,k-1)]; imgA.src=seg.seq[k]; imgA.dataset.k=k; }
+    imgB.style.opacity=k>0?1-f:0; imgB.style.transform=`translateY(${-f*60}px)`; imgA.style.opacity=k>0?f:1; imgA.style.transform=`translateY(${(1-f)*60}px)`; }
+  if(seg.seq2){ const sw=2.4; const f=easeIO((t-sw)/.6); imgA.style.opacity=1-f; imgA.style.transform=`translateX(${-f*120}px)`; imgB.style.opacity=f; const y=Math.max(0,easeIO((t-(sw+.7))/(DUR-sw-1.4)))*(SEG==="portal"?250:520); imgB.style.transform=`translateX(${(1-f)*120}px) translateY(${-y*S}px)`; }
+  if(seg.seq3){ const [x,y,at]=seg.tap; const tp=clamp((t-at)/.6); const tap=$("tap"); tap.style.left=(PX+x*S)+"px"; tap.style.top=(PY+y*S)+"px"; tap.style.opacity=tp>0&&tp<1?1-tp:0; tap.style.transform=`scale(${.4+tp*1.3})`;
+    const f=clamp((t-(at+.25))/.3); imgB.style.opacity=f; }
+  if(seg.hl){ seg.hl.forEach(([x,y,w,h,at],i)=>{ const el=i?$("hl2"):$("hl"); const q=pr(t,at,.4); box(el,x,y,w,h,0,q*(.85+.15*Math.sin(t*5))); }); }
+  if(seg.chip){ const [txt,at,top]=seg.chip; const c=$("chip"); const q=pr(t,at,.5); c.style.opacity=q; c.style.top=top+"px"; c.style.left=(540-c.offsetWidth/2)+"px"; c.style.transform=`translateY(${(1-q)*30}px)`; }
+  if(seg.orb){ const e=env(seg.orb,t-.25); const img=$("orbimg"); img.style.transform=`translate(-50%,-50%) scale(${1.25+.08*easeIO(t/DUR)})`;
+    $("orbglow").style.opacity=.3+.9*e; $("orbglow").style.transform=`scale(${.9+.25*e})`; $("orbwrap").style.opacity=pr(t,0,.6); }
+  if(seg.end){ const l=easeIO(t/.9); $("elogo").style.opacity=l; $("elogo").style.transform=`scale(${.88+.12*l})`; const n=easeIO((t-.25)/.8); $("ename").style.opacity=n; $("ename").style.transform=`translateY(${(1-n)*30}px)`; const u=easeIO((t-.6)/.8); $("eurl").style.opacity=u; $("eurl").style.transform=`translateY(${(1-u)*36}px)`; }
+}
+window.render=render; window.DUR=DUR; render(0);
+</script></body></html>
