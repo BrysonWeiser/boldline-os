@@ -72,6 +72,13 @@ def render_broll(name, seg, n, t0=0.0, page_dur=None):
 def frames_to_mp4(fdir, out, n):
     run("-framerate", str(FPS), "-i", f"{fdir}/f%04d.jpg", "-frames:v", str(n), *ENC, out)
 
+SCRIM = f"{D}/scrim.png"
+if not os.path.exists(SCRIM):
+    from PIL import Image
+    yy = np.arange(1920, dtype=np.float32); xx = np.clip((yy - 1050) / (1600 - 1050), 0, 1)
+    al = (xx * xx * (3 - 2 * xx)) * 0.62                    # smoothstep to 62% black by the bottom sixth
+    im = np.zeros((1920, 1080, 4), np.uint8); im[..., 3] = (al[:, None] * 255).astype(np.uint8); Image.fromarray(im, "RGBA").save(SCRIM)
+
 def make_piece(i, p):
     out = f"{D}/pieces/p{i:02d}.mp4"
     if os.path.exists(out): return out
@@ -79,7 +86,8 @@ def make_piece(i, p):
         (s, e), = p["a"]; z = p["z"]
         w, h = 1080 / z, 1920 / z; x = (1080 - w) / 2; y = min(max(0.42 * 1920 - h / 2, 0), 1920 - h)
         vf = f"crop={w:.0f}:{h:.0f}:{x:.0f}:{y:.0f},scale=1080:1920:flags=lanczos,setsar=1"
-        run("-ss", f"{s:.3f}", "-i", f"{D}/lines/{p['L']}.mov", "-frames:v", str(p["n"]), "-vf", vf, "-an", *ENC, out)
+        run("-ss", f"{s:.3f}", "-i", f"{D}/lines/{p['L']}.mov", "-i", SCRIM, "-frames:v", str(p["n"]),
+            "-filter_complex", f"[0:v]{vf}[v];[v][1:v]overlay=0:0:format=auto,format=yuv420p", "-an", *ENC, out)
     elif p["k"] == "montage":
         parts = []; per = [p["n"] // 3 + (1 if j < p["n"] % 3 else 0) for j in range(3)]
         for j, ((seg, t0, pd), m) in enumerate(zip(p["parts"], per)):
@@ -168,68 +176,82 @@ for pi, p in enumerate(P):
         for w in clean("", AW[p["aria"]]["words"]):
             cap_words.append((p["t"] + p["at"] + w["s"], p["t"] + p["at"] + w["e"], w["w"], "aria", "aria:" + p["aria"], pi))
 cap_words.sort()
-# Phrases break at punctuation, a pause, or a change of speaker. Each phrase is split into groups of one to three words
-# that fit on one line, choosing the split that reads best: few groups, no lone words, and never ending a group on a
-# little word like "a" or "the" ("that business a" / "full website" reads badly; "that business" / "a full website").
+# ── How the captions look ──
+# Bryson, 2026-10-22: "make the captions cleaner and more aesthetic right now they are ugly" (they sat in dark pills).
+# Now there is no box: Inter Bold, white, a few key words in gold, a fine soft edge and a gentle drop shadow. Words
+# appear as they are said (a quick fade), each phrase rises in softly and fades out when he pauses. The picture gives
+# the contrast instead of a box: face shots carry a soft dark fade at the bottom of the frame (scrim.png), and the
+# phone screens fade out at the bottom (broll.html .capfade), so the words always sit on a quiet dark band.
+# ARIA's words are gold all the way through, so her voice reads as hers.
 from PIL import ImageFont
-FS = 96                                              # caption size (ASS units: Inter's line height, about 1.22 em)
-FONT = ImageFont.truetype(f"{D}/fonts/Inter-ExtraBold.ttf", round(FS / 1.22))
-MAXW = 840                                           # widest a caption may be, pill included (clear of TikTok's buttons)
+FS = 72                                              # caption size (ASS units: Inter's line height, about 1.21 em)
+FONT = ImageFont.truetype(f"{D}/fonts_cap/Inter-700.ttf", round(FS / 1.21))
+MAXW = 860                                           # widest a caption line may be (clear of TikTok's buttons)
 textw = lambda t: FONT.getlength(t)
 phrases = []
 for w in cap_words:
     ph = phrases[-1] if phrases else None
     if ph is None or ph["who"] != w[3] or ph["stop"] or w[0] - ph["w"][-1][1] > 0.3 or ph["pi"] != w[5]:
         ph = {"who": w[3], "w": [], "stop": False, "pi": w[5]}; phrases.append(ph)
-    ph["w"].append((w[0], w[1], w[2].rstrip(",."))); ph["stop"] = w[2].endswith((",", ".", "?", "!"))
+    ph["w"].append((w[0], w[1], w[2].rstrip(",."), False)); ph["stop"] = w[2].endswith((",", ".", "?", "!"))
 WEAK = {"a", "an", "the", "to", "of", "and", "my", "their", "your", "in", "on", "for", "i", "i'm", "so", "with", "that", "what", "is", "at", "it", "can", "get", "they"}
 def split_phrase(ws):
-    # Additive cost, so a dynamic programme finds the best split in linear time (brute force explodes on long phrases).
+    # Fallback only. Additive cost, so a dynamic programme finds the best split in linear time.
     n = len(ws); memo = {n: (0.0, [])}
     def part_cost(a, b):
-        w = textw(" ".join(x[2] for x in ws[a:b])) + 0.72 * FS
-        c = 3.0 + abs(w - 620) / 400                                    # fewer groups; similar widths as a tie-break
-        if w > MAXW and b - a > 1: c += 1000                           # does not fit on one line
-        if b - a == 1 and n > 1: c += 4                                 # a lone word
-        if b < n and ws[b - 1][2].lower() in WEAK: c += 6               # ends on a little word mid-phrase
+        w = textw(" ".join(x[2] for x in ws[a:b])) + 40
+        c = 3.0 + abs(w - 560) / 400
+        if w > MAXW and b - a > 1: c += 1000
+        if b - a == 1 and n > 1: c += 4
+        if b < n and ws[b - 1][2].lower() in WEAK: c += 6
         return c
     for i in range(n - 1, -1, -1):
-        memo[i] = min(((part_cost(i, i + k) + memo[i + k][0], [(i, i + k)] + memo[i + k][1]) for k in (1, 2, 3) if i + k <= n), key=lambda x: x[0])
+        memo[i] = min(((part_cost(i, i + k) + memo[i + k][0], [(i, i + k)] + memo[i + k][1]) for k in (1, 2, 3, 4) if i + k <= n), key=lambda x: x[0])
     return [ws[a:b] for a, b in memo[0][1]]
-# How each line breaks on screen, picked by hand so every caption is a natural bite of speech. Each source's words must
-# match what was heard, word for word, or that source falls back to the automatic split (and says so).
+# How each line breaks on screen, picked by hand so every caption is a natural phrase. *Stars* mark the few words shown
+# in gold. Each source's words must match what was heard, word for word, or it falls back to the automatic split.
 CHUNKS = {
-  "aria:greet": "Good morning / Bryson / Everything's ready / when you are",
-  "L01": "I'm Bryson / I run / BoldLine Media / a marketing agency / and I automated / almost all of it",
-  "L02": "Not to cut corners / I did it / so my clients / get what / they paid for / faster / without / the mistakes / that come from / doing it by hand",
-  "L03": "My job is / making calls / and closing deals / Everything else / the system handles",
-  "L05": "Before I even / get on a call / it can build / that business / a full website / so instead of / explaining / what I do / I can just / show them",
-  "L07": "Then it builds / their ads / on Google / and Meta / plus the / landing pages / those ads / send people to / I just / approve them",
-  "L09": "My clients / can check / the results / anytime / in their / own portal / and they get / updates / without / having to ask / so they always / know where / things stand",
-  "L10": "And then / there's ARIA",
-  "aria:intro": "Hi / I'm ARIA / I work alongside / Bryson / every day / so nothing / slips through",
-  "L11": "Hey ARIA / start Power Hour",
-  "aria:power": "Power Hour / is live / First call / is up / Let's go",
-  "L12": "She plans / my day / and runs / my calling / sessions / and I just / talk to her",
-  "L13": "That's / the whole point / My clients / get the results / faster / and they're / never left / wondering / what's going on / And my time / goes towards / talking to / business owners / not busywork",
-  "L14": "If you want / a system like this / working for / your business",
+  "aria:greet": "Good morning Bryson / Everything's ready / when you are",
+  "L01": "I'm Bryson / I run *BoldLine Media* / a marketing agency / and I *automated* / almost all of it",
+  "L02": "Not to cut corners / I did it so my clients / get what they paid for / *faster* / without the *mistakes* / that come from / doing it by hand",
+  "L03": "My job is making calls / and *closing deals* / Everything else / *the system* handles",
+  "L05": "Before I even / get on a call / it can build / that business / a *full website* / so instead of explaining / what I do / I can just *show them*",
+  "L07": "Then it builds their ads / on *Google* and *Meta* / plus the *landing pages* / those ads send people to / I just *approve* them",
+  "L09": "My clients can check / the *results anytime* / in their own portal / and they get updates / without having to ask / so they always know / *where things stand*",
+  "L10": "And then there's *ARIA*",
+  "aria:intro": "Hi I'm ARIA / I work alongside Bryson / every day / so nothing slips through",
+  "L11": "Hey ARIA / start *Power Hour*",
+  "aria:power": "Power Hour is live / First call is up / Let's go",
+  "L12": "She *plans my day* / and runs my / calling sessions / and I just *talk to her*",
+  "L13": "That's the *whole point* / My clients get / the results *faster* / and they're never left / wondering what's going on / And my time goes / towards talking / to *business owners* / not busywork",
+  "L14": "If you want / *a system like this* / working for your business",
 }
-norm = lambda t: re.sub(r"[^a-z0-9']", "", t.lower().replace("\u2019", "'"))
+def parse(spec):
+    out = []
+    for c in spec.split(" / "):
+        words, on = [], False
+        for t in c.split():
+            if t.startswith("*"): on = True
+            words.append((t.strip("*"), on))
+            if t.endswith("*"): on = False
+        out.append(words)
+    return out
+norm = lambda t: re.sub(r"[^a-z0-9']", "", t.lower().replace("’", "'"))
 by_src = {}
 for w in cap_words: by_src.setdefault(w[4], []).append(w)
 groups = []
 for src, ws in by_src.items():
     spec = CHUNKS.get(src)
     if spec:
-        toks = [c.split() for c in spec.split(" / ")]
-        flat = [norm(t) for c in toks for t in c]
+        toks = parse(spec)
+        flat = [norm(t) for c in toks for t, _ in c]
         if flat == [norm(w[2]) for w in ws]:
             i = 0; chunks = []
-            for c in toks: chunks.append(ws[i:i + len(c)]); i += len(c)
-            if all(len({w[5] for w in c}) == 1 for c in chunks):
+            for c in toks: chunks.append([(w, key) for w, (_, key) in zip(ws[i:i + len(c)], c)]); i += len(c)
+            if all(len({w[5] for w, _ in c}) == 1 for c in chunks):
                 for c in chunks:
-                    groups.append({"who": c[0][3], "w": [(w[0], w[1], w[2].rstrip(",.")) for w in c]})
-                    if textw(" ".join(w[2].rstrip(",.") for w in c)) + 0.72 * FS > MAXW: print("caption too wide:", " ".join(w[2] for w in c))
+                    groups.append({"who": c[0][0][3], "w": [(w[0], w[1], w[2].rstrip(",."), key) for w, key in c]})
+                    if textw(" ".join(w[2].rstrip(",.") for w, _ in c)) + 40 > MAXW: print("caption too wide:", " ".join(w[2] for w, _ in c))
                 continue
             print("caption chunk spans a cut, falling back:", src)
         else:
@@ -241,29 +263,28 @@ groups.sort(key=lambda g: g["w"][0][0])
 def ts(x):
     x = max(0, x); h = int(x // 3600); m_ = int(x % 3600 // 60); s = x % 60
     return f"{h}:{m_:02d}:{s:05.2f}"
-def pill(w, h, r):
-    c = r * 0.5523
-    return (f"m {r} 0 l {w - r} 0 b {w - r + c} 0 {w} {r - c} {w} {r} l {w} {h - r} b {w} {h - r + c} {w - r + c} {h} {w - r} {h} "
-            f"l {r} {h} b {r - c} {h} 0 {h - r + c} 0 {h - r} l 0 {r} b 0 {r - c} {r - c} 0 {r} 0")
-WHITE, GOLD, INK = "&HFFFFFF&", "&H7AD2F0&", "&H0C0908&"
-CX, CY = 540, 1420
-POP = "\\fscx88\\fscy88\\t(0,100,\\fscx100\\fscy100)"
+WHITE, GOLD = "&HFFFFFF&", "&H7AD2F0&"
+VIS, HID = "\\1a&H00&\\3a&H88&\\4a&H70&", "\\1a&HFF&\\3a&HFF&\\4a&HFF&"
+CX, CY, RISE, RISE_T, FADE_IN = 540, 1430, 14, 0.18, 120
 ev = []
 for gi, g in enumerate(groups):
-    g_end = g["w"][-1][1] + 0.18
-    if gi + 1 < len(groups):
-        nxt = groups[gi + 1]["w"][0][0]
-        g_end = nxt if nxt - g["w"][-1][1] < 0.35 else min(g_end, nxt)     # back to back: no flicker between groups
-    aria = g["who"] == "aria"
-    base, hi = (GOLD, WHITE) if aria else (WHITE, GOLD)
-    full = " ".join(x[2] for x in g["w"])
-    pw, ph_ = round(textw(full) + 0.72 * FS), round(FS * 1.0)
-    edge = f"\\bord3\\3c{GOLD}\\3a&H40&" if aria else "\\bord0"           # ARIA's words get a thin gold rim
-    ev.append(f"Dialogue: 0,{ts(g['w'][0][0])},{ts(g_end)},Cap,,0,0,0,,{{\\an5\\pos({CX},{CY})\\1c{INK}\\1a&H12&{edge}\\shad0{POP}\\p1}}{pill(pw, ph_, round(FS * 0.3))}{{\\p0}}")
-    for k, (s0, e0, _) in enumerate(g["w"]):
-        a = s0; b = g["w"][k + 1][0] if k + 1 < len(g["w"]) else g_end
-        txt = " ".join((f"{{\\c{hi}}}{x[2]}{{\\c{base}}}" if q == k else x[2]) for q, x in enumerate(g["w"]))
-        ev.append(f"Dialogue: 1,{ts(a)},{ts(b)},Cap,,0,0,0,,{{\\an5\\pos({CX},{CY + round(FS * 0.035)})\\c{base}{POP if k == 0 else ''}}}{txt}")
+    last = g["w"][-1][1]; nxt = groups[gi + 1]["w"][0][0] if gi + 1 < len(groups) else None
+    joined = nxt is not None and nxt - last < 0.35
+    g_end = nxt if joined else (min(last + 0.28, nxt) if nxt is not None else last + 0.28)
+    aria = g["who"] == "aria"; n = len(g["w"]); t0 = g["w"][0][0]
+    for k in range(n):
+        a = g["w"][k][0]; b = g["w"][k + 1][0] if k + 1 < n else g_end
+        if b - a < 0.02: continue
+        parts = []
+        for q, (_, _, txt, key) in enumerate(g["w"]):
+            col = GOLD if (aria or key) else WHITE
+            if q < k: parts.append(f"{{{VIS}\\c{col}}}{txt}")
+            elif q == k: parts.append(f"{{{HID}\\c{col}\\t(0,{FADE_IN},{VIS})}}{txt}")
+            else: parts.append(f"{{{HID}\\c{col}}}{txt}")
+        dt = a - t0
+        place = (f"\\move({CX},{CY + RISE * (1 - dt / RISE_T):.1f},{CX},{CY},0,{round((RISE_T - dt) * 1000)})" if dt < RISE_T else f"\\pos({CX},{CY})")
+        fade = "\\fad(0,110)" if k == n - 1 and not joined else ""
+        ev.append(f"Dialogue: 0,{ts(a)},{ts(b)},Cap,,0,0,0,,{{\\an5{place}\\blur1.2\\xshad0\\yshad3{fade}}}" + " ".join(parts))
 ass = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
@@ -273,7 +294,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,Inter ExtraBold,{FS},&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,40,40,40,1
+Style: Cap,Inter,{FS},&H00FFFFFF,&H00FFFFFF,&H88000000,&H70000000,-1,0,0,0,100,100,-0.5,0,1,1.6,3,5,40,40,40,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -288,7 +309,7 @@ if not os.path.exists(NOCAP) or os.path.getmtime(NOCAP) < max(os.path.getmtime(o
     run("-f", "concat", "-safe", "0", "-i", f"{D}/pieces/all.txt", "-frames:v", str(TOTAL), *ENC[:4], "-crf", "14", "-pix_fmt", "yuv420p", "-r", str(FPS), NOCAP)
 if os.environ.get("CAPS_ONLY"): sys.exit(0)
 run("-i", NOCAP, "-i", f"{D}/aud/mix.wav",
-    "-filter_complex", f"[0:v]ass={D}/captions.ass:fontsdir={D}/fonts,format=yuv420p[v];[1:a]aresample=44100[a]",
+    "-filter_complex", f"[0:v]ass={D}/captions.ass:fontsdir={D}/fonts_cap,format=yuv420p[v];[1:a]aresample=44100[a]",
     "-map", "[v]", "-map", "[a]", "-frames:v", str(TOTAL), "-c:v", "libx264", "-preset", "slow", "-crf", "19", "-pix_fmt", "yuv420p",
     "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-r", str(FPS),
     "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2", "-movflags", "+faststart", OUT)

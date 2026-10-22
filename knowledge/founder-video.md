@@ -3,8 +3,8 @@ name: founder-video
 topic: Marketing
 task: make, change or edit Bryson's founder / personal-brand video ("how I built a business that runs almost by itself", ARIA introduced)
 keywords: [founder video, personal brand, build in public, how I built my business, aria intro video, talking head, voiceover, b-roll, os screen recording, founder story]
-status: v1 CUT AND SENT 2026-10-22 (BoldLine-founder-video.mp4, 71.6s); lines 4, 6, 8 were never recorded
-summary: CUT 2026-10-22 from his 11 recorded lines (4, 6 and 8 missing; a three-screen montage covers them), sent as BoldLine-founder-video.mp4 (71.6s, 1080x1920, -14 LUFS stereo, word-by-word captions, no music). Recipe in docs/founder-video/edit/. Original brief: Bryson 2026-10-21 - "a video describing how I built my business and made it almost fully automated and who/what ARIA is", "mainly voice over done by me and video of me talking to the camera and then have sections where it shows images/videos of the systems", and "I'll record it all in one go ... I'd like to have you take the videos and images and use arias voice that way I don't have to take screenshots and videos myself". Script in docs/founder-video/script.md (about 80s, 12 lines + 3 ARIA lines). Plan: ARIA greeting as the hook, Bryson on camera, real OS screens with made-up sample businesses over the system lines (Lead Scout, demo website, agreement + billing, campaign + landing page, leads + portal chart), ARIA introduces herself in her voice, a real "Hey ARIA, start Power Hour" moment, close on camera with boldlinemedia.com. Honesty: only live systems (text-back is off), no client counts or results, no real client data on screen, clients do not get ARIA.
+status: v2 SENT 2026-10-22 (BoldLine-founder-video-v2.mp4, 71.6s, clean captions); lines 4, 6, 8 were never recorded
+summary: v2 2026-10-22 has the CLEAN CAPTIONS he asked for (no boxes; see 'Caption look'). CUT 2026-10-22 from his 11 recorded lines (4, 6 and 8 missing; a three-screen montage covers them), sent as BoldLine-founder-video.mp4 (71.6s, 1080x1920, -14 LUFS stereo, word-by-word captions, no music). Recipe in docs/founder-video/edit/. Original brief: Bryson 2026-10-21 - "a video describing how I built my business and made it almost fully automated and who/what ARIA is", "mainly voice over done by me and video of me talking to the camera and then have sections where it shows images/videos of the systems", and "I'll record it all in one go ... I'd like to have you take the videos and images and use arias voice that way I don't have to take screenshots and videos myself". Script in docs/founder-video/script.md (about 80s, 12 lines + 3 ARIA lines). Plan: ARIA greeting as the hook, Bryson on camera, real OS screens with made-up sample businesses over the system lines (Lead Scout, demo website, agreement + billing, campaign + landing page, leads + portal chart), ARIA introduces herself in her voice, a real "Hey ARIA, start Power Hour" moment, close on camera with boldlinemedia.com. Honesty: only live systems (text-back is off), no client counts or results, no real client data on screen, clients do not get ARIA.
 verified: 2026-10-22
 ---
 
@@ -76,4 +76,21 @@ edit.py builds everything, sync.py proves every piece sits where the audio expec
   (the clip starts later in the tap animation), end-card hold 1.7s to 1.3s.
 - No music baked in, same as the promos. Posting: add a sound in the app at low volume; caption without emojis or
   dashes; never "local businesses".
+
+## Caption look, v2 (2026-10-22, afternoon Phoenix)
+Bryson on v1: *"Can you make the captions cleaner and more aesthetic right now they are ugly"* (v1 sat every phrase in a
+dark rounded pill). The house style for captions on his videos is now:
+- **No box.** Inter Bold 72 (ASS size), letter spacing -0.5, white; a few hand-picked key words in gold (`*stars*` in
+  `CHUNKS`); ARIA's words gold throughout. A fine soft edge (outline 1.6, 47% opaque, blur 1.2) and a gentle drop
+  shadow straight down (yshad 3, 56% opaque).
+- **Words appear as they are said** (120 ms fade each; words not yet said are invisible but keep their space, so the
+  line never shifts). Each phrase rises 14 px into place over 0.18 s and fades out over 0.11 s when he pauses. Phrases
+  are 1 to 5 words, up to about 25 characters, broken by hand at natural points.
+- **The contrast comes from the picture, not a box.** Face shots get a soft dark fade at the bottom of the frame
+  (smoothstep from y=1050 to 62% black at y=1600, baked into the face pieces). The phone screens fade to dark over their
+  bottom part (`broll.html` `.capfade`, switched on by `chips=0`), so the words sit in a clean dark band instead of on
+  top of the app's own text, which is what made v1's captions collide with the screens.
+- Tried and rejected on the way: plain white text with a halo (lost on his white shirt, clashed with app text); a
+  blurred dark "cloud" behind the words (read as a smudge on the shirt).
+- Captions stay at y=1430, max about 860 px wide (clear of TikTok's right-hand buttons and bottom text).
 
