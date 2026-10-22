@@ -24,8 +24,11 @@ const base = (o) => Object.assign({
   landingSlug: o.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-x1",
 }, o);
 const lead = (n, svc, src, h, st = "new") => ({ id: "L" + Math.random().toString(36).slice(2, 8), name: n, phone: "(480) 555-01" + String(10 + Math.floor(Math.random() * 80)), email: "", service: svc, source: src, receivedAt: ago(h), status: st });
+// The welcome and access emails count as sent, so the client page has no "send the Welcome email" banner in shot.
+const SENT = [{ date: "Oct 1, 2026", note: 'Sent "Welcome + Portal" email to owner@example.com', cat: "email", ts: now - 20 * 864e5 },
+  { date: "Oct 2, 2026", note: 'Sent "Ad Account Access" email to owner@example.com', cat: "email", ts: now - 19 * 864e5 }];
 const CLIENTS = [
-  base({ id: "c1", name: "Summit Roofing", niche: "Roofing", packageId: "g-growth", stage: "optimizing", contractStatus: "active", billingStatus: "active", stripeCustomerId: "cus_demo", stripeSubscriptionId: "sub_demo", billingMonthly: 700, billingSetup: 0, contractStart: "2026-09-01", contractEnd: "2026-12-01", leads: 37, cpl: 61, contactName: "Marcus Bell",
+  base({ id: "c1", name: "Summit Roofing", commLog: SENT, niche: "Roofing", packageId: "g-growth", stage: "optimizing", contractStatus: "active", billingStatus: "active", stripeCustomerId: "cus_demo", stripeSubscriptionId: "sub_demo", billingMonthly: 700, billingSetup: 0, contractStart: "2026-09-01", contractEnd: "2026-12-01", leads: 37, cpl: 61, contactName: "Marcus Bell",
     leadsLog: [lead("Sarah K.", "Roof repair", "Google ad", 3), lead("Mike O.", "Full replacement", "Landing page", 9), lead("Jen P.", "Inspection", "Google ad", 20), lead("Chris D.", "Leak repair", "Call", 30), lead("Ana R.", "Roof repair", "Meta ad", 52)] }),
   base({ id: "c2", name: "Luxe Med Spa", niche: "Med Spa", packageId: "c-growth", stage: "active", contractStatus: "active", contractStart: "2026-08-15", contractEnd: "2026-11-15", leads: 52, cpl: 34, contactName: "Dana Reyes",
     leadsLog: [lead("Taylor M.", "Botox consult", "Meta ad", 5), lead("Jess L.", "Facial", "Landing page", 14)] }),
@@ -62,6 +65,24 @@ const STUB = `<script>(function(){
     if(m){ return real("/__api?fn="+m[1]+"&u="+encodeURIComponent(s),{method:"GET"}); }
     return real.apply(this,arguments); };
   try{ localStorage.setItem("aria-voice-on","0"); }catch(e){}
+  // 🔴 PUBLIC FOOTAGE RULES (CLAUDE.md): no emojis and no em or en dashes in anything prospects see. The OS's own
+  // labels use both (allowed there, Bryson alone sees them), so for filming every text node is cleaned as it renders:
+  // emojis dropped (the typographic marks ✓ ★ ✕ ▶ → stay), a dash between words becomes a comma, any other dash
+  // (an empty-value placeholder) becomes a hyphen. Footage only; the OS itself is untouched.
+  var KEEP="✓★✕▶→", EMO=/\\p{Extended_Pictographic}\\uFE0F?|\\u200D|\\uFE0F/gu;
+  function clean(t){ var o=t;
+    t=t.replace(/(\\S)\\s*[\\u2014\\u2013]\\s*(?=\\S)/g,"$1, ");
+    t=t.replace(/[\\u2014\\u2013]/g,"-");
+    t=t.replace(EMO,function(m){return KEEP.indexOf(m[0])>=0?m:"";});
+    if(t!==o) t=t.replace(/^\\s+(?=\\S)/,"").replace(/ {2,}/g," ");
+    return t; }
+  // 🔴 TEXT ON SCREEN ONLY. The OS's code arrives as a text node inside a <script> while the page loads; cleaning that
+  // rewrote the OS's own strings ("–" became ", ") before Babel compiled them. Skip anything inside script/style.
+  function walk(n){ if(n.nodeType===3){ var p=n.parentNode; if(p&&/^(SCRIPT|STYLE|TEXTAREA|NOSCRIPT)$/.test(p.nodeName)) return; var v=n.nodeValue, c=clean(v); if(c!==v) n.nodeValue=c; return; }
+    if(n.nodeType!==1||/^(SCRIPT|STYLE|TEXTAREA|INPUT)$/.test(n.nodeName)) return; for(var k=n.firstChild;k;k=k.nextSibling) walk(k); }
+  new MutationObserver(function(ms){ ms.forEach(function(m){ if(m.type==="characterData") walk(m.target); else m.addedNodes.forEach(walk); }); })
+    .observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+  document.addEventListener("DOMContentLoaded",function(){ walk(document.body); });
 })();</script>`;
 let html = fs.readFileSync(path.join(REPO, "index.html"), "utf8")
   .replace('<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>', '<script src="react.js"></script>')
