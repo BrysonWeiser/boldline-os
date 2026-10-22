@@ -37,3 +37,9 @@ one beat inside it, with her greeting as the 2-second hook.
 - Next: when Bryson's one-take clip arrives, transcribe it with word timings, cut out restarts and long pauses, map
   each numbered line to its clip (render each clip at that line's exact length), add ARIA's three lines, captions
   of his words, stereo audio at -14 LUFS.
+
+## Script v2 (2026-10-21, ~7pm Phoenix): the WHY of automation
+Bryson asked for reasons: faster delivery of what the client paid for, no human error, accurate reports, no
+miscommunication. Added lines 2, 8, 9, 13 (now 14 lines, ~90s). Advised against saying "100% accurate"; the line says
+the reports pull the numbers straight from Google and Meta with nothing typed by hand. Footage map updated: 8 = a
+client's Leads tab, 9 = the portal chart.
