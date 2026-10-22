@@ -112,4 +112,5 @@ clips (whisper word timings + pitch tracking), plus what the frames show:
 - 🔴 **Preference for future talking-head videos: talking points, not a word-for-word script, and 30 to 45 seconds.**
   Say each point in his own words, two or three takes each, keep the most natural. Honesty wording still applies
   ("almost runs itself", never "runs itself").
-
+- Take-2 cheat sheet (2026-10-22): `docs/founder-video/cheat-sheet.html`, sent to him as a phone-sized image. Five
+  talking points plus before/while-recording reminders. When take 2 arrives, cut it with the same recipe.
