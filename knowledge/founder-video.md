@@ -3,9 +3,9 @@ name: founder-video
 topic: Marketing
 task: make, change or edit Bryson's founder / personal-brand video ("how I built a business that runs almost by itself", ARIA introduced)
 keywords: [founder video, personal brand, build in public, how I built my business, aria intro video, talking head, voiceover, b-roll, os screen recording, founder story]
-status: script written; OS footage + ARIA intro DONE 2026-10-21; waiting on Bryson's recording to cut it
-summary: Bryson 2026-10-21 - "a video describing how I built my business and made it almost fully automated and who/what ARIA is", "mainly voice over done by me and video of me talking to the camera and then have sections where it shows images/videos of the systems", and "I'll record it all in one go ... I'd like to have you take the videos and images and use arias voice that way I don't have to take screenshots and videos myself". Script in docs/founder-video/script.md (about 80s, 12 lines + 3 ARIA lines). Plan: ARIA greeting as the hook, Bryson on camera, real OS screens with made-up sample businesses over the system lines (Lead Scout, demo website, agreement + billing, campaign + landing page, leads + portal chart), ARIA introduces herself in her voice, a real "Hey ARIA, start Power Hour" moment, close on camera with boldlinemedia.com. Honesty: only live systems (text-back is off), no client counts or results, no real client data on screen, clients do not get ARIA.
-verified: 2026-10-21
+status: v1 CUT AND SENT 2026-10-22 (BoldLine-founder-video.mp4, 71.6s); lines 4, 6, 8 were never recorded
+summary: CUT 2026-10-22 from his 11 recorded lines (4, 6 and 8 missing; a three-screen montage covers them), sent as BoldLine-founder-video.mp4 (71.6s, 1080x1920, -14 LUFS stereo, word-by-word captions, no music). Recipe in docs/founder-video/edit/. Original brief: Bryson 2026-10-21 - "a video describing how I built my business and made it almost fully automated and who/what ARIA is", "mainly voice over done by me and video of me talking to the camera and then have sections where it shows images/videos of the systems", and "I'll record it all in one go ... I'd like to have you take the videos and images and use arias voice that way I don't have to take screenshots and videos myself". Script in docs/founder-video/script.md (about 80s, 12 lines + 3 ARIA lines). Plan: ARIA greeting as the hook, Bryson on camera, real OS screens with made-up sample businesses over the system lines (Lead Scout, demo website, agreement + billing, campaign + landing page, leads + portal chart), ARIA introduces herself in her voice, a real "Hey ARIA, start Power Hour" moment, close on camera with boldlinemedia.com. Honesty: only live systems (text-back is off), no client counts or results, no real client data on screen, clients do not get ARIA.
+verified: 2026-10-22
 ---
 
 ## Why this framing (advice given)
@@ -43,3 +43,37 @@ Bryson asked for reasons: faster delivery of what the client paid for, no human 
 miscommunication. Added lines 2, 8, 9, 13 (now 14 lines, ~90s). Advised against saying "100% accurate"; the line says
 the reports pull the numbers straight from Google and Meta with nothing typed by hand. Footage map updated: 8 = a
 client's Leads tab, 9 = the portal chart.
+
+## The cut (2026-10-22, early afternoon Phoenix)
+Recipe: `docs/founder-video/edit/` (prep.py joins and converts the clips, tx.py / tx_aria.py get word timings,
+edit.py builds everything, sync.py proves every piece sits where the audio expects it). Edit map in script.md.
+- **What he sent:** 13 files = 11 lines. IMG_1632 (line 9) and IMG_1640 (line 13) came in two halves each and were
+  joined with ffmpeg's concat filter after converting each half to 30fps. Lines 4, 6, 8 were not recorded; a
+  three-screen flash over "Everything else, the system handles" (Lead Scout / contract / client's leads) carries them.
+- 🔴 **iPhone footage is HDR** (HLG, BT.2020, 10-bit). Played as-is on most apps it looks washed out. Tone map:
+  `zscale tin=arib-std-b67 ... t=linear:npl=203, tonemap=hable:desat=0, zscale bt709`, then
+  `eq=brightness=0.06:contrast=1.08:saturation=1.05`. Tried and rejected: no conversion (pale), mobius (pink skin),
+  hable alone (too dark).
+- iPhone .mov files carry a second audio track ("apac", spatial audio) ffmpeg cannot decode: map `0:a:0`.
+- **Word timings:** whisper puts the first word of a clip at 0.0 and stretches a word across a pause, so the first word
+  starts at the energy onset and a word spanning a pause starts where the pause ends. "Hey" in "Hey ARIA" is said fast
+  into the name and only heard with a hint; it was added to the captions by hand.
+- 🔴 **Measure loudness on the STEREO file.** Dual-mono reads 3 LU louder than the mono mix: the first pass, normalised
+  in mono, came out at -11 LUFS. Now -14.0 LUFS, true peak -1.0, in stereo.
+- **Captions:** ASS burned in with libass, Inter ExtraBold (TTF from Google Fonts via curl), size 96 on a dark pill,
+  y=1420, max 840px wide to stay clear of TikTok's right-hand buttons. libass sizes by line height (about 1.22 em), so
+  widths are measured with PIL at size/1.22. Breaks are hand-picked per line (`CHUNKS`) and checked word for word
+  against what was heard; an automatic split (dynamic programme; brute force froze on a 19-word phrase) is the fallback.
+- **Test frames:** cut them from the uncaptioned master `nocap.mp4` with `-ss T` + `setpts=PTS+T/TB`. Picking frames
+  out of the concat demuxer with `select` landed seconds off in tests (the final itself was proven frame exact).
+- 🔴 **Public footage rule in the OS capture.** The OS's own labels carry emojis and em dashes (fine there, Bryson
+  alone sees them), but this video is public. `footage/film.cjs` now cleans visible text as it renders (emojis out,
+  a dash between words becomes a comma, a placeholder dash a hyphen) and marks the sample client's welcome emails as
+  sent so the "send the Welcome email" banner is not in shot. 🔴 It must skip text inside `<script>`: the OS's code
+  arrives as a text node while the page loads, and cleaning it rewrote the OS's own strings ("–" became ", ") before
+  Babel compiled them. Removing the banner moved the client page up 39 CSS px, so the contract highlight boxes moved.
+- Pacing fixes after the first pass: the beat between "start Power Hour" and ARIA's answer cut from 0.9s to 0.6s
+  (the clip starts later in the tap animation), end-card hold 1.7s to 1.3s.
+- No music baked in, same as the promos. Posting: add a sound in the app at low volume; caption without emojis or
+  dashes; never "local businesses".
+
