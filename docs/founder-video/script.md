@@ -2,7 +2,7 @@
 
 Bryson records all of it in one take, talking to the camera. Claude cuts it, covers the system parts with real OS
 screens (made-up sample businesses only, never a real client) and adds ARIA in her own voice.
-About 80 seconds.
+About 90 seconds.
 
 ## The script (what Bryson says), v2 2026-10-21
 Bryson: "I definitely want to say it's automated but there should be a reason ... so it takes less time to deliver
@@ -46,7 +46,7 @@ ARIA: "Good morning, Bryson. Everything's ready when you are."
 - Look at the lens and say it like you're telling a friend, not reading.
 - Leave about two seconds of quiet between each numbered line. If you trip on a line, pause, then start that line
   again. The mistakes get cut.
-- Line 9 ("Hey ARIA, start Power Hour") goes to the camera too. Her answer is added in the edit.
+- Line 11 ("Hey ARIA, start Power Hour") goes to the camera too. Her answer is added in the edit.
 - Send the whole clip when done (split it if it's too big to send).
 
 ## What covers each line (Claude's edit plan)
