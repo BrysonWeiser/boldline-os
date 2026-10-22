@@ -226,6 +226,11 @@
 [functions."site-uptime"]
   schedule = "20 * * * *"
 
+# Every 15 min: has a client accepted our Google manager request or shared their Meta ad account yet? Saves what changed
+# and tells Bryson (KB ad-account-link). Plus a once-a-day look at connected accounts, in case access was removed.
+[functions."ad-access-watch"]
+  schedule = "8,23,38,53 * * * *"
+
 [functions."blog-autopublish"]
   schedule = "*/15 * * * *"
 

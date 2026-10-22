@@ -291,6 +291,16 @@ const MANIFEST = {
     ok("🔴 opening the portal writes nothing, so viewing it from the OS cannot change the record",
       getPath.length > 200 && !/\.(update|insert|upsert|delete)\(/.test(getPath) && !/dispatchAlert|sendEmail|notify/i.test(getPath),
       "the OS preview loads this page every time Bryson opens a client");
+    // 2026-10-21: the page load also LOOKS at Google and Meta (has the client accepted our access yet?). That look
+    // lives in ad-link.mjs, out of sight of the check above, so it is pinned here: read only, and the one job that
+    // saves what it finds is ad-access-watch, which no preview can reach.
+    const AL = readFileSync(join(ROOT, "netlify/lib/ad-link.mjs"), "utf8");
+    const oa = AL.indexOf("export async function observeAccess(");
+    const obs = oa < 0 ? "" : AL.slice(oa, AL.indexOf("\n}\n", oa));
+    ok("🔴 the portal's 'have they accepted yet' look is called on page load, and writes and tells nobody",
+      /observeAccess\(cl, liveAccessApi\(\)/.test(getPath) && obs.length > 200
+        && !/\.(update|insert|upsert|delete)\(|dispatchAlert|sendEmail|notify|linkClientAccount/i.test(obs),
+      "a look that saved or alerted would fire every time Bryson previews a client");
   }
 
   // The token is genuinely present, which is what makes the guard load-bearing rather than

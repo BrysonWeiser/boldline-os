@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 235 task-keyed entries under `knowledge/`. They surface automatically via the
+> 236 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**235 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**236 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -165,6 +165,9 @@
 
 ## Client portal
 
+- **[ad-account-link](../knowledge/ad-account-link.md)** &mdash; &#9989; verified &middot; 2026-10-21  
+  Since 2026-10-21 the portal SENDS the Google manager request itself when a client saves a new Customer ID, but only after they type it twice and the two match (one wrong digit would ask a stranger). Meta has nothing to send, so we look whether we can read the ad account. The "accept it" step is its own highlighted box under each Save, pulsing "Waiting for you" once saved, with a "One step left before your ads can run" banner at the top of the Status tab, and it all turns "Connected" by itself. Opening the portal only LOOKS (the OS preview loads it); the ad-access-watch job (every 15 min) saves changes and alerts Bryson.  
+  <sub>*task:* what happens when a client enters their Google Ads Customer ID or Meta ad account ids in their portal, and how they are told to accept our access &nbsp;|&nbsp; *keywords:* googleAdsCustomerIdConfirm, googleLinkRequest, metaAccess, planGoogleLink, observeAccess, liveAccessApi, ad-access-watch, accessBanner, acc-pulse, manager request, partner access, One step left, accept our request, metaNoAccess</sub>
 - **[client-portal-approvals](../knowledge/client-portal-approvals.md)** &mdash; &#9989; verified &middot; 2026-07-30  
   Clients approve ANYTHING the owner queues (not just landing pages) from a new "Review" tab in their portal (portal.mjs) that shows a red pending-count badge (mirrors the owner's alert count) and per-item Approve / Request Changes (+ optional note). Decisions POST back, update client.approvals[], and log to commLog; the owner sees them via getAlerts (changes=yellow, awaiting=blue). Owner queues items from the ClientApprovalsCard on the Client View tab, which auto-emails the client (approval_request template). Built 2026-07-30.  
   <sub>*task:* let clients review + approve anything the owner sends (landing page, ad copy, plans) from their portal, with a badge count + auto email notification &nbsp;|&nbsp; *keywords:* client approval, portal review, needs your review, approve, request changes, ClientApprovalsCard, approvals, landing page approval, portal badge, approval_request, notify client</sub>

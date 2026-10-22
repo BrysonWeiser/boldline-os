@@ -68,3 +68,11 @@ complete id; the *request* still takes two presses with the number read back.
 `tests/verify-manager-link.mjs` — 24 checks, including the `operation`/`operations`
 regression, ACTIVE-beats-stale-refusal, no lookup on a half-typed id, and the hidden button
 once access is live. Mutations: 4 written for this work, 4 caught.
+
+## 2026-10-21: the portal now sends it (KB `ad-account-link`)
+When a CLIENT saves a new Customer ID in their own portal, the request now goes out automatically, but only after they
+type the number twice and the two match. Google is asked first, so an account we already manage, or a request that's
+already waiting, isn't asked twice. The typo risk above is why that is safe there: the owner types their own number,
+twice. Bryson's OS edit sheet is unchanged and still waits for his press. The `ad-access-watch` job (every 15 min)
+records when the client accepts and tells Bryson. It re-checks connected accounts once a day, so the "observed, never
+trusted forever" rule holds.
