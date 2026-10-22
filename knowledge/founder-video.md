@@ -94,3 +94,22 @@ dark rounded pill). The house style for captions on his videos is now:
   blurred dark "cloud" behind the words (read as a smudge on the shirt).
 - Captions stay at y=1430, max about 860 px wide (clear of TikTok's right-hand buttons and bottom text).
 
+## Recording feedback for the next take (2026-10-22, Bryson asked)
+Bryson: *"I feel like I should have more energy and keep it a bit more brief and less script like"*. Measured from his
+clips (whisper word timings + pitch tracking), plus what the frames show:
+- 🔴 **He talks fast, which is what reads as "script":** about 217 words a minute overall (a confident on-camera pace is
+  closer to 160 to 180), and the website line hit about 280. Rushing to get the sentence out is the tell. More energy
+  should come from emphasis, a smile and pitch, not speed.
+- **He warmed up as he went:** his voice sat around 102 Hz on the first lines and around 120 Hz on the last two, with
+  more movement, so the closing lines are the liveliest. Warm up first, or redo the opening lines at the end.
+- Pitch variety is moderate (about 3 semitones spread), not monotone. Face is neutral throughout: little smiling.
+- Good already: eye contact into the lens, steady eye-level framing, the same position in every clip (the cuts were
+  clean because of it), clear sound.
+- Picture: white shirt on white walls is flat and fought the captions; a dark shirt fits the black-and-gold brand.
+  The wall behind him (antique guns, arrows) pulls attention from him in a business video; a plain wall, a desk with the
+  OS open on a laptop, or outside reads more "agency". One fixed shot for every line; two framings or a walk-and-talk
+  adds life. iPhone HDR video is why the raw clips looked washed out: Settings, Camera, Record Video, HDR Video off.
+- 🔴 **Preference for future talking-head videos: talking points, not a word-for-word script, and 30 to 45 seconds.**
+  Say each point in his own words, two or three takes each, keep the most natural. Honesty wording still applies
+  ("almost runs itself", never "runs itself").
+
