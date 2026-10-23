@@ -229,3 +229,15 @@ Access" on the GBP API contact form, an owner/manager email; quota stays 0 until
   website https://boldlinemedia.com, heard via the API documentation, reason = agency managing clients' profiles with
   their permission, verified 60+ days = Yes, already-allowlisted project = No. Approval check: the project's Business
   Profile API quota shows 300 QPM (0 = not approved). Also asked him to add business hours to BoldLine's listing.
+- ✅ **APPROVED 2026-10-23 (Fri ~10:18am Phoenix)**: Google emailed that project 69639870912 ("BoldLine OS", id
+  boldline-os) is allowlisted for the Google Business Profile API, default quota 300 queries per minute. Their next
+  steps: enable the APIs in Cloud Console (API Library); the Workspace note does not apply (business gmail, no Workspace).
+  Policy reminder from the email: never say or imply Google partners with, sponsors or endorses BoldLine.
+  🔴 **Different Cloud project from Google Ads**: the Ads OAuth client and its verified consent screen live in
+  `boldline-ads-api` (600403499313); Business Profile calls must come from an OAuth client in `boldline-os`, so that
+  project needs its own consent screen set to In production (Testing expires refresh tokens every 7 days) and a
+  refresh token from the Google account that is Manager on the profiles, scope `business.manage`.
+  APIs to enable: My Business Account Management API, My Business Business Information API, Google My Business API
+  (reviews and posts, v4), Business Profile Performance API. Nothing built yet; build offered (the Google listing card:
+  drafted weekly posts, drafted review replies for approval, profile numbers), BoldLine's and owned businesses first.
+
