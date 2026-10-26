@@ -240,4 +240,6 @@ Access" on the GBP API contact form, an owner/manager email; quota stays 0 until
   APIs to enable: My Business Account Management API, My Business Business Information API, Google My Business API
   (reviews and posts, v4), Business Profile Performance API. Nothing built yet; build offered (the Google listing card:
   drafted weekly posts, drafted review replies for approval, profile numbers), BoldLine's and owned businesses first.
-
+- ✅ BUILT 2026-10-26: the Google listing card (KB `google-listing`). Waits on Bryson's setup (OAuth client in the
+  BoldLine OS project, GBP_CLIENT_ID/GBP_CLIENT_SECRET in Netlify, Connect Google). Shown for BoldLine's own account and
+  owned businesses; clients next, once one buys the add-on.
