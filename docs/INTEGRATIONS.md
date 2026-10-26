@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 236 task-keyed entries under `knowledge/`. They surface automatically via the
+> 237 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**236 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**237 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -309,6 +309,12 @@
 - **[manager-link-status](../knowledge/manager-link-status.md)** &mdash; &#9989; verified &middot; 2026-09-08  
   Two fixes, 2026-09-08. (1) The "Send manager link request" button never worked — `customerClientLinks:mutate` takes a single `operation`, not an `operations` array like every other mutate in google-ads.mjs, and Google's error ("Unknown name 'operations': Cannot find field") reads like a permissions problem. Bryson had to send the request by hand mid-call. (2) New `linkStatus` action queries `customer_client_link` on the MANAGER account and reports ACTIVE / PENDING / refused / NONE, so the OS knows whether we manage a client's account. Observed from Google every time, never stored — a client can revoke manager access from their own account without telling us. Sebastian's account 924-850-6870 is ACTIVE under manager 989-283-2533.  
   <sub>*task:* send a client's Google Ads manager link request from the OS and know whether we actually have manager access &nbsp;|&nbsp; *keywords:* manager link, customerClientLinks, customer_client_link, linkClient, linkStatus, manager access, MCC link, link request, google ads access, operations unknown name, LinkRequestRow</sub>
+
+## Google Business Profile
+
+- **[google-listing](../knowledge/google-listing.md)** &mdash; &#9989; verified &middot; 2026-10-26  
+  Built 2026-10-26 after Google approved the Business Profile API (project 69639870912, 2026-10-23). A "Google listing" card on the Overview of BoldLine's own account and each owned business shows the profile's last 28 days (rating, calls, website clicks, direction requests, times seen, each against the 28 days before), every review still waiting for a reply with a drafted reply, and this week's post, all editable. NOTHING reaches Google until Bryson presses Post and confirms the exact words. A daily job (8:41am Phoenix) drafts replies to new reviews and a Monday post, and messages him (amber when a 1 or 2 star review is waiting). Needs GBP_CLIENT_ID and GBP_CLIENT_SECRET from an OAuth client in the BoldLine OS Cloud project, then "Connect Google" once.  
+  <sub>*task:* run a business's Google Business Profile from the OS (reviews, review replies, weekly posts, profile numbers), connect Google, or sell the Google profile add-on &nbsp;|&nbsp; *keywords:* google listing, google business profile, GBP, business profile api, GBP_CLIENT_ID, GBP_CLIENT_SECRET, gbp-connect, gbp-watch, GoogleListingCard, gbpDrafts, gbpLog, review replies, local posts, localPosts, business.manage, fetchMultiDailyMetricsTimeSeries, google profile management</sub>
 
 ## Infra
 

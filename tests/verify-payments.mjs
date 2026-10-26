@@ -100,7 +100,7 @@ ok("an open checkout is not paid", !P.depositPaid({ payLog: { b1: { status: "ope
 const big = Object.fromEntries(Array.from({ length: 320 }, (_, i) => [`b${i}`, { createdAt: new Date(2026, 0, 1, 0, i).toISOString() }]));
 ok("the log keeps the newest 300", Object.keys(P.trimLog(big)).length === 300 && "b319" in P.trimLog(big) && !("b0" in P.trimLog(big)));
 const UI = src("index.html");
-ok("🔴 the OS never saves over the connection or the paid log", /const SERVER_OWNED_KEYS=\[[^\]]*"payConnect","payLog"\]/.test(UI));
+ok("🔴 the OS never saves over the connection or the paid log", /const SERVER_OWNED_KEYS=\[[^\]]*"payConnect","payLog"[^\]]*\]/.test(UI));
 ok("the OS booking list reads paid-online from the log and drops Mark unpaid for it", /const online = \(bk\) => \{ const e=\(client\.payLog\|\|\{\}\)\[bk\.id\]; return e&&e\.status==="paid"\?e:null; \};/.test(UI) && /\{bk\.deposit&&!online\(bk\)&&<button onClick=\{\(\)=>markPaid/.test(UI));
 ok("the OS Calendar counts a deposit paid online as paid", /b\.deposit&&!b\.deposit\.paid&&!\(\(c\.payLog\|\|\{\}\)\[b\.id\]&&c\.payLog\[b\.id\]\.status==="paid"\)/.test(UI));
 ok("the business portal shows online payments as paid", /const cl = withPayStatus\(row\.data\);/.test(src("netlify/functions/biz.mjs")));

@@ -9966,6 +9966,124 @@ function BrandKitCard({client,onUpdate,onOpenAssets}){
 // media" and branded "based off of the business name and website". The sending is netlify/lib/biz-email.mjs
 // (hourly job biz-customer-emails); this card sets it up. Whether the address works and what has been sent are
 // written by the server only (SERVER_OWNED_KEYS). KB business-emails.
+// ─── Google listing (KB google-listing) ─────────────────────────────────────────────────────────────────────────────
+// The business's Google Business Profile: its numbers, a reply drafted for every new review, and the week's post.
+// 🔴 Nothing reaches Google until Bryson presses Post, and the words posted are exactly the ones in the box. gbp,
+// gbpDrafts and gbpLog are server-owned (SERVER_OWNED_KEYS); this card only asks netlify/functions/gbp.mjs.
+const gbpCall = async (action, body = {}) => {
+  const { data:{ session } } = await supabaseClient.auth.getSession();
+  const r = await fetch("/.netlify/functions/gbp", { method:"POST", headers:{ "Content-Type":"application/json", Authorization:`Bearer ${session&&session.access_token}` }, body: JSON.stringify({ action, ...body }) });
+  try { return await r.json(); } catch(e){ return { ok:false, error:"Could not reach the server. Try again." }; }
+};
+const GBP_CTAS = [["BOOK","Book"],["CALL","Call now"],["LEARN_MORE","Learn more"],["","No button"]];
+function gbpTrend(now, before){
+  if (!before && !now) return "None yet";
+  if (now === before) return `Level with the 28 days before (${before})`;
+  return `${now > before ? "▲ Up" : "▼ Down"} from ${before} the 28 days before`;
+}
+function GoogleListingCard({client}){
+  const [st,setSt] = useState(null);            // {ready, connected, email}
+  const [link,setLink] = useState(client.gbp||null);
+  const [ov,setOv] = useState(null);            // overview from the server
+  const [locs,setLocs] = useState(null);
+  const [edits,setEdits] = useState({});        // reviewId|"post" -> text being edited
+  const [cta,setCta] = useState("BOOK");
+  const [idea,setIdea] = useState("");
+  const [busy,setBusy] = useState(""); const [msg,setMsg] = useState({});
+  const say = (k,t,ok) => setMsg(m=>({...m,[k]:{t,ok}}));
+  const lbl = {fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4};
+  const sub = {fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,margin:"16px 0 8px"};
+  const small = (primary)=>({padding:"8px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,cursor:"pointer",border:`1px solid ${primary?C.borderAccent:C.border}`,backgroundColor:primary?"rgba(200,168,75,.1)":"rgba(255,255,255,.04)",color:primary?C.gold:C.textDim,flexShrink:0});
+  const note = (k) => msg[k] ? <div style={{fontSize:11.5,lineHeight:1.55,marginTop:7,color:msg[k].ok?C.green:C.red}}>{msg[k].t}</div> : null;
+  const load = async () => { const r = await gbpCall("overview",{clientId:client.id}); if(r.ok){ setOv(r); setEdits({}); } else say("top",r.error,false); };
+  useEffect(()=>{ (async()=>{ const s = await gbpCall("status"); setSt(s.ok?s:{ready:false}); if(s.ok&&s.connected&&link) load(); })(); },[client.id]);
+  const connect = async () => { setBusy("connect"); const r = await gbpCall("start"); setBusy(""); if(r.ok&&r.url) window.location.href = r.url; else say("top",r.error||"Could not start.",false); };
+  const pickList = async () => { setBusy("locs"); const r = await gbpCall("locations"); setBusy(""); if(r.ok) setLocs(r.locations); else say("top",r.error,false); };
+  const choose = async (l) => { setBusy("link"); const r = await gbpCall("link",{clientId:client.id,account:l.account,location:l.location}); setBusy("");
+    if(r.ok){ setLink(r.gbp); setLocs(null); load(); } else say("top",r.error,false); };
+  const unlink = async () => { if(!confirm("Stop managing this Google profile from here? Nothing changes on Google.")) return; await gbpCall("unlink",{clientId:client.id}); setLink(null); setOv(null); };
+  const draftReply = async (id) => { setBusy("d"+id); const r = await gbpCall("draftReply",{clientId:client.id,reviewId:id}); setBusy("");
+    if(r.ok){ setOv(o=>({...o,drafts:r.drafts})); setEdits(e=>({...e,[id]:r.text})); } else say(id,r.error,false); };
+  const sendReply = async (rv, text) => { if(!confirm(`Post this reply on Google, under ${client.name}'s name?\n\n"${text}"`)) return;
+    setBusy("r"+rv.id); const r = await gbpCall("reply",{clientId:client.id,reviewId:rv.id,text}); setBusy("");
+    if(r.ok){ say("top","Reply posted on Google.",true); load(); } else say(rv.id,r.error,false); };
+  const toss = async (id) => { await gbpCall("dismiss",{clientId:client.id,reviewId:id||undefined}); load(); };
+  const draftPost = async () => { setBusy("post"); const r = await gbpCall("draftPost",{clientId:client.id,idea}); setBusy("");
+    if(r.ok){ setOv(o=>({...o,drafts:r.drafts})); setEdits(e=>({...e,post:r.text})); setIdea(""); } else say("post",r.error,false); };
+  const sendPost = async (text) => { if(!confirm(`Post this on ${client.name}'s Google profile?\n\n"${text}"`)) return;
+    setBusy("send"); const r = await gbpCall("post",{clientId:client.id,text,cta,url:link&&link.website}); setBusy("");
+    if(r.ok){ say("post","Posted on Google.",true); load(); } else say("post",r.error,false); };
+
+  if(!st) return <Card><Label>Google listing</Label><div style={{fontSize:12,color:C.textDim,marginTop:6}}>Checking...</div></Card>;
+  const intro = <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,margin:"4px 0 6px"}}>{client.name}'s Google profile: how many people call and find it, a reply drafted for every new review, and a post each week. Nothing goes on Google until you press Post.</div>;
+  if(!st.ready) return <Card style={{borderColor:`${C.gold}2a`}}><Label>Google listing</Label>{intro}<div style={{fontSize:11.5,color:C.amber,lineHeight:1.6}}>Not switched on yet. The one-time Google setup still needs finishing (your 10pm list has the steps).</div></Card>;
+  if(!st.connected) return <Card style={{borderColor:`${C.gold}2a`}}><Label>Google listing</Label>{intro}
+    <button onClick={connect} disabled={busy==="connect"} style={{...small(true),marginTop:6}}>{busy==="connect"?"Opening Google...":"Connect Google"}</button>
+    <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:7}}>Sign in with the Google account that manages the profiles (BoldLine's business Gmail) and tick the box to manage Business Profiles.</div>{note("top")}</Card>;
+  if(!link) return <Card style={{borderColor:`${C.gold}2a`}}><Label>Google listing</Label>{intro}
+    {!locs ? <button onClick={pickList} disabled={busy==="locs"} style={{...small(true),marginTop:6}}>{busy==="locs"?"Looking...":`Pick ${client.name}'s Google profile`}</button>
+      : !locs.length ? <div style={{fontSize:11.5,color:C.amber,lineHeight:1.6}}>This Google account doesn't manage any profiles yet. On the business's profile, add {st.email||"the BoldLine Gmail"} as a Manager, then try again.</div>
+      : <div style={{display:"grid",gap:6,marginTop:6}}>{locs.map(l=><button key={l.location} onClick={()=>choose(l)} disabled={busy==="link"} style={{textAlign:"left",padding:"10px 12px",borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.03)",color:C.text,cursor:"pointer",fontFamily:"inherit"}}>
+          <div style={{fontSize:13,fontWeight:700}}>{l.title}</div><div style={{fontSize:11,color:C.textMuted,marginTop:2}}>{l.address||l.website||"No address listed"}</div></button>)}</div>}
+    {note("top")}</Card>;
+
+  const m = ov && ov.metrics && !ov.metrics.error ? ov.metrics : null;
+  const drafts = (ov && ov.drafts) || {}, rdr = drafts.replies || {};
+  const open = ov ? ov.reviews.filter(r=>!r.reply) : [];
+  const postText = edits.post!=null ? edits.post : (drafts.post && drafts.post.text) || "";
+  const tile = (label, v, extra) => <div style={{padding:"10px 12px",borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.02)",minWidth:0}}>
+    <div style={lbl}>{label}</div><div style={{fontSize:20,fontWeight:800,color:C.text}}>{v}</div>{extra&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:2,lineHeight:1.45}}>{extra}</div>}</div>;
+  return (
+    <Card style={{borderColor:`${C.gold}2a`}}>
+      <div style={{display:"flex",alignItems:"center",gap:8}}><Label>Google listing</Label><div style={{flex:1}}/>
+        {link.mapsUri&&<a href={link.mapsUri} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:C.gold,textDecoration:"none"}}>Open on Google →</a>}</div>
+      <div style={{fontSize:12.5,fontWeight:700,color:C.text,marginTop:2}}>{link.title}</div>
+      {note("top")}
+      {!ov ? <div style={{fontSize:12,color:C.textDim,marginTop:8}}>Loading the profile...</div> : <>
+        <div style={sub}>Last 28 days</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8}}>
+          {tile("Rating", ov.total?`★ ${Number(ov.average).toFixed(1)}`:"No reviews", ov.total?`${ov.total} review${ov.total===1?"":"s"}`:"")}
+          {m ? <>{tile("Calls", m.calls.now, gbpTrend(m.calls.now,m.calls.before))}{tile("Website clicks", m.website.now, gbpTrend(m.website.now,m.website.before))}
+            {tile("Direction requests", m.directions.now, gbpTrend(m.directions.now,m.directions.before))}{tile("Times seen", m.views.now, gbpTrend(m.views.now,m.views.before))}</>
+            : <div style={{fontSize:11,color:C.textMuted,alignSelf:"center"}}>Numbers aren't available yet. Google shares them a few days after a profile is linked.</div>}
+        </div>
+
+        <div style={sub}>Reviews waiting for a reply {open.length?`(${open.length})`:""}</div>
+        {!open.length && <div style={{fontSize:11.5,color:C.green}}>✓ Every review has a reply.</div>}
+        {open.map(rv=>{ const text = edits[rv.id]!=null ? edits[rv.id] : (rdr[rv.id]&&rdr[rv.id].text) || "";
+          return <div key={rv.id} style={{padding:"11px 12px",borderRadius:10,border:`1px solid ${rv.stars<=2?C.amber:C.border}`,backgroundColor:"rgba(255,255,255,.02)",marginBottom:8}}>
+            <div style={{display:"flex",gap:8,alignItems:"baseline"}}><span style={{color:C.gold,fontSize:12,letterSpacing:1}}>{"★".repeat(rv.stars)}<span style={{color:C.textMuted}}>{"★".repeat(5-rv.stars)}</span></span>
+              <span style={{fontSize:12,fontWeight:700,color:C.text}}>{rv.reviewer}</span><span style={{fontSize:10.5,color:C.textMuted,marginLeft:"auto"}}>{rv.at?new Date(rv.at).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/Phoenix"}):""}</span></div>
+            {rv.comment&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.55,marginTop:5}}>"{rv.comment}"</div>}
+            {text ? <><textarea value={text} onChange={e=>setEdits(x=>({...x,[rv.id]:e.target.value}))} rows={3} style={{...inp,marginTop:8,resize:"vertical",lineHeight:1.5}}/>
+                <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap"}}><button onClick={()=>sendReply(rv,text)} disabled={busy==="r"+rv.id} style={small(true)}>{busy==="r"+rv.id?"Posting...":"Post reply"}</button>
+                  <button onClick={()=>draftReply(rv.id)} disabled={busy==="d"+rv.id} style={small(false)}>{busy==="d"+rv.id?"Writing...":"Write it again"}</button>
+                  {rdr[rv.id]&&<button onClick={()=>toss(rv.id)} style={small(false)}>Throw away</button>}</div></>
+              : <button onClick={()=>draftReply(rv.id)} disabled={busy==="d"+rv.id} style={{...small(true),marginTop:8}}>{busy==="d"+rv.id?"Writing...":"Write a reply"}</button>}
+            {note(rv.id)}
+          </div>; })}
+
+        <div style={sub}>This week's post</div>
+        {postText ? <>
+            <textarea value={postText} onChange={e=>setEdits(x=>({...x,post:e.target.value}))} rows={5} style={{...inp,resize:"vertical",lineHeight:1.5}}/>
+            <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap",alignItems:"center"}}>
+              <select value={cta} onChange={e=>setCta(e.target.value)} style={{...inp,width:"auto",padding:"8px 10px",fontSize:12}}>{GBP_CTAS.map(([v,l])=><option key={v} value={v}>{v?`Button: ${l}`:l}</option>)}</select>
+              <button onClick={()=>sendPost(postText)} disabled={busy==="send"} style={small(true)}>{busy==="send"?"Posting...":"Post to Google"}</button>
+              {drafts.post&&<button onClick={()=>toss(null)} style={small(false)}>Throw away</button>}</div>
+            {cta&&cta!=="CALL"&&!link.website&&<div style={{fontSize:10.5,color:C.amber,marginTop:5}}>This profile has no website listed, so pick "Call now" or "No button".</div>}</>
+          : <div style={{display:"flex",gap:6}}><input value={idea} onChange={e=>setIdea(e.target.value)} placeholder="Optional: what it should be about" style={{...inp,flex:1,minWidth:0}}/>
+              <button onClick={draftPost} disabled={busy==="post"} style={small(true)}>{busy==="post"?"Writing...":"Write this week's post"}</button></div>}
+        {note("post")}
+        <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Each morning new reviews get a reply drafted, and on Mondays a post, ready here for you. You'll get a message when they're waiting.</div>
+        {(ov.log||[]).length>0&&<><div style={sub}>Recently posted</div>{ov.log.slice(0,4).map((x,i)=><div key={i} style={{fontSize:11.5,color:C.textDim,lineHeight:1.5,padding:"5px 0",borderTop:i?`1px solid ${C.border}`:"none"}}>
+          <span style={{color:C.textMuted}}>{new Date(x.at).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/Phoenix"})} · {x.type==="post"?"Post":"Review reply"}:</span> {String(x.text).slice(0,140)}{String(x.text).length>140?"...":""}</div>)}</>}
+      </>}
+      <div style={{display:"flex",gap:10,marginTop:12,fontSize:10.5,color:C.textMuted,flexWrap:"wrap"}}>
+        <span>Connected as {st.email||"your Google account"}</span>
+        <button onClick={unlink} style={{background:"none",border:"none",color:C.textMuted,textDecoration:"underline",cursor:"pointer",fontSize:10.5,padding:0,fontFamily:"inherit"}}>Change profile</button>
+      </div>
+    </Card>);
+}
 const bizEmailCall = async (action, body) => {
   const { data:{ session } } = await supabaseClient.auth.getSession();
   const r = await fetch("/.netlify/functions/biz-email", { method:"POST", headers:{ "Content-Type":"application/json", Authorization:`Bearer ${session&&session.access_token}` }, body: JSON.stringify({ action, ...body }) });
@@ -10881,7 +10999,7 @@ function BlogCard({client}){
 
 // ─── Website deal (mirror of netlify/lib/website-deal.mjs; pinned by tests/verify-website-deal.mjs) ───
 // The OS only READS cl.websiteDeal; the server owns it (SERVER_OWNED_KEYS). WD-MIRROR-START
-const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut","siteAiJob","websiteIntake","payConnect","payLog"];   // emails: KB business-emails; siteAiJob: KB site-editor; websiteIntake: KB website-needs (the client writes it in the portal); pay*: KB payments-connect
+const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut","siteAiJob","websiteIntake","payConnect","payLog","googleLinkRequest","metaAccess","gbp","gbpDrafts","gbpLog"];   // emails: KB business-emails; siteAiJob: KB site-editor; websiteIntake: KB website-needs (the client writes it in the portal); pay*: KB payments-connect
 // Mirror of WEBSITE_OFFER in netlify/lib/pricing-shared.mjs (pinned by tests/verify-website-deal.mjs).
 const WEBSITE_OFFER={build:1500,care:100,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:150,blogPostsPerMonth:4,emailSetup:99,hosting:25,buyout:2500};
 const WD_DEFAULTS={price:WEBSITE_OFFER.build,plan:"full",care:WEBSITE_OFFER.care};
@@ -13483,6 +13601,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
             {isOwned(client)&&<BrandKitCard client={client} onUpdate={onUpdate} onOpenAssets={()=>setTab("portal")}/>}
             {isOwned(client)&&<CustomerEmailsCard client={client} onUpdate={onUpdate}/>}
             {isOwned(client)&&<ShowcaseCard client={client} onUpdate={onUpdate}/>}
+            {client.internal&&<GoogleListingCard client={client}/>}
             <LaunchChecklistCard client={client}/>
             <WebsiteUpsell client={client} onOpen={()=>setTab("website")} onUpdate={onUpdate}/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>

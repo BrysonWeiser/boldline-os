@@ -231,6 +231,11 @@
 [functions."ad-access-watch"]
   schedule = "8,23,38,53 * * * *"
 
+# Daily: drafts a reply to each new Google review and, on Mondays, the week's Google post, for Bryson to approve in the
+# Google listing card. Publishes nothing. 15:41 UTC = 8:41am Phoenix (no daylight saving). KB google-listing.
+[functions."gbp-watch"]
+  schedule = "41 15 * * *"
+
 [functions."blog-autopublish"]
   schedule = "*/15 * * * *"
 
@@ -304,6 +309,12 @@
 [[redirects]]
   from = "/pay-connect/done"
   to = "/.netlify/functions/pay-connect-done"
+  status = 200
+
+# Where Google sends Bryson back after connecting Google Business Profile (KB google-listing).
+[[redirects]]
+  from = "/gbp-connect/done"
+  to = "/.netlify/functions/gbp-connect-done"
   status = 200
 
 # Online booking from a business's website (netlify/functions/book.mjs).
