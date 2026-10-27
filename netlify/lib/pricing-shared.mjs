@@ -137,6 +137,10 @@ export const WEBSITE_OFFER = { build: 1500, care: 100, pages: 5, carePlanEdits: 
 // around their brand: their typefaces and colours, sections and layout made for them with the AI editor, eight
 // pages, three rounds of changes, and a bigger care plan. KB `site-editor`.
 export const WEBSITE_SIGNATURE = { build: 3500, care: 150, pages: 8, includedExtraPages: 3, carePlanEdits: 4, revisionRounds: 3 };
+// Google Business Profile care, an add-on with any ad plan or website (Bryson, 2026-10-27: "lets do $130"). Every new
+// review answered and a post every week, drafted by the OS and approved by Bryson (KB google-listing). The client keeps
+// owning the profile and adds BoldLine as a manager. Monthly, no setup fee.
+export const GOOGLE_PROFILE = { monthly: 130 };
 
 export const websitePromptBlock = () => `
 BoldLine ALSO BUILDS WEBSITES, sold to anyone, with or without ads:

@@ -60,3 +60,18 @@ detailing business first, then clients as the Google profile add-on (about $150 
 ## Tests
 `tests/verify-google-listing.mjs` (59 checks) runs the real functions with Supabase, Google and Anthropic stubbed.
 The card was driven in the real OS at 390, 768, 1280 and 1600 wide.
+
+## On the website and sold to clients (2026-10-27, Bryson: "we will need to add this to the website", price "lets do $130")
+- Price lives in one place: `GOOGLE_PROFILE = { monthly: 130 }` in `netlify/lib/pricing-shared.mjs`. No setup fee.
+- The marketing site has a "Your Google profile, kept busy." section (`gbpSection()` in
+  `scripts/build-marketing-site.mjs`, styles `.gp*` in `marketing-src/new.css`). It's on /pricing/ after website pricing,
+  /ads/ after "included", and /websites/ before the FAQ. It also has a line in llms.txt.
+- It promises only what's built: every review answered, a post every week, the profile's calls, website clicks and
+  direction requests watched. The mock review and post are labelled "Example". It names Google Business Profile as a
+  product and never implies a Google partnership.
+- The OS card is now on EVERY business's Overview, including clients and website-only clients, not just BoldLine's
+  own account and owned businesses.
+- 🔴 **Not yet in the agreements or billing.** No contract version or invoice line carries the $130 yet. Until it
+  does, a client who buys it needs it added by hand (special terms plus a monthly amount). Raised with Bryson as the
+  next step.
+

@@ -13595,13 +13595,14 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
 
       <div style={{flex:1,overflowY:"auto",padding:isDesktop?"22px 28px 60px":"13px 13px 60px",width:"100%",maxWidth:isDesktop?1000:"none",margin:isDesktop?"0 auto":undefined}}>
         {tab==="overview"&&isWebsiteOnly(client)&&<WebsiteOnlyOverview client={client} onUpdate={onUpdate} onOpen={setTab}/>}
+        {tab==="overview"&&isWebsiteOnly(client)&&<div style={{marginTop:11}}><GoogleListingCard client={client}/></div>}
         {tab==="overview"&&!isWebsiteOnly(client)&&(
           <div style={S.col11}>
             {isOwned(client)&&<BusinessPortalCard client={client} onUpdate={onUpdate}/>}
             {isOwned(client)&&<BrandKitCard client={client} onUpdate={onUpdate} onOpenAssets={()=>setTab("portal")}/>}
             {isOwned(client)&&<CustomerEmailsCard client={client} onUpdate={onUpdate}/>}
             {isOwned(client)&&<ShowcaseCard client={client} onUpdate={onUpdate}/>}
-            {client.internal&&<GoogleListingCard client={client}/>}
+            <GoogleListingCard client={client}/>
             <LaunchChecklistCard client={client}/>
             <WebsiteUpsell client={client} onOpen={()=>setTab("website")} onUpdate={onUpdate}/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
