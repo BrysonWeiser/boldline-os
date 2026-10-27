@@ -54,7 +54,7 @@ detailing business first, then clients as the Google profile add-on (about $150 
    Google, sign in with the business Gmail and tick "manage Business Profiles". If Google shows "hasn't verified this
    app", choose Advanced and continue (it's our own app). Then pick the profile.
 5. **For the detailing business:** the business Gmail must be Owner or Manager on its profile.
-   That's **Corvane Auto Detailing**. Not yet as of 2026-10-26: the business and its Google profile aren't set up.
+   That's **Corvane Auto Detailing**. Not yet as of 2026-10-27: the business and its Google profile aren't set up.
    He's connecting BoldLine's own profile first, from My Ads, then the Overview tab.
 
 ## Tests
