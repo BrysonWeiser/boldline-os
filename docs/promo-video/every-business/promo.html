@@ -118,6 +118,28 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--bg);color:
 .wc .dot{width:14px;height:14px;border-radius:50%;background:var(--gold2);box-shadow:0 0 16px var(--gold2)}.wc.g{border-color:var(--gold2);color:var(--gold2)}
 .qp{position:absolute;display:inline-flex;align-items:center;gap:16px;height:78px;padding:0 30px;border-radius:40px;background:#161922;border:1.5px solid rgba(255,255,255,.08);font-size:31px;color:#C9CCD6;white-space:nowrap}
 .qp i{width:26px;height:26px;border-radius:50%;border:4px solid var(--mute);position:relative;flex:none}.qp i::after{content:"";position:absolute;width:11px;height:4px;background:var(--mute);right:-9px;bottom:-4px;transform:rotate(45deg);border-radius:2px}
+/* google profile (s13) */
+.gpf{position:absolute;left:44px;right:44px;top:44px}
+.gpf .nm{font-size:44px;font-weight:800}
+.gpf .rt{display:flex;align-items:center;gap:14px;margin-top:10px;font-size:30px;color:#C9CCD6}
+.gpf .rt b{font-size:32px;color:var(--ink)}
+.gpf .sb{font-size:26px;color:var(--mute);margin-top:6px}
+.gpf .act{display:flex;gap:14px;margin-top:24px}
+.gpf .act span{padding:12px 26px;border-radius:30px;border:1.5px solid rgba(138,180,248,.4);font-size:24px;font-weight:700;color:#8AB4F8}
+.rv{position:absolute;left:44px;right:44px;top:300px;border-radius:26px;background:#141720;border:1.5px solid rgba(255,255,255,.07);padding:28px 30px}
+.rv .who{display:flex;align-items:center;gap:18px}
+.rv .av{width:66px;height:66px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:28px;background:rgba(138,180,248,.16);color:#8AB4F8;flex:none}
+.rv .who b{display:block;font-size:30px}.rv .who span{font-size:24px;color:var(--mute)}
+.rv .tx{font-size:29px;color:#D9DBE1;line-height:1.38;margin-top:16px}
+.rp{margin-top:22px;border-left:4px solid var(--gold);padding:4px 0 4px 22px}
+.rp .k{font-size:22px;font-weight:700;color:var(--gold2);letter-spacing:.04em}
+.rp .tx{margin-top:6px;font-size:27px;color:#C9CCD6;min-height:76px}
+.done13{position:absolute;right:28px;top:28px;display:inline-flex;align-items:center;gap:10px;padding:8px 18px;border-radius:30px;background:rgba(63,203,106,.12);border:2px solid rgba(63,203,106,.55);font-size:22px;font-weight:800;color:#BFE9CC;opacity:0}
+.done13 i{font-style:normal;color:var(--green)}
+.pst{position:absolute;left:44px;right:44px;top:745px;border-radius:26px;background:#141720;border:2px solid var(--gold);box-shadow:0 0 60px -14px rgba(212,176,90,.45);padding:28px 30px}
+.pst .hd{display:flex;align-items:center;justify-content:space-between}
+.pst .tx{font-size:30px;line-height:1.36;margin-top:14px;color:#E6E7EC}
+.pst .bk{display:inline-block;margin-top:20px;padding:14px 34px;border-radius:30px;background:var(--gold2);color:#15110A;font-size:26px;font-weight:800}
 </style></head>
 <body><div id="stage">
 <canvas id="bg" width="1080" height="1920"></canvas>
@@ -274,6 +296,25 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--bg);color:
   <div class="notif" id="s11no" style="top:1560px"><div class="ico"><img src="LOGO" style="width:46px"></div><div><b>New lead: Jordan R.</b><span>Drywall patch, from your Google ad</span></div></div>
 </section>
 
+<!-- S13 Google profile, kept busy -->
+<section class="scene" id="s13">
+  <div class="head" id="s13h"></div>
+  <div class="panel" id="s13p" style="left:70px;right:70px;top:560px;height:1040px">
+    <div class="gpf"><div class="nm">Summit Handyman Co.</div>
+      <div class="rt"><b>4.9</b><span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span><span id="s13n">(86)</span></div>
+      <div class="sb">Handyman in Mesa, AZ &middot; Open now</div>
+      <div class="act"><span>Call</span><span>Directions</span><span>Website</span></div></div>
+    <div class="rv" id="s13r"><span class="done13" id="s13d"><i>&#10003;</i>Replied</span>
+      <div class="who"><div class="av">S</div><div><b>Sarah K.</b><span><span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span> &middot; just now</span></div></div>
+      <div class="tx">Fixed our fence gate the same day. Fair price, and he cleaned up after.</div>
+      <div class="rp" id="s13rp"><div class="k">Response from the owner</div><div class="tx" id="s13rt"></div></div></div>
+    <div class="pst" id="s13s"><div class="hd"><span class="kick" style="font-size:22px">This week's post</span><span class="pill">NEW</span></div>
+      <div class="tx">Fall gutter cleaning is booking now. Grab a spot before the first storm.</div>
+      <span class="bk" id="s13b">Book</span>
+      <div class="tap" id="s13tap" style="left:52px;top:175px"></div></div>
+  </div>
+</section>
+
 <!-- S7 hub -->
 <section class="scene" id="s7">
   <div class="head" id="s7h"></div>
@@ -306,7 +347,7 @@ const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const ease=x=>1-Math.pow(1-clamp(x),3);
 const easeIO=x=>{x=clamp(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;};
 const pr=(t,s,d)=>ease((t-s)/d);
-const ORDER=[[0, 6.43], [12, 2.72], [1, 1.8], [10, 2.86], [11, 6.55], [3, 5.97], [2, 3.91], [6, 4.4], [7, 5.67], [8, 2.96], [9, 5.9]];
+const ORDER=[[0, 6.43], [12, 2.72], [1, 1.8], [10, 2.86], [11, 6.55], [3, 5.97], [2, 3.91], [13, 6.35], [6, 4.4], [7, 5.67], [8, 2.96], [9, 5.9]];
 const S={}; let ACC=0; ORDER.forEach(([id,d])=>{S[id]=[ACC,ACC+d];ACC+=d;});
 const DUR=ACC;
 const URL9=1.68;   // seconds into the end card when she starts saying the address (apply_flow.py)
@@ -349,6 +390,9 @@ words($("s5h"),[["Five stars,",0],["on autopilot.",1]]);
 words($("s6h"),[["See it",0],["grow.",1]]);
 words($("s10h"),[["Seen on Facebook",0],"\n",["and Instagram.",1]]);
 words($("s11h"),[["Built to turn clicks",0],"\n",["into customers.",1]]);
+words($("s13h"),[["Your Google profile,",0],"\n",["kept busy.",1]]);
+const R13=2.32, P13=4.28;   // seconds into the scene when she says "Every review" and "fresh post" (apply_flow.py)
+const RP13="Thanks Sarah, glad the gate's working right. Call us anytime.";
 words($("s7h"),[["All connected.",0],"\n",["One system.",1]]);
 words($("s8a"),[["You run the business.",0]]);
 words($("s8b"),[["We bring the",0],["customers.",1]]);
@@ -357,7 +401,7 @@ const WK=[3,4,4,5,5,9], LB=["Sep 15","Sep 22","Sep 29","Oct 6","Oct 13","This we
 $("s6b").innerHTML=WK.map((n,i)=>`<div class="bar${i===5?" now":""}" data-n="${n}"><i></i></div>`).join("");
 $("s6x").innerHTML=LB.map((l,i)=>`<span class="${i===5?"now":""}">${l}</span>`).join("");
 // hub nodes
-const NODES=[["Google Ads",540,620],["Meta Ads",773,772],["Landing pages",870,1140],["Website",773,1508],["Booking",540,1660],["Calls & forms",307,1508],["Reviews",210,1140],["Your portal",307,772]];
+const NODES=[["Google Ads",540,620],["Meta Ads",773,772],["Landing pages",870,1140],["Website",773,1508],["Booking",540,1660],["Calls & forms",307,1508],["Google profile",210,1140],["Your portal",307,772]];
 $("s7nodes").innerHTML=NODES.map(([n,x,y],i)=>`<div class="node" id="nd${i}" style="left:${x}px;top:${y}px"><span class="dot"></span>${n}</div>`).join("");
 // Background: fine grid + slow glow + dust, all from t (deterministic).
 const bg=$("bg").getContext("2d");
@@ -447,6 +491,16 @@ function render(t0){
     const tp2=clamp((t-(s+3.3))/.6); $("s11stap").style.opacity=tp2>0&&tp2<1?(1-tp2):0; $("s11stap").style.transform=`scale(${.4+tp2*1.3})`;
     const dn2=pr(t,s+3.5,.4); $("s11sform").style.opacity=1-dn2; $("s11sdone").style.opacity=dn2;
     const nq=pr(t,s+3.15,.45); $("s11no").style.opacity=nq; $("s11no").style.transform=`translateY(${(1-nq)*120}px)`; }
+  // S13 Google profile: a new review lands (the count ticks up), the owner's reply types in on "every review gets a
+  // reply", this week's post slides up on "a fresh post", and its Book button is tapped
+  if(S[13]) { const s=S[13][0]; wordsIn($("s13h"),t,s-.05); const pp=pr(t,s+.05,.6); $("s13p").style.opacity=pp; $("s13p").style.transform=`translateY(${(1-pp)*60}px)`;
+    const rv=pr(t,s+.7,.55); $("s13r").style.opacity=rv; $("s13r").style.transform=`translateX(${(1-rv)*120}px)`; $("s13n").textContent=rv>.5?"(87)":"(86)";
+    const rk=pr(t,s+R13-.15,.4); $("s13rp").style.opacity=rk;
+    const n=Math.floor(clamp((t-(s+R13+.05))/1.25)*RP13.length); $("s13rt").textContent=RP13.slice(0,n);
+    const dq=pr(t,s+R13+1.4,.4); $("s13d").style.opacity=dq; $("s13d").style.transform=`scale(${.8+.2*dq})`;
+    const ps=pr(t,s+P13-.2,.6); $("s13s").style.opacity=ps; $("s13s").style.transform=`translateY(${(1-ps)*140}px)`;
+    const tp=clamp((t-(s+P13+1.0))/.6); $("s13tap").style.opacity=tp>0&&tp<1?(1-tp):0; $("s13tap").style.transform=`scale(${.4+tp*1.3})`;
+    $("s13b").style.transform=`scale(${1+.08*Math.sin(clamp((t-(s+P13+1.0))/.4)*Math.PI)})`; }
   // S7
   { const s=S[7][0]; const t=s+(t0-s)*4.6/(S[7][1]-S[7][0]); wordsIn($("s7h"),t,s-.05); drawHub(t,s); const c=pr(t,s+.1,.6); $("s7c").style.opacity=c; $("s7c").style.transform=`scale(${.6+.4*c})`;
     NODES.forEach((_,i)=>{const q=pr(t,s+.9+i*.18,.5);$("nd"+i).style.opacity=q;$("nd"+i).style.transform=`scale(${.7+.3*q})`;}); }

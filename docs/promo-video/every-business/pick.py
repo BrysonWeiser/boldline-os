@@ -62,11 +62,13 @@ def article_ok(w16):
 script = json.load(open(f"{D}/script.json")); chosen = {}
 ONLY = os.environ.get("ONLY")   # score just these scenes (comma list), no assembly
 if ONLY: script = [x for x in script if x[0] in ONLY.split(",")]
+# REUSE=1: keep the takes already chosen in flow.json (only re-measure those), score every take of any new scene
+KEEP = json.load(open(f"{D}/flow.json"))["chosen"] if os.environ.get("REUSE") else {}
 for sid, sents in script:
     rows = []
     # a beat after a question inside the passage ("Need a website too? We build...") is natural; elsewhere it is dead air
     maxp = 0.5 if re.search(r"\?\s+\S", " ".join(sents)) else MAXPAUSE
-    for f in sorted(x for x in glob.glob(f"{D}/takes/{sid}-*.wav") if ".trim." not in x):
+    for f in sorted(x for x in glob.glob(f"{D}/takes/{sid}-*.wav") if ".trim." not in x and (sid not in KEEP or os.path.basename(x) == KEEP[sid].replace(".trim", ""))):
         a, sr = sf.read(f); a = tighten(trim(a.astype(np.float32))); tmp = f.replace(".wav", ".trim.wav"); sf.write(tmp, a, SR)
         segs, _ = wh.transcribe(tmp, beam_size=5, language="en", word_timestamps=True)
         words = [w for s in segs for w in s.words]; heard = " ".join(w.word.strip() for w in words)
@@ -99,6 +101,8 @@ for i, (sid, sents) in enumerate(script):
     k = 0
     for j, s in enumerate(sents):
         seg[f"{sid}.{j}"] = at(k); k += len(norm(s))
+    if sid == "s13":   # this week's post slides up as she says "fresh post"
+        seg["s13.post"] = at(norm(" ".join(sents)).index("fresh"))
     if sid == "s9":   # the web address appears on screen as she starts saying it
         seg["s9.url"] = at(norm(" ".join(sents)).index("bold"))
     track.append(a); t += len(a) / SR

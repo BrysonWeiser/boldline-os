@@ -3,7 +3,7 @@ name: agency-promo-video
 topic: Marketing
 task: make, change or re-render BoldLine's own short promo video (TikTok / Reels / Shorts), or make another motion-graphics video in that style
 keywords: [promo video, tiktok, reels, shorts, motion graphics, agency video, detailers video, render video, ffmpeg, frames, webx style, jp.scales, scaling businesses, video for the agency]
-status: v7 rendered 2026-10-21 and sent to Bryson (not posted yet)
+status: every-business v9 (with Google profile care) rendered 2026-10-27 and sent; detailer v7 kept for detailer outreach
 summary: Bryson, 2026-10-20 sent a TikTok by @jp.scales ("Joseph | Scaling Businesses", WebX Marketing Agency): a ~55s text-led motion-graphics promo, black + neon green, one feature per beat ("You missed a call today. That was a $3,000 job", "Built to convert", "Never lose a lead", "Works while you sleep", "Five stars. Automatically", "All connected. One system", logo end card), letterboxed 16:9 in a vertical frame. He wanted OUR OWN version, not a copy: detailers, full phone screen, end on "Book a free call". Built a 45s 1080x1920 video in BoldLine black + gold, rendered frame by frame from an HTML animation in this container (Playwright screenshots + ffmpeg). No music on purpose: he adds a trending sound in TikTok.
 verified: 2026-10-20
 ---
@@ -172,3 +172,20 @@ outreach; this one is for everyone else and for the profile.
   v6 (which he had heard). Re-sent as STEREO 44.1 kHz AAC 192k (`-ac 2 -ar 44100`, the usual social-upload format)
   plus the voiceover alone as an MP3 to check. Encode stereo from now on. First thing to check on his side: the
   iPhone silent switch, which mutes many in-app players even with the volume up.
+
+## v9 "every business" + Google profile care (2026-10-27, ~1pm Phoenix)
+Bryson: *"we will need to add this to the website and then we will need to update the first video we made and add
+this service and what it does"*; he picked the every-business video. New beat after the website, before the portal:
+- Line (ARIA): "We'll keep your Google profile busy. Every review gets a reply, and a fresh post goes up every week."
+  Headline "Your Google profile, kept busy." (same words as the website section, KB `google-listing`).
+- Screen: Summit Handyman Co.'s profile (4.9 stars, Call / Directions / Website). A new 5-star review from Sarah K.
+  lands and the count ticks 86 to 87, the owner's reply types in as she says "every review gets a reply", a "Replied"
+  tick appears, then "This week's post" rises on "a fresh post" and its Book button is tapped. No Google logo, nothing
+  that suggests Google endorses us.
+- The hub's "Reviews" node is now "Google profile". All other scenes and takes are unchanged (same timings).
+- Picker: `REUSE=1` keeps the takes already chosen in flow.json and only scores new scenes; `seg["s13.post"]` marks
+  "fresh"; apply_flow writes `R13`/`P13` (seconds into the scene) so the reply and the post follow her voice.
+- Audio now loudness-normalised on the STEREO mix in the same pass (`aformat=channel_layouts=stereo,loudnorm`,
+  `-ac 2 -ar 44100`), so the file is ready for upload with no second encode. 55.5s. File sent:
+  BoldLine-promo-every-business-v9.mp4. Source in docs/promo-video/every-business/ (edit_gbp.py adds the scene).
+
