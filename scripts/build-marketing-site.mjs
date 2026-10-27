@@ -12,7 +12,7 @@ import { dirname, join } from "node:path";
 import { renderSite, THEME_IDS, SITE_THEMES, SITE_PAGES as SAMPLE_PAGES } from "../netlify/lib/site-render.mjs";
 import { DEMO, DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT, LANDING_DEMOS } from "./site-showcase-demo.mjs";
 import { renderLandingPage } from "../netlify/functions/landing.mjs";
-import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE } from "../netlify/lib/pricing-shared.mjs";
+import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE, GOOGLE_PROFILE } from "../netlify/lib/pricing-shared.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "marketing-src");
@@ -130,6 +130,41 @@ const webPricing = () => `
   <div class="wp-sig reveal"><div class="wp-sig-l"><div class="wp-k">Signature website</div><div class="wp-v">${usd(WEBSITE_SIGNATURE.build)}</div></div>
     <p>Designed around your brand instead of one of our designs: your colours and fonts, sections and a layout made for your business, ${WEBSITE_SIGNATURE.pages} pages and ${WEBSITE_SIGNATURE.revisionRounds} rounds of changes. Then ${usd(WEBSITE_SIGNATURE.care)}/mo care with up to ${WEBSITE_SIGNATURE.carePlanEdits} edits a month.</p></div>
   <p class="wp-foot reveal">Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>, or <a href="${CAL_WEB}" target="_blank" rel="noopener noreferrer">book a website call</a>.</p>
+</div></section>
+`;
+
+// ── Google profile care (Bryson, 2026-10-27, KB google-listing) ─────────────────────────────────────────────────
+// The add-on that keeps a business's Google Business Profile active: every review answered, a post every week.
+// Only what is built is promised. The example on the right is marked as one. Google's approval forbids implying that
+// Google partners with or endorses BoldLine, so this names the product and nothing more.
+const gbpSection = () => `
+<section class="gp-sec" id="google-profile"><div class="wrap-x">
+  <div class="gp reveal">
+    <div class="gp-copy">
+      <div class="eyebrow">Add-on, with any plan or website</div>
+      <h2>Your Google profile, <em>kept busy.</em></h2>
+      <p class="gp-lead">Most people find a business on Google Maps before they ever see its website. We keep your Google Business Profile active, so it looks cared for and gives people a reason to call.</p>
+      <ul class="gp-list">
+        <li><b>Every review answered.</b> A thoughtful reply to each new review, good or bad, in your voice.</li>
+        <li><b>A fresh post every week.</b> A tip, a service or a seasonal reminder, with a button to call or book.</li>
+        <li><b>The numbers watched.</b> We keep an eye on the calls, website clicks and direction requests your profile brings in.</li>
+      </ul>
+      <div class="gp-price"><span class="gp-v">${usd(GOOGLE_PROFILE.monthly)}<small>/mo</small></span><span class="gp-n">No setup fee. You keep owning your profile and just add us as a manager, which takes two minutes.</span></div>
+    </div>
+    <div class="gp-show" aria-hidden="true">
+      <span class="gp-ex">Example</span>
+      <div class="gp-card">
+        <div class="gp-top"><span class="gp-stars">★★★★★</span><b>Sarah K.</b><span class="gp-when">2 days ago</span></div>
+        <p>On time and super thorough. My truck looks brand new.</p>
+        <div class="gp-reply"><span>Reply from the owner</span>Thanks so much, Sarah. We loved bringing your truck back to life. See you next time.</div>
+      </div>
+      <div class="gp-card gp-post">
+        <span class="gp-tag">This week's update</span>
+        <p>Winter sun is hard on paint. A wash and sealant now keeps your finish protected right through spring.</p>
+        <span class="gp-btn">Book</span>
+      </div>
+    </div>
+  </div>
 </div></section>
 `;
 
@@ -358,16 +393,16 @@ const PAGES = [
     title: "Google and Meta Ads Management | BoldLine Media",
     desc: "Campaigns built to find buyers, every lead tied to the ad that caused it, and reporting in plain English. You own your ad account.",
     body: pageHero("Google and Meta ads", "Ads that <em>pay for themselves.</em>", "We plan, build and run your Google and Meta ads and the landing pages behind them. Every call and form is tracked back to the ad that caused it, so you always know what's working.", `${book()}<a class="btn btn-ghost" href="/pricing/">See pricing</a>`)
-      + part("journey.html") + lpGallery() + part("system.html") + part("showcase.html") + part("included.html") + ctaBand(), ld: ["ld-org.html", "ld-service.html"] },
+      + part("journey.html") + lpGallery() + part("system.html") + part("showcase.html") + part("included.html") + gbpSection() + ctaBand(), ld: ["ld-org.html", "ld-service.html"] },
   { id: "websites", path: "/websites/", file: "websites/index.html",
     title: "Websites for Businesses | BoldLine Media",
     desc: "Modern websites with real motion that still load fast on a phone. Three designs to choose from, $1,500 to build and $100 a month to look after.",
-    body: promote(part("websites.html")) + webFaq() + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business.", CAL_WEB), ld: ["ld-org.html", "ld-service.html"] },
+    body: promote(part("websites.html")) + gbpSection() + webFaq() + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business.", CAL_WEB), ld: ["ld-org.html", "ld-service.html"] },
   { id: "pricing", path: "/pricing/", file: "pricing/index.html",
     title: "Pricing | BoldLine Media",
     desc: "Ad plans for Google and Meta, and website pricing. For ads you pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.",
     body: pageHero("Pricing", "One number, <em>never two.</em>", "Each month you pay your plan's minimum or the fee for the qualified leads we delivered, whichever is higher. Your ad budget is separate and goes straight to Google and Meta on your own card.")
-      + planFinder() + part("services.html") + compareNudge() + webPricing() + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
+      + planFinder() + part("services.html") + compareNudge() + webPricing() + gbpSection() + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
   { id: "how", path: "/how-it-works/", file: "how-it-works/index.html",
     title: "How It Works | BoldLine Media",
     desc: "The same structure every time: discovery, build, launch and weekly optimization. Who we work with, and the questions people ask first.",
