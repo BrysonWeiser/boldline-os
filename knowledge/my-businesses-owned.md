@@ -167,3 +167,12 @@ verified: 2026-10-07
 - Driven headlessly at 1600 / 1280 / 768 / 390: list, empty state, add sheet, and an owned business's
   Overview / Campaign / Assets / Website / Leads tabs. No sideways scroll, no script errors. Full suite
   149/149.
+
+## The detailing business's name: Corvane Auto Detailing (Bryson, 2026-10-26, ~10:45pm Phoenix)
+- The car detailing business he co-owns is called **Corvane Auto Detailing**. "Desert Gloss Detailing" in older notes
+  and test data is made up; it was never his business. Don't call it that again.
+- It isn't set up yet. There's no Google profile to connect: he said "we still need to set it up". The business email
+  setup is also paused until the LLC and bank account exist (CLAUDE.md, 10pm reminder note). When it's ready, it goes in
+  My Businesses as Corvane Auto Detailing, and its Google profile gets linked in the Google listing card (KB
+  google-listing).
+
