@@ -347,7 +347,7 @@ const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const ease=x=>1-Math.pow(1-clamp(x),3);
 const easeIO=x=>{x=clamp(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;};
 const pr=(t,s,d)=>ease((t-s)/d);
-const ORDER=[[0, 6.43], [12, 2.72], [1, 1.8], [10, 2.86], [11, 6.55], [3, 5.97], [2, 3.91], [13, 6.35], [6, 4.4], [7, 5.67], [8, 2.96], [9, 5.9]];
+const ORDER=[[0, 6.43], [12, 2.72], [1, 1.8], [10, 2.86], [11, 6.55], [3, 5.97], [2, 3.91], [13, 6.35], [6, 4.4], [7, 7.48], [8, 2.96], [9, 5.9]];
 const S={}; let ACC=0; ORDER.forEach(([id,d])=>{S[id]=[ACC,ACC+d];ACC+=d;});
 const DUR=ACC;
 const URL9=1.68;   // seconds into the end card when she starts saying the address (apply_flow.py)

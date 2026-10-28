@@ -24,7 +24,8 @@ import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { DS, getAccessToken, isConfigured } from "../lib/docusign-auth.mjs";
 import { sendEnvelope, ensureAnchor } from "./docusign-send.mjs";
 import { stripe, ensureCustomer, resolvePaymentMethod } from "../lib/stripe-shared.mjs";
-import { WEBSITE_OFFER } from "../lib/pricing-shared.mjs";
+import { WEBSITE_OFFER, GOOGLE_PROFILE } from "../lib/pricing-shared.mjs";
+import { addOnsOf } from "../lib/contract-shared.cjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import { promises as dnsp } from "node:dns";
 import { cleanDomain, altHost, isApex, dnsRecords, checkDomain, addNetlifyAlias, addressTaken, netlifyStatus, sitesTarget } from "../lib/site-domain.mjs";
@@ -87,12 +88,16 @@ export default async (req) => {
         const blogSetup = Number(body.blogSetup ?? WEBSITE_OFFER.blogSetup), blogMonthly = Number(body.blogMonthly ?? WEBSITE_OFFER.blogMonthly), blogPosts = Math.floor(Number(body.blogPosts ?? WEBSITE_OFFER.blogPostsPerMonth));
         if (!(extraPages >= 0 && extraPages <= 20)) return json({ ok: false, error: "Extra pages must be between 0 and 20." }, 400);
         const emailSetupPrice = Number(body.emailSetupPrice ?? WEBSITE_OFFER.emailSetup);
+        // Google profile care (KB addon-billing): never in both agreements, or the business would be billed twice.
+        const gbpCare = body.gbpCare === true, gbpMonthly = Number(body.gbpMonthly ?? GOOGLE_PROFILE.monthly);
+        if (gbpCare && addOnsOf(cl).some((a) => a.id === "gbp_care")) return json({ ok: false, error: "Google profile care is already in their ads agreement." }, 409);
+        if (gbpCare && !(Number.isFinite(gbpMonthly) && gbpMonthly > 0 && gbpMonthly <= 5000)) return json({ ok: false, error: "Enter a Google profile care price between $1 and $5,000 a month." }, 400);
         if (![extraPagePrice, blogSetup, blogMonthly, emailSetupPrice].every((n) => Number.isFinite(n) && n >= 0 && n <= 20000)) return json({ ok: false, error: "Add-on prices must be between $0 and $20,000." }, 400);
         if (!(blogPosts >= 1 && blogPosts <= 8)) return json({ ok: false, error: "Blog articles must be between 1 and 8 a month." }, 400);
         const r = (n) => Math.round(n * 100) / 100;
         const next = await save({ price: r(price), care: r(care), plan: body.plan === "half" ? "half" : "full",
           extraPages, extraPagePrice: r(extraPagePrice), blog: body.blog === true, blogSetup: r(blogSetup), blogMonthly: r(blogMonthly), blogPosts,
-          emailSetup: body.emailSetup === true, emailSetupPrice: r(emailSetupPrice), tier: body.tier === "signature" ? "signature" : "standard",
+          emailSetup: body.emailSetup === true, emailSetupPrice: r(emailSetupPrice), gbpCare, gbpMonthly: r(Number.isFinite(gbpMonthly) ? gbpMonthly : GOOGLE_PROFILE.monthly), tier: body.tier === "signature" ? "signature" : "standard",
           mgmt: body.mgmt === "hosting" || body.mgmt === "own" ? body.mgmt : "care" });
         return json({ ok: true, deal: next });
       }

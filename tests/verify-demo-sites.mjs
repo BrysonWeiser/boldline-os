@@ -91,7 +91,7 @@ const prospect = (extra = {}) => ({ id: "p1", name: "Desert Shine Mobile Detail"
   ok("it owns the files once paid", /Client owns the Website as handed over: its words, its pages and its files/.test(own));
   ok("🔴 the other four versions read exactly as before", ["care", "hosting"].every((m) => { const h = text(WD.websiteAgreementHTML({ name: "X", id: "c1" }, { mgmt: m })); return /6\. Going live and the domain/.test(h) && !/Handover/.test(h); }));
   ok("no dash in the new wording", !/[—–]/.test(own));
-  ok("the agreement version moved to WA-8", WD.AGREEMENT_VERSION === "WA-8");
+  ok("the agreement version is WA-8 or later (the outright variant arrived in WA-8)", Number(String(WD.AGREEMENT_VERSION).replace("WA-", "")) >= 8);
   ok("🔴 the server forces no monthly fee for outright, whatever the form says", /care = body\.mgmt === "own" \? 0 : Number\(body\.care\)/.test(DEAL));
   ok("🔴 an outright site is never put live on our hosting", /if \(termsOf\(cl\)\.mgmt === "own"\) return json\(\{ ok: false, error: "They bought it outright, so we don't host it\./.test(DEAL));
   ok("the OS offers the fifth version and mirrors its price", /\["standard","own","Standard website, bought outright"/.test(UI) && /buyout:2500/.test(UI));

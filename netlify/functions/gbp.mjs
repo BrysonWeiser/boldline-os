@@ -11,6 +11,8 @@ import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { OS_BASE } from "../lib/lead-relay.mjs";
+import { addOnPlan, startAddOn } from "../lib/addon-billing.mjs";
+import { stripe, ensureCustomer, resolvePaymentMethod } from "../lib/stripe-shared.mjs";
 import { gbpReady, makeState, authorizeUrl, loadConn, dropConn, revoke, accessToken, listLocations, listReviews, replyReview,
   createPost, fetchMetrics, cleanPublic, replyPrompt, postPrompt, draft, waiting, REPLY_MAX, POST_MAX, CTAS } from "../lib/gbp.mjs";
 
@@ -62,8 +64,18 @@ export default async (req) => {
       const { data: others } = await db.from("clients").select("id, data").eq("data->gbp->>location", pick.location);
       if ((others || []).some((o) => o.id !== row.id)) return json({ ok: false, error: "That profile is already linked to another business in the OS." });
       const gbp = { ...pick, linkedAt: new Date().toISOString() };
-      await write((d) => ({ ...d, gbp, gbpDrafts: {} }));
-      return json({ ok: true, gbp });
+      const linked = await write((d) => ({ ...d, gbp, gbpDrafts: {} }));
+      // Linking the profile is the day the service starts, so a signed Google profile care add-on starts billing
+      // now (KB addon-billing). Best effort: if Stripe is unreachable, billing-watch starts it tomorrow morning.
+      let billing = null, billingNote = "";
+      if (process.env.STRIPE_SECRET_KEY && addOnPlan({ ...linked, id: row.id }, "gbp_care").state === "ready") {
+        try {
+          const res = await startAddOn({ ...linked, id: row.id }, "gbp_care", { stripe, ensureCustomer, resolvePaymentMethod });
+          billing = res.billing;
+          await write((d) => ({ ...d, addOnBilling: { ...(d.addOnBilling || {}), gbp_care: res.billing } }));
+        } catch (e) { console.error("gbp link: add-on billing did not start:", e.message); billingNote = "Billing didn't start just now. It will start by itself tomorrow morning."; }
+      }
+      return json({ ok: true, gbp, billing, billingNote });
     }
     if (action === "unlink") { await write((d) => { const n = { ...d }; delete n.gbp; delete n.gbpDrafts; return n; }); return json({ ok: true }); }
 

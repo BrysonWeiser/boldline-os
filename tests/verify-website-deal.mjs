@@ -96,7 +96,7 @@ ok("the care plan starts on launch day", /starts on the day the Website goes liv
 ok("🔴 WA-2: BoldLine manages the domain through access the client gives, and may not transfer it, cancel it or touch their email settings", /Client will give BoldLine access to the account where the domain is registered/.test(aH) && /will not transfer the domain, change who owns it, cancel it, or change the settings Client&rsquo;s email depends on/.test(aH));
 ok("🔴 WA-2: the domain stays theirs, they can remove our access any time, and the hand-back never depends on money owed", /The domain and the account stay Client&rsquo;s at all times, and Client may remove BoldLine&rsquo;s access whenever it chooses/.test(aH) && /This does not depend on any amount being owed/.test(aH));
 ok("WA-2: renewing the domain stays the client's job", /Keeping the domain renewed and paid for remains Client&rsquo;s responsibility/.test(aH));
-ok("the agreement is version WA-8", L.AGREEMENT_VERSION === "WA-8");
+ok("the agreement is version WA-8 or later", Number(String(L.AGREEMENT_VERSION).replace("WA-", "")) >= 8);
 {
   // WA-6 (2026-10-11, Bryson: "yes add both"): the client answers for what it supplies, and BoldLine may show the site.
   const A = L.websiteAgreementHTML({ name: "Sample Co", email: "a@b.co" }, { price: 1500, plan: "full", care: 100 });

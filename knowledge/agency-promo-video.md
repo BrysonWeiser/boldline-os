@@ -3,7 +3,7 @@ name: agency-promo-video
 topic: Marketing
 task: make, change or re-render BoldLine's own short promo video (TikTok / Reels / Shorts), or make another motion-graphics video in that style
 keywords: [promo video, tiktok, reels, shorts, motion graphics, agency video, detailers video, render video, ffmpeg, frames, webx style, jp.scales, scaling businesses, video for the agency]
-status: every-business v9 (with Google profile care) rendered 2026-10-27 and sent; detailer v7 kept for detailer outreach
+status: every-business v10 (Google profile care beat + named in the hub line) rendered 2026-10-28 and sent; detailer v7 kept for detailer outreach
 summary: Bryson, 2026-10-20 sent a TikTok by @jp.scales ("Joseph | Scaling Businesses", WebX Marketing Agency): a ~55s text-led motion-graphics promo, black + neon green, one feature per beat ("You missed a call today. That was a $3,000 job", "Built to convert", "Never lose a lead", "Works while you sleep", "Five stars. Automatically", "All connected. One system", logo end card), letterboxed 16:9 in a vertical frame. He wanted OUR OWN version, not a copy: detailers, full phone screen, end on "Book a free call". Built a 45s 1080x1920 video in BoldLine black + gold, rendered frame by frame from an HTML animation in this container (Playwright screenshots + ffmpeg). No music on purpose: he adds a trending sound in TikTok.
 verified: 2026-10-20
 ---
@@ -188,4 +188,11 @@ this service and what it does"*; he picked the every-business video. New beat af
 - Audio now loudness-normalised on the STEREO mix in the same pass (`aformat=channel_layouts=stereo,loudnorm`,
   `-ac 2 -ar 44100`), so the file is ready for upload with no second encode. 55.5s. File sent:
   BoldLine-promo-every-business-v9.mp4. Source in docs/promo-video/every-business/ (edit_gbp.py adds the scene).
+
+## v10 (2026-10-27, ~11:30pm Phoenix): the hub line names the Google profile
+Bryson on v9: *"for the video when its at the end where it says ads landing pages websites and your portal make sure to
+include google profile management somehow into it otherwise its good"*. s7 re-recorded: "Ads, landing pages, websites,
+your Google profile and your portal. All connected, in one system." All 8 takes word-exact; s7-6 chosen. Picker gained
+`FRESH=s7` (with `REUSE=1`) to re-score a re-recorded scene while keeping every other take. 57.3s, 168/168 words exact,
+-14.2 LUFS stereo. File sent: BoldLine-promo-every-business-v10.mp4.
 

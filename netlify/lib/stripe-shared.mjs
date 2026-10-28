@@ -31,12 +31,15 @@ function encodeForm(obj, prefix = "", out = new URLSearchParams()) {
   return out;
 }
 
-async function stripe(path, { method = "POST", body } = {}) {
+// `idempotencyKey`: Stripe replays the first result for a repeated key, so a retried or doubled request can never
+// create a second subscription (add-on billing uses it, KB addon-billing).
+async function stripe(path, { method = "POST", body, idempotencyKey } = {}) {
   const res = await fetch(`https://api.stripe.com/v1/${path}`, {
     method,
     headers: {
       authorization: `Bearer ${SK}`,
       "content-type": "application/x-www-form-urlencoded",
+      ...(idempotencyKey ? { "idempotency-key": String(idempotencyKey) } : {}),
     },
     body: body ? encodeForm(body).toString() : undefined,
   });

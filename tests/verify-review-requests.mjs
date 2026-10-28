@@ -288,7 +288,7 @@ ok("🔴 the screen only queues: no send path in the card", (() => { const a = U
     !listed({ ...base, docusignSentAt: now, docusignStatus: "voided", contractTermsVersion: 7, contractOmits: [], declinedFeatures: ["review_requests"] }));
   ok("shops and the one-off hand-off build do not get it", !C.contractFeatureIds({ packageId: "e-growth" }).includes("review_requests") && !C.contractFeatureIds({ packageId: "h-handoff" }).includes("review_requests"));
   ok("every ads package does", ["g-launch", "g-growth", "g-acquisition", "m-launch", "m-growth", "m-acquisition", "c-growth", "c-acquisition"].every((id) => C.contractFeatureIds({ packageId: id }).includes("review_requests")));
-  ok("the newest terms are version 7", C.TERMS_CURRENT === 7 && C.termsVersionOf({}) === 7);
+  ok("the newest terms are version 7 or later, and a new agreement gets them", C.TERMS_CURRENT >= 7 && C.termsVersionOf({}) === C.TERMS_CURRENT);
 
   // The OS's own copy must decide exactly the same.
   const blk = (a, b) => UI.slice(UI.indexOf(a), UI.indexOf(b, UI.indexOf(a)) + b.length);
