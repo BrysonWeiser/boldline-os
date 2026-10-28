@@ -156,6 +156,10 @@ S.rows.c2 = { name: "Another", internal: true, owned: true, commLog: [] };
   r = await call("draftPost", { clientId: "c1", idea: "winter paint care" });
   ok("a weekly post is drafted, dash-free", r.d.ok && !/[–—]/.test(r.d.text) && S.rows.c1.gbpDrafts.post);
   ok("🔴 still nothing published", S.posts.length === 0);
+  ok("a post drafted on demand is scheduled for the coming Monday 8am", /T15:00:00\.000Z$/.test(S.rows.c1.gbpDrafts.post.scheduledFor) && S.rows.c1.gbpDrafts.post.held === false);
+  r = await call("savePost", { clientId: "c1", text: "Edited — winter is hard on paint, book a wash this week.", cta: "CALL", held: true });
+  ok("🔴 saving an edit keeps his words, button and hold, and publishes nothing", r.d.ok && S.posts.length === 0 && S.rows.c1.gbpDrafts.post.held === true
+    && S.rows.c1.gbpDrafts.post.cta === "CALL" && !/[–—]/.test(S.rows.c1.gbpDrafts.post.text) && /^Edited/.test(S.rows.c1.gbpDrafts.post.text));
   r = await call("post", { clientId: "c1", text: "Winter is hard on paint. Book a wash this week and keep it shining.", cta: "BOOK", url: "https://boldlinemedia.com/book" });
   ok("🔴 a post's button can never point at BoldLine", !r.d.ok && /BoldLine/.test(r.d.error) && S.posts.length === 0);
   r = await call("post", { clientId: "c1", text: "Winter is hard on paint. Book a wash this week and keep it shining.", cta: "BOOK" });
@@ -175,8 +179,14 @@ S.rows.c2 = { name: "Another", internal: true, owned: true, commLog: [] };
   const revs = REVIEWS.map(G.tidyReview).map((r) => ({ ...r, at: new Date(monday - 864e5).toISOString() }));
   const p = W.plan(cl, revs, monday);
   ok("it drafts only reviews with no reply and no draft yet", p.replies.map((r) => r.id).join() === "r1");
-  ok("and the week's post on a Monday (Phoenix)", p.post === true && W.plan(cl, revs, tuesday).post === false);
-  ok("not when a post went up in the last few days", W.plan({ ...cl, gbpLog: [{ type: "post", at: new Date(monday - 2 * 864e5).toISOString() }] }, revs, monday).post === false);
+  // Bryson, 2026-10-28: posts on the blog's clock. Written from Tuesday, up Monday 8am Phoenix unless held.
+  const pt = W.plan(cl, revs, tuesday);
+  ok("next Monday's post is written from Tuesday (Phoenix), never on the Monday it goes up", pt.post === true && pt.slot === "2026-11-02T15:00:00.000Z" && p.post === false);
+  ok("not when one is already waiting", W.plan({ ...cl, gbpDrafts: { post: { text: "x" } } }, revs, tuesday).post === false);
+  ok("not when that Monday's slot was already filled by an early 'Post now'", W.plan({ ...cl, gbpLog: [{ type: "post", forSlot: pt.slot }] }, revs, tuesday).post === false
+    && W.plan({ ...cl, gbpLog: [{ type: "post", forSlot: "2026-10-26T15:00:00.000Z" }] }, revs, tuesday).post === true);
+  ok("Monday 8am Phoenix is 15:00 UTC every week (no daylight saving)", G.nextPostSlot(Date.parse("2026-11-02T14:59:00Z")) === "2026-11-02T15:00:00.000Z" && G.nextPostSlot(Date.parse("2026-11-02T15:00:00Z")) === "2026-11-09T15:00:00.000Z"
+    && G.nextPostSlot(Date.parse("2027-06-28T14:00:00Z")) === "2027-06-28T15:00:00.000Z");
   ok("old reviews from long before linking are left alone", W.plan({ ...cl, gbp: { linkedAt: new Date(monday).toISOString() } }, revs.map((r) => ({ ...r, at: "2025-01-01T00:00:00Z" })), monday).replies.length === 0);
   const rows = [{ id: "w1", data: { name: "Desert Gloss", gbp: { account: "accounts/111", location: "locations/222", linkedAt: new Date(Date.now() - 864e5).toISOString() }, gbpLog: [] } }];
   const writes = []; const db = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { data: rows[0].data } }) }) }), update: (v) => ({ eq: async () => { writes.push(v.data); return {}; } }) }) };
@@ -186,6 +196,29 @@ S.rows.c2 = { name: "Another", internal: true, owned: true, commLog: [] };
   ok("🔴 the job drafted replies and published nothing", res.drafted >= 2 && S.puts.length === before.puts && S.posts.length === before.posts);
   ok("the drafts are saved for the card", writes.length === 1 && writes[0].gbpDrafts.replies.r1 && writes[0].gbpDrafts.replies.r2);
   ok("🔴 a low rating makes the message amber and says read it first", alerts.length === 1 && alerts[0].severity === "amber" && /low rating/.test(alerts[0].body));
+}
+
+// ── 5b. Monday 8am: the waiting post goes up by itself, unless held ─────────────────────────────────────
+{
+  const P = await import("../netlify/functions/gbp-post-run.mjs");
+  const due = "2026-11-02T15:00:00.000Z", at = Date.parse("2026-11-02T15:05:00Z");
+  const link = { account: "accounts/1", location: "locations/1", website: "desertgloss.com" };
+  const rows = [
+    { id: "a", data: { name: "Due", gbp: link, gbpDrafts: { post: { text: "Winter is hard on paint, book a wash this week and keep it shining.", cta: "BOOK", scheduledFor: due } } } },
+    { id: "b", data: { name: "Held", gbp: link, gbpDrafts: { post: { text: "Winter is hard on paint, book a wash this week and keep it shining.", cta: "BOOK", scheduledFor: due, held: true } } } },
+    { id: "c", data: { name: "Next week", gbp: link, gbpDrafts: { post: { text: "Winter is hard on paint, book a wash this week and keep it shining.", cta: "BOOK", scheduledFor: "2026-11-09T15:00:00.000Z" } } } },
+    { id: "d", data: { name: "BoldLine link", gbp: { ...link, website: "https://boldlinemedia.com/x" }, gbpDrafts: { post: { text: "Spring is here, and so are the pollen stains. Book a wash.", cta: "BOOK", scheduledFor: due } } } },
+  ];
+  const sent = [], writes = {}, alerts = [];
+  const db = { from: () => ({ select: () => ({ eq: (_k, id) => ({ maybeSingle: async () => ({ data: { data: rows.find((x) => x.id === id).data } }) }) }), update: (v) => ({ eq: async (_k, id) => { writes[id] = v.data; return {}; } }) }) };
+  const res = await P.runPosts(db, rows, { post: async (l, b) => sent.push(b), now: at, alert: async (a) => alerts.push(a) });
+  ok("🔴 only the due, un-held post goes up (held and next week's stay put)", res.done.join() === "Due,BoldLine link" && !writes.b && !writes.c);
+  ok("it posts the saved words with the business's own Book link", sent[0].text.startsWith("Winter") && sent[0].cta === "BOOK" && sent[0].url === "https://desertgloss.com/");
+  ok("🔴 a button that would point at BoldLine is dropped, never sent", sent[1].cta === "" && !sent[1].url);
+  ok("the draft clears and the log records that Monday's slot", !writes.a.gbpDrafts.post && writes.a.gbpLog[0].forSlot === due && writes.a.gbpLog[0].auto === true);
+  ok("he hears that it went up", alerts.length === 1 && /Due/.test(alerts[0].body));
+  const TOML = readFileSync(new URL("../netlify.toml", import.meta.url), "utf8");
+  ok("scheduled through Monday morning from 8am Phoenix", /\[functions\."gbp-post-run"\]\s*schedule = "\*\/15 15-23 \* \* 1"/.test(TOML));
 }
 
 // ── 6. The OS card and the wiring ────────────────────────────────────────────────────────────────────────────────────
