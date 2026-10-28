@@ -28,7 +28,8 @@
 //   care      { subscriptionId, status, startedAt, lastPaidAt, collection }
 //   launchedAt
 
-import { WEBSITE_OFFER, WEBSITE_SIGNATURE } from "./pricing-shared.mjs";
+import { WEBSITE_OFFER, WEBSITE_SIGNATURE, GOOGLE_PROFILE } from "./pricing-shared.mjs";
+import { gbpCareClauses } from "./contract-shared.cjs";
 
 export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: WEBSITE_OFFER.care };
 // WA-2 (2026-10-06): section 6 spells out that BoldLine manages the client's domain settings through access the
@@ -59,7 +60,11 @@ export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: W
 // itll be $1500 then the monthly"): a fifth version, BOUGHT OUTRIGHT. No monthly charge; on full payment BoldLine hands
 // over the complete site files, Client owns and hosts them, and nothing after handover is BoldLine's to keep running.
 // The other four versions read exactly as they did in WA-7. KB demo-sites.
-export const AGREEMENT_VERSION = "WA-8";
+// WA-9 (2026-10-28, Bryson: "yes" to a proper checkbox for the $130 Google profile care): the optional Google
+// Business Profile Care add-on (section 7a, or 7b after the blog). Billed on its own, never inside the Care Plan, so
+// the build invoices and the care subscription read exactly as they did (KB addon-billing). The wording is shared
+// with the ads agreement (contract-shared.cjs gbpCareClauses), and a business only ever has it in one of the two.
+export const AGREEMENT_VERSION = "WA-9";
 export const PLANS = { full: "Paid in full up front", half: "Half now, half before launch" };
 
 const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : d; };
@@ -112,6 +117,8 @@ export const normTerms = (t0) => {
     blog: mgmt === "care" && t.blog === true, blogSetup: num(t.blogSetup, WEBSITE_OFFER.blogSetup), blogMonthly: num(t.blogMonthly, WEBSITE_OFFER.blogMonthly),
     blogPosts: Math.max(1, int(t.blogPosts, WEBSITE_OFFER.blogPostsPerMonth, 8)),
     emailSetup: t.emailSetup === true, emailSetupPrice: num(t.emailSetupPrice, WEBSITE_OFFER.emailSetup),
+    // Google profile care: monthly, billed on its own (never part of monthlyTotal, which is the care subscription).
+    gbpCare: t.gbpCare === true, gbpMonthly: num(t.gbpMonthly, GOOGLE_PROFILE.monthly),
     special: cleanSpecial(t.special),
   };
 };
@@ -228,6 +235,10 @@ ${t.special.map((c, i) => `<p>(${String.fromCharCode(97 + (i % 26))}) ${c.headin
   const blog = t.blog ? `<h2>7a. The blog</h2>
 <p>BoldLine will add a blog to the Website and publish about <strong>${t.blogPosts} new article${t.blogPosts > 1 ? "s" : ""} a month</strong> on it, written for Client&rsquo;s customers from what Client tells BoldLine about the business. The Blog Plan costs <strong>${money(t.blogMonthly)} per month</strong>, starts on the day the Website goes live, and is billed with the Care Plan.</p>
 <p>Each article is available for Client to read before or after it is published, and BoldLine will change or remove any article Client asks it to. Articles will not state facts about Client&rsquo;s business that Client has not given BoldLine, and will not promise results. Client may cancel the Blog Plan at any time with thirty (30) days&rsquo; written notice; articles already published stay on the Website. The blog needs the Care Plan, so ending the Care Plan ends the Blog Plan too.</p>` : "";
+  // Google profile care: lettered after section 7 so no later number moves (7a, or 7b when the blog is 7a).
+  const gbp = t.gbpCare && t.gbpMonthly > 0 ? `<h2>7${t.blog ? "b" : "a"}. Google Business Profile care</h2>
+${gbpCareClauses(t.gbpMonthly, { agency: "BoldLine", separate: "the Build Fee and any monthly plan in this Agreement" }).join("\n")}
+` : "";
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(V.title)}</title><style>
 body{font-family:Georgia,serif;color:#1a1a1a;max-width:760px;margin:0 auto;padding:36px 28px;font-size:13px;line-height:1.7}
 h1{font-size:22px;text-align:center;margin:0 0 4px}h2{font-size:14px;margin:22px 0 6px}.sub{text-align:center;color:#666;font-size:11px;margin-bottom:22px}
@@ -244,7 +255,8 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}td{borde
 <tr><td>Build Fee</td><td>${money(total)}${parts.length > 1 ? ` (${parts.join(", ")})` : ""}</td></tr>
 <tr><td>Payment</td><td>${t.plan === "half" ? `${money(m.first)} on signing, ${money(m.final)} before the Website goes live` : `${money(total)} on signing`}</td></tr>
 ${owned ? `<tr><td>Ownership</td><td>Bought outright. No monthly charge. Once the Build Fee is paid in full, BoldLine hands over the complete Website files and Client hosts and maintains the Website from then on</td></tr>` : hosting ? `<tr><td>Hosting</td><td>${t.care > 0 ? `${money(t.care)} per month, starting the day the Website goes live` : "No monthly charge"}. Hosting only: changes after launch are quoted first</td></tr>` : `<tr><td>Care Plan</td><td>${t.care > 0 ? `${money(t.care)} per month, starting the day the Website goes live` : "Waived"}</td></tr>`}
-${t.blog ? `<tr><td>Blog Plan</td><td>${money(t.blogMonthly)} per month for about ${t.blogPosts} article${t.blogPosts > 1 ? "s" : ""} a month, starting the day the Website goes live</td></tr>
+${t.gbpCare ? `<tr><td>Google Business Profile Care</td><td>${money(t.gbpMonthly)} per month, billed on its own, starting the day Client gives BoldLine manager access to the profile</td></tr>
+` : ""}${t.blog ? `<tr><td>Blog Plan</td><td>${money(t.blogMonthly)} per month for about ${t.blogPosts} article${t.blogPosts > 1 ? "s" : ""} a month, starting the day the Website goes live</td></tr>
 ` : ""}<tr><td>Website</td><td>${sig ? "Signature website, designed around Client&rsquo;s own brand" : "Standard website, in one of BoldLine&rsquo;s designs"}</td></tr>
 <tr><td>Included</td><td>A website of ${sig ? `${words[inc.basePages]} pages (Home, Services, About, Reviews, Contact, and ${words[inc.includedExtraPages]} more agreed with Client)` : "five pages (Home, Services, About, Reviews, Contact)"}${t.extraPages ? ` plus ${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} agreed with Client` : ""}${t.blog ? ", a blog" : ""}${t.emailSetup ? ", business email set up on Client&rsquo;s domain" : ""}, a contact form that sends enquiries to Client, mobile friendly design, ${words[inc.rounds]} rounds of changes before launch</td></tr>
 </table>
@@ -289,7 +301,7 @@ ${care}
 <p>The Care Plan covers hosting, security updates, keeping the Website online, and up to ${words[inc.careEdits]} small content changes per month (for example text, photos, hours or prices). Larger changes are quoted separately. Client may cancel the Care Plan at any time with thirty (30) days&rsquo; written notice. If a Care Plan invoice is unpaid fifteen (15) days after its due date, BoldLine may take the Website offline until it is paid.</p>`}
 
 ${blog}
-
+${gbp}
 <h2>8. Who owns what</h2>
 ${owned ? `<p>Once the Build Fee is paid in full, Client owns the Website as handed over: its words, its pages and its files, and may host, copy, change and keep using them as it chooses. Client always owns its own name, logo, photos, content and domain. Stock photos in the Website are licensed for free commercial use by their source and may be replaced with Client&rsquo;s own at any time. BoldLine keeps the right to use its general designs, code patterns and tools in its other work.</p>` : `<p>Once the Build Fee is paid in full, Client owns the words written for the Website, and always owns its own name, logo, photos, content and domain. BoldLine keeps ownership of its design templates, code and tools, and grants Client a license to use them as part of the Website. If ${hosting ? "hosting" : "the Care Plan"} ends, and once everything owed has been paid, BoldLine will on request provide a copy of the Website&rsquo;s pages and images as standard web files, which Client may host anywhere and keep using.</p>`}
 <p>BoldLine may show the finished Website, Client&rsquo;s business name and pictures of the Website in its portfolio and marketing, including on BoldLine&rsquo;s own website, as an example of its work. BoldLine will not share Client&rsquo;s private information, enquiries or results without Client&rsquo;s written approval. Client may ask BoldLine in writing (email is fine) to stop at any time, and BoldLine will remove it from anything BoldLine controls within thirty (30) days.</p>

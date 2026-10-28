@@ -83,8 +83,8 @@ eq("number words", ["one", "twenty-five", "one hundred fifty", "one thousand"].m
 // ── 4. The OS ────────────────────────────────────────────────────────────────
 {
   ok("the box sits on the Billing card for clients on the late-fee terms", /\{!oneTime&&!client\.internal&&termsVersionOf\(client\)>=6&&<LateFeeRow client=\{client\} onUpdate=\{onUpdate\}\/>\}/.test(UI));
-  ok("🔴 sending stamps the fee that was sent", /contractLateFee:agreedLateFee\(client\)\}\);/.test(UI));
-  ok("replacing an agreement archives the old fee and unlocks the box", /lateFee:agreedLateFee\(client\),replacedAt:/.test(UI) && /contractTermsVersion:null,contractLateFee:null,contractOmits:null/.test(UI));
+  ok("🔴 sending stamps the fee that was sent", /contractLateFee:agreedLateFee\(client\)[,}]/.test(UI));
+  ok("replacing an agreement archives the old fee and unlocks the box", /lateFee:agreedLateFee\(client\),(addOns:client\.contractAddOns\|\|null,)?replacedAt:/.test(UI) && /contractTermsVersion:null,contractLateFee:null,contractOmits:null/.test(UI));
   ok("a renewal never raises it", /contractLateFee:chargedLateFee\(client\)/.test(UI));
   ok("the alerts use the client's own fee", /\$\$\{chargedLateFee\(cl\)\} late fee is added/.test(UI));
 }

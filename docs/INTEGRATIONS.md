@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 237 task-keyed entries under `knowledge/`. They surface automatically via the
+> 238 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**237 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**238 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -111,6 +111,9 @@
 
 ## Billing
 
+- **[addon-billing](../knowledge/addon-billing.md)** &mdash; &#9989; verified &middot; 2026-10-28  
+  Bryson said "yes" (2026-10-27) to making the $130/mo Google profile care a proper checkbox in the agreement that adds it to the monthly bill automatically. It's a box on the Contract tab (ads agreement, terms v8) and on the website deal (website agreement WA-9). Ticked before sending, it becomes its own section; sending freezes it. Billing is its OWN Stripe subscription tagged kind "addon". It starts by itself once the agreement is signed AND the business's Google profile is linked (at link time, or by billing-watch each morning). It goes on the card on file, or Stripe emails an invoice. It never touches the ads billing status, the ads late-payment policy or the monthly minimum. Never billed to BoldLine or owned businesses. A status strip under the Google listing card shows where it stands and has Start/Stop buttons. 35 checks, 13 mutations caught.  
+  <sub>*task:* put Google profile care (or any future add-on) into a client's agreement, start or stop billing it, or work out why an add-on is or isn't being charged &nbsp;|&nbsp; *keywords:* add-on, addon, add-ons, google profile care, gbp_care, addOns, contractAddOns, addOnsOf, ADD_ONS, gbpCareClauses, addOnBilling, addon-billing, addon-start, addon-stop, runAddOnStarts, AddOnsCard, GbpCareBilling, kind addon, adsSubscriptionOf, isAdsInvoice, terms v8, WA-9, $130, gbpCare, gbpMonthly</sub>
 - **[revenue-tracking](../knowledge/revenue-tracking.md)** &mdash; &#9989; verified &middot; 2026-08-18  
   REBUILT 2026-08-18. The revenue screen used to add up package prices and call it "Monthly Recurring Revenue" — under the greater-of pricing model that is a FLOOR, not income, so it under-reported every good month. Actual revenue now comes from Stripe invoices via a new `revenue` action, keyed on the period each invoice COVERS so a late payment lands in the month it was for. Drafts, voids and write-offs excluded; credit notes subtracted. Month-on-month comparison uses only FINISHED months. The floor is still shown, clearly labelled and visually separate.  
   <sub>*task:* see how much BoldLine actually earned in a month, or work out why the revenue screen shows what it shows &nbsp;|&nbsp; *keywords:* revenue, MRR, monthly recurring revenue, guaranteed floor, invoices by month, stripe revenue action, RevenueScreen, collected, outstanding, refunded, credit notes, period_end, draft invoice, void invoice, month on month</sub>

@@ -88,6 +88,7 @@ const json = (body, status = 200) =>
 // ../lib/stripe-shared.mjs so the scheduled month-end invoicer shares them rather than
 // carrying a second copy that drifts.
 import { stripe, ensureCustomer, resolvePaymentMethod, invoiceParkedLeads, finalizeAndPay } from "../lib/stripe-shared.mjs";
+import { adsSubscriptionOf, startAddOn, stopAddOn, addOnPlan } from "../lib/addon-billing.mjs";
 
 // Map a Stripe subscription status to the OS billingStatus vocabulary.
 function billingStatusFromSub(sub) {
@@ -230,6 +231,29 @@ export default async (req) => {
       return json({ ok: true, url: session.url, customerId, oneTime });
     }
 
+    // ── Add-on services (Google profile care), billed as their own subscription ──
+    //   { action:"addon-start", clientId, addOn }   start it now (Bryson's button; billing-watch starts it by itself
+    //                                                once the agreement is signed and their profile is linked)
+    //   { action:"addon-stop",  clientId, addOn }   stop at the end of the month already paid for
+    // Both read the client from the database, never from the browser: what was agreed is the server's to decide.
+    // KB addon-billing.
+    if (action === "addon-start" || action === "addon-stop") {
+      const id = String(body.addOn || "gbp_care");
+      const { data: row } = await supabase.from("clients").select("id, data").eq("id", String(body.clientId || "")).maybeSingle();
+      if (!row || !row.data) return json({ ok: false, error: "That business could not be found." }, 404);
+      const api = { stripe, ensureCustomer, resolvePaymentMethod };
+      const res = action === "addon-start"
+        ? await startAddOn({ ...row.data, id: row.id }, id, api, { manual: true })
+        : await stopAddOn(row.data, id, api);
+      if (!res.already) {
+        const { data: fresh } = await supabase.from("clients").select("data").eq("id", row.id).maybeSingle();
+        const d = (fresh && fresh.data) || row.data;
+        const { error } = await supabase.from("clients").update({ data: { ...d, addOnBilling: { ...(d.addOnBilling || {}), [id]: res.billing } }, updated_at: new Date().toISOString() }).eq("id", row.id);
+        if (error) return json({ ok: false, error: `Stripe was updated but the OS could not save it: ${error.message}` }, 500);
+      }
+      return json({ ok: true, billing: res.billing, plan: addOnPlan({ ...row.data, addOnBilling: { ...(row.data.addOnBilling || {}), [id]: res.billing } }, id).state });
+    }
+
     // ── Save a card with NO subscription (results-only clients) ───────────────
     //
     // 🔴 THE GAP THIS CLOSES: A RESULTS-ONLY CLIENT COULD NOT BE CHARGED AT ALL.
@@ -272,7 +296,9 @@ export default async (req) => {
       if (!customerId) return json({ ok: false, error: "Missing customerId" }, 400);
       let subs;
       try {
-        subs = await stripe(`subscriptions?customer=${encodeURIComponent(customerId)}&limit=1&status=all`, {
+        // 🔴 Up to 10, then the first UNTAGGED one. Website care and add-ons (Google profile care) are their own
+        // subscriptions on the same customer, and the newest of them must never be read as the ads billing.
+        subs = await stripe(`subscriptions?customer=${encodeURIComponent(customerId)}&limit=10&status=all`, {
           method: "GET",
         });
       } catch (e) {
@@ -283,7 +309,7 @@ export default async (req) => {
         if (missing) return json({ ok: true, billingStatus: "none", customerMissing: true });
         throw e;
       }
-      const sub = (subs.data && subs.data[0]) || null;
+      const sub = adsSubscriptionOf(subs.data);
 
       // Pull the latest paid invoice timestamp, best-effort. Needed either way — a
       // results-only client pays real invoices too, just not recurring ones.
@@ -348,10 +374,10 @@ export default async (req) => {
       if (!sub) {
         if (!body.customerId) return json({ ok: false, error: "No billing set up for this client yet." }, 400);
         const subs = await stripe(
-          `subscriptions?customer=${encodeURIComponent(body.customerId)}&limit=1&status=all`,
+          `subscriptions?customer=${encodeURIComponent(body.customerId)}&limit=10&status=all`,
           { method: "GET" }
         );
-        sub = (subs.data && subs.data[0]) || null;
+        sub = adsSubscriptionOf(subs.data);   // never the website care or an add-on (KB addon-billing)
       }
       if (!sub) return json({ ok: false, error: "No active subscription to update." }, 400);
       if (["canceled", "incomplete_expired"].includes(sub.status))

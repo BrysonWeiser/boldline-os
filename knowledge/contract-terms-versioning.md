@@ -170,3 +170,9 @@ TERMS_CURRENT 7, TERMS_V7_FROM = Date.UTC(2026, 9, 5, 20, 0), CONTRACT_TERMS_VER
 `FEATURE_FROM_VERSION` gates a package FEATURE by version (not just a clause), so adding a deliverable
 to PKG_FEATURES no longer rewrites signed agreements. Plus per-client `declinedFeatures`, frozen at send
 as `contractOmits`. One function, `contractFeatureIds(cl)`, in both copies. Details: KB `service-add-ons`.
+
+## v8 (2026-10-28): add-on services (Google profile care)
+TERMS_CURRENT 8, TERMS_V8_FROM = Date.UTC(2026, 9, 28, 6, 0) (27 Oct, 11pm Phoenix), CONTRACT_TERMS_VERSION 8. An
+optional section "Add-On Service: Google Business Profile Care", only when ticked and frozen at send as
+`contractAddOns`. A sent agreement with no frozen list carries none. Also from v8: Special Terms are numbered General+1
+(they used to repeat General's number); earlier versions keep their old numbering. KB `addon-billing`.

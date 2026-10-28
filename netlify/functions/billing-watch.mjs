@@ -32,6 +32,8 @@ import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import { latePolicyFor, interestFor, lateStage, isBillingPaused } from "../lib/late-payment.mjs";
 import { pauseClientAds, resumeClientAds } from "../lib/billing-pause.mjs";
+import { runAddOnStarts, isAdsInvoice, adsSubscriptionOf } from "../lib/addon-billing.mjs";
+import { stripe as stripeApi, ensureCustomer, resolvePaymentMethod } from "../lib/stripe-shared.mjs";
 
 const SK = process.env.STRIPE_SECRET_KEY;
 // Interest starts after day 10 past due on v1-v5 agreements (Agreement §3.4). BILLING_GRACE_DAYS
@@ -79,6 +81,11 @@ export default withFailureAlert("billing-watch", async () => {
   const { data: rows, error } = await retryQuery(() => supabase.from("clients").select("id, data"), { job: "billing-watch", step: "clients load" });
   if (error) { console.error("billing-watch: clients load failed:", error.message); return new Response("db error", { status: 200 }); }
 
+  // Add-ons first (KB addon-billing): anything agreed in a signed agreement whose service can start (their Google
+  // profile is linked) starts billing today. Its own subscription, so nothing below is affected by it.
+  try { await runAddOnStarts(supabase, rows, { stripe: stripeApi, ensureCustomer, resolvePaymentMethod }, { alert: dispatchAlert }); }
+  catch (e) { console.error("billing-watch: add-on starts failed:", e.message); }
+
   let checked = 0, updated = 0;
   for (const row of rows || []) {
     const cl = row.data || {};
@@ -94,7 +101,9 @@ export default withFailureAlert("billing-watch", async () => {
     try {
       // Oldest unpaid (open) invoice = the overdue anchor.
       const inv = await stripe(`invoices?customer=${encodeURIComponent(cl.stripeCustomerId)}&status=open&limit=10`, { method: "GET" });
-      const open = (inv.data || []).sort((a, b) => (a.due_date || a.created) - (b.due_date || b.created));
+      // 🔴 Only ADS invoices. A website build invoice or an add-on's monthly invoice is under its own terms, and
+      // must never pause a client's ads or add an ads late fee (KB addon-billing).
+      const open = (inv.data || []).filter(isAdsInvoice).sort((a, b) => (a.due_date || a.created) - (b.due_date || b.created));
       const oldest = open[0] || null;
       const prev = cl.billingLate || {};
       let next = null;
@@ -209,8 +218,8 @@ export default withFailureAlert("billing-watch", async () => {
       // invoice auto-charges, nudge the owner to review that cycle's leads so the
       // good ones ride the same bundled bill. Once per cycle, active clients only.
       try {
-        const subs = await stripe(`subscriptions?customer=${encodeURIComponent(cl.stripeCustomerId)}&limit=1&status=active`, { method: "GET" });
-        const sub = subs.data && subs.data[0];
+        const subs = await stripe(`subscriptions?customer=${encodeURIComponent(cl.stripeCustomerId)}&limit=10&status=active`, { method: "GET" });
+        const sub = adsSubscriptionOf(subs.data);
         const periodEndIso = sub && sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
         if (periodEndIso && periodEndIso !== cl.billingNextCharge) patch.billingNextCharge = periodEndIso;
         if (cl.billingStatus === "active" && periodEndIso) {

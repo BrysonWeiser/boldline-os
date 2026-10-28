@@ -71,7 +71,6 @@ The card was driven in the real OS at 390, 768, 1280 and 1600 wide.
   product and never implies a Google partnership.
 - The OS card is now on EVERY business's Overview, including clients and website-only clients, not just BoldLine's
   own account and owned businesses.
-- 🔴 **Not yet in the agreements or billing.** No contract version or invoice line carries the $130 yet. Until it
-  does, a client who buys it needs it added by hand (special terms plus a monthly amount). Raised with Bryson as the
-  next step.
+- ✅ **In the agreements and billing since 2026-10-28** (Bryson: "yes"). A box on the Contract tab and on the website
+  deal puts it in the agreement; billing starts by itself once signed and the profile is linked here. KB `addon-billing`.
 

@@ -28,6 +28,7 @@ import { latePolicyFor, isBillingPaused } from "../lib/late-payment.mjs";
 import { resumeClientAds } from "../lib/billing-pause.mjs";
 import { dispatchAlert } from "../lib/alerts-shared.mjs";
 import { websiteKind, applyWebsiteEvent } from "../lib/website-deal.mjs";
+import { addOnKind, applyAddOnEvent } from "../lib/addon-billing.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 const WHSEC = process.env.STRIPE_WEBHOOK_SECRET;
@@ -90,6 +91,27 @@ export default async (req) => {
 
   const obj = event.data && event.data.object;
   const clientId = clientIdFrom(obj);
+
+  // 🔴 ADD-ON MONEY NEVER TOUCHES THE ADS BILLING STATUS EITHER (KB addon-billing). Google profile care is its own
+  // subscription tagged `kind: "addon"`. Its events update `addOnBilling` and nothing else, so a failed $130 payment
+  // can never mark the ads billing past due or pause a client's ads.
+  if (addOnKind(obj)) {
+    if (!clientId) return json({ ok: true, note: "add-on event with no clientId" });
+    try {
+      const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+      const { data: row, error: readErr } = await supabase.from("clients").select("data").eq("id", clientId).single();
+      if (readErr || !row) return json({ ok: true, note: "client not found", clientId });
+      const r = applyAddOnEvent(row.data || {}, event);
+      if (!r) return json({ ok: true, ignored: event.type });
+      const d = row.data || {};
+      const { error } = await supabase.from("clients").update({ data: { ...d, addOnBilling: { ...(d.addOnBilling || {}), [r.id]: r.billing } }, updated_at: new Date().toISOString() }).eq("id", clientId);
+      if (error) throw new Error(error.message);
+      if (r.alert) { try { await dispatchAlert(r.alert); } catch (e) { console.error("stripe-webhook: add-on alert failed:", e.message); } }
+      return json({ ok: true, applied: event.type, addOn: r.id, clientId });
+    } catch (e) {
+      return json({ ok: false, error: e.message }, 500);
+    }
+  }
 
   // 🔴 WEBSITE MONEY NEVER TOUCHES THE ADS BILLING STATUS. A website deposit is an `invoice.paid` too,
   // and without this branch it would mark a client's ads billing "active" (or a website-only client as an

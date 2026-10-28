@@ -145,7 +145,7 @@ const TERMS_V7_FROM = Date.UTC(2026, 9, 5, 20, 0);  // 5 Oct 2026, 1pm Phoenix: 
 // literal 2, and adding v3 the next day left every new client silently on v2: the clause was
 // in the file, gated correctly, and reached nobody. A default naming a specific version goes
 // stale the moment a version is added, which is exactly when nobody is looking at it.
-const TERMS_CURRENT = 7;
+const TERMS_CURRENT = 8;
 function termsVersionOf(cl) {
   cl = cl || {};
   const v = cl.contractTermsVersion;
@@ -161,6 +161,7 @@ function termsVersionOf(cl) {
   if (first < TERMS_V2_FROM) return cl.contractSigned ? 1 : 5;
   if (first < TERMS_V6_FROM) return 5;
   if (first < TERMS_V7_FROM) return 6;
+  if (first < TERMS_V8_FROM) return 7;
   return TERMS_CURRENT;
 }
 
@@ -205,6 +206,49 @@ function lateFeeClause(f) {
   return f > 0
     ? '(b) <strong>Late fee.</strong> A late fee of ' + feeWords(f) + (f === 1 ? ' dollar' : ' dollars') + ' ($' + f + '), or the maximum permitted by law if less, applies once to each amount that remains unpaid three (3) days after its due date. It reflects the cost of chasing the payment and of pausing and restoring the account, and is not a penalty. No interest accrues on late amounts.'
     : '(b) <strong>No late fee.</strong> No late fee applies to late amounts, and no interest accrues on them.';
+}
+
+// ── 🔴 v8 (28 Oct 2026): ADD-ON SERVICES, starting with Google Business Profile care ──
+// Bryson, 2026-10-27: "yes" to making the $130 Google profile care a proper checkbox in the agreement that
+// adds it to the monthly bill automatically. KB `addon-billing`. What an agreement carries:
+//  1. Only what was ticked (`addOns`) when it went out. The list is FROZEN at send as `contractAddOns`,
+//     like `contractOmits`, so ticking the box after signing never rewrites what they signed.
+//  2. 🔴 A sent or signed agreement with NO frozen list carries NONE. Unlike declined features the fallback
+//     is empty, never the live box: everything sent before add-ons existed was sent without one.
+//  3. Terms v8 or later only, and never a one-time hand-off, whose agreement promises in capitals that
+//     there is no recurring charge of any kind.
+// The price is the client's own, frozen with the list. $130 is only the default (pricing-shared.mjs
+// GOOGLE_PROFILE, pinned equal by verify-addon-billing).
+const TERMS_V8_FROM = Date.UTC(2026, 9, 28, 6, 0);  // 27 Oct 2026, 11pm Phoenix: add-on services
+const ADD_ONS = { gbp_care: { name: "Google Business Profile Care", monthly: 130 } };
+function addOnsOf(cl) {
+  cl = cl || {};
+  if (termsVersionOf(cl) < 8 || cl.packageId === "h-handoff") return [];
+  const dead = !cl.contractSigned && /^(voided|declined)$/i.test(String(cl.docusignStatus || ""));
+  const out = cl.contractSigned || (cl.docusignSentAt && !dead);
+  const list = out ? (Array.isArray(cl.contractAddOns) ? cl.contractAddOns : []) : (Array.isArray(cl.addOns) ? cl.addOns : []);
+  const seen = {};
+  return list.map((a) => {
+    const id = String((a && a.id) || ""), m = a && a.monthly;
+    const n = m === null || m === undefined || m === "" ? (ADD_ONS[id] ? ADD_ONS[id].monthly : 0) : Number(m);
+    return { id: id, monthly: Number.isFinite(n) ? Math.round(n * 100) / 100 : 0 };
+  }).filter((a) => ADD_ONS[a.id] && a.monthly > 0 && !seen[a.id] && (seen[a.id] = true));
+}
+// The Google profile care clauses, worded once for both agreements: the ads agreement calls BoldLine
+// "Agency", the website agreement "BoldLine". `separate` says, in that agreement's own words, which
+// fees this one sits beside and never counts toward. No dashes, no promises Google could break.
+function gbpCareClauses(monthly, opts) {
+  opts = opts || {};
+  const A = opts.agency || "Agency";
+  const n = Number(monthly) || 0;
+  const m = "$" + n.toLocaleString("en-US", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
+  return [
+    '<p>(a) <strong>What ' + A + ' does.</strong> ' + A + ' will look after Client&rsquo;s Google Business Profile. ' + A + ' will reply to each new review on it, publish one update post on it each week, and keep watch on the calls, website clicks and direction requests it brings in, telling Client about meaningful changes.</p>',
+    '<p>(b) <strong>Client&rsquo;s profile.</strong> The profile belongs to Client. ' + A + ' works through manager access that Client gives it and may remove at any time, and will not ask to become an owner of the profile. ' + A + ' will not change Client&rsquo;s business name, address, phone number, hours or categories, remove photos, or ask Google to remove a review, unless Client asks for or approves it. Replies and posts will not state offers, prices or facts about Client&rsquo;s business that Client has not given ' + A + ', and ' + A + ' will change or remove any reply or post Client asks it to.</p>',
+    '<p>(c) <strong>Reviews are earned, never bought.</strong> ' + A + ' will never write, buy or post a review for Client, offer anything in return for a review, or ask only the customers likely to leave a good one. Google alone decides what appears on Google. It may remove reviews or posts, change how the profile is shown, or suspend the profile under its own policies, and that is not a breach by ' + A + '. ' + A + ' does not guarantee any ranking, rating, number of reviews or other result. Google is not a party to this Agreement and does not sponsor or endorse ' + A + '.</p>',
+    '<p>(d) <strong>Fee.</strong> This service costs <strong>' + m + ' per month</strong>, billed monthly in advance, starting on the day Client gives ' + A + ' manager access to the profile. It is separate from and in addition to ' + (opts.separate || 'every other fee in this Agreement') + '. It is charged to the payment method Client keeps on file with ' + A + ', or invoiced by email when there is none. If a payment for it is unpaid fifteen (15) days after it is due, ' + A + ' may pause the service until it is paid.</p>',
+    '<p>(e) <strong>Ending it.</strong> This service runs month to month' + (opts.term ? ' and is not part of the Committed Term' : '') + '. Either party may end it with thirty (30) days&rsquo; written notice without ending the rest of this Agreement, and no early termination amount applies to it. It also ends when the rest of this Agreement ends. When it ends, ' + A + ' stops managing the profile and removes its own access. Fees for a month already started are not refunded.</p>',
+  ];
 }
 
 // 🔴 v7 (5 Oct 2026): AUTOMATIC GOOGLE REVIEW REQUESTS, AND FEATURES A CLIENT DECLINED.
@@ -467,7 +511,23 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
       +'<p>(f) <strong>Results.</strong> Agency may publish performance results achieved under this Agreement. On Client&rsquo;s written request, Agency will describe Client generically rather than by name in any material that includes those results.</p>'
       +'<p>(g) <strong>Removal.</strong> On Client&rsquo;s written request Agency will, within thirty (30) days, stop publishing any specified item and remove it from material Agency controls. Agency is not required to recall material already distributed or printed.</p>');
 
-  const nSpec = nBase+13;
+  // ── 🔴 v8: THE GOOGLE PROFILE CARE ADD-ON (KB `addon-billing`) ──
+  // Its own numbered section, placed after General and before Special Terms so nothing above it moves,
+  // and only when this agreement carries it (`addOnsOf`: ticked when sent, v8 or later, never a hand-off).
+  // The fee says in this agreement's own words that it never counts toward the Minimum or the
+  // Performance Fee, because "whichever is higher, never both" must not quietly absorb $130.
+  const gbpAdd = oneTime ? null : (addOnsOf(cl).filter(a => a.id === "gbp_care")[0] || null);
+  // 🔴 Special Terms used to take nBase+13, which is the SAME number as General on every v2+ agreement
+  // (General is nBase+12+dAb). Fixed from v8 only: an agreement already sent keeps the number it went out with.
+  const nAdd = termsVersion >= 8 ? nGen+1 : nBase+13;
+  const addOnHTML = !gbpAdd ? "" : (
+    '<h2>'+nAdd+'. Add-On Service: Google Business Profile Care</h2>'
+   +gbpCareClauses(gbpAdd.monthly, { agency: "Agency", term: true,
+      separate: introOnly ? 'every other fee in this Agreement, and is not part of the Performance Fee'
+        : hasPerf ? 'every other fee in this Agreement, and does not count toward the Monthly Minimum or the Performance Fee'
+        : 'every other fee in this Agreement, and does not count toward the Monthly Minimum' }).join('')
+  );
+  const nSpec = termsVersion >= 8 ? nGen+1+(gbpAdd?1:0) : nBase+13;
   const specClauses = (cl.specialTerms && Array.isArray(cl.specialTerms.clauses) ? cl.specialTerms.clauses : [])
     .map(c => ({ heading: String((c&&c.heading)||"").trim(), text: String((c&&c.text)||"").trim() }))
     .filter(c => c.text);
@@ -497,6 +557,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +(hasPerf?metaItem("How the two combine", introOnly
         ? "Nothing to combine. The performance fee is the entire fee."
         : "Whichever is higher, never both"):"")
+   +(gbpAdd?metaItem("Add-On Service","Google Business Profile Care, "+money(gbpAdd.monthly)+"/mo, separate from the fees above"):"")
    +(cl.adBudget?metaItem("Client Ad Budget (paid to platforms)",esc(cl.adBudget)):(pkg&&pkg.adSpend?metaItem("Recommended Ad Budget (paid to platforms)",esc(pkg.adSpend)):""));
 
   // ONE section covers both billing models, because the RULE is the same in both:
@@ -711,6 +772,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
 
    +(cl.replacesAgreement&&cl.replacesAgreement.signedAt?'<p><strong>This Agreement replaces an earlier one.</strong> It replaces the Advertising Services Agreement between the parties signed on '+new Date(cl.replacesAgreement.signedAt).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric",timeZone:"America/Phoenix"})+(cl.replacesAgreement.envelopeId?' (DocuSign envelope '+String(cl.replacesAgreement.envelopeId).replace(/[^A-Za-z0-9-]/g,"")+')':'')+'. When this Agreement is signed, the parties agree that earlier agreement is cancelled and has no further effect, and nothing is owed under it.</p>':'')
 
+   +addOnHTML
    +specialHTML
    +'<h2>Signatures</h2>'
    +'<p style="font-size:11px">By signing below, each party confirms it has read, understands, and agrees to this Agreement, and that the person signing is authorized to bind that party.</p>'
@@ -746,5 +808,5 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
 // three of them and Bryson reads the fourth. The portal used to define its own inline copy and
 // the emails had no idea the question existed, which is how a store client billed per Qualified
 // Sale was emailed an invoice for "Qualified leads".
-module.exports = { makeContractHTML, resultWords, termsVersionOf, TERMS_CURRENT, contractFeatureIds, omittedFeaturesOf,
+module.exports = { makeContractHTML, resultWords, termsVersionOf, TERMS_CURRENT, contractFeatureIds, omittedFeaturesOf, addOnsOf, gbpCareClauses, ADD_ONS,
   LATE_FEE_DEFAULT, LATE_FEE_MAX, lateFeeSetting, lateFeeFrozen, agreedLateFee, chargedLateFee, feeWords, lateFeeClause };

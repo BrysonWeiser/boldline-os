@@ -64,6 +64,7 @@ ONLY = os.environ.get("ONLY")   # score just these scenes (comma list), no assem
 if ONLY: script = [x for x in script if x[0] in ONLY.split(",")]
 # REUSE=1: keep the takes already chosen in flow.json (only re-measure those), score every take of any new scene
 KEEP = json.load(open(f"{D}/flow.json"))["chosen"] if os.environ.get("REUSE") else {}
+for _k in os.environ.get("FRESH", "").split(","): KEEP.pop(_k, None)   # re-recorded scenes: score their new takes
 for sid, sents in script:
     rows = []
     # a beat after a question inside the passage ("Need a website too? We build...") is natural; elsewhere it is dead air

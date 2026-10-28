@@ -196,7 +196,7 @@ S.rows.c2 = { name: "Another", internal: true, owned: true, commLog: [] };
   ok("the card exists", a > 0 && card.length > 2000);
   // Switched on for clients too, 2026-10-27, once it went on the website at $130/mo (KB google-listing).
   ok("it sits on every business's Overview: BoldLine's own, owned businesses and clients", /\n\s*<GoogleListingCard client=\{client\}\/>\n/.test(UI));
-  ok("website-only clients get it too", /isWebsiteOnly\(client\)&&<div style=\{\{marginTop:11\}\}><GoogleListingCard client=\{client\}\/><\/div>\}/.test(UI));
+  ok("website-only clients get it too", /isWebsiteOnly\(client\)&&<div style=\{\{marginTop:11\}\}><GoogleListingCard client=\{client\}\/>(<GbpCareBilling client=\{client\}\/>)?<\/div>\}/.test(UI));
   ok("🔴 the server-owned keys are never saved over by an OS screen", /const SERVER_OWNED_KEYS=\[[^\]]*"gbp","gbpDrafts","gbpLog"[^\]]*\]/.test(UI));
   ok("🔴 and the ad-access records from the portal neither", /const SERVER_OWNED_KEYS=\[[^\]]*"googleLinkRequest","metaAccess"[^\]]*\]/.test(UI));
   ok("🔴 posting a reply or a post always asks first, showing the words", /confirm\(`Post this reply on Google[^`]*\$\{text\}/.test(card) && /confirm\(`Post this on \$\{client\.name\}'s Google profile\?[^`]*\$\{text\}/.test(card));
