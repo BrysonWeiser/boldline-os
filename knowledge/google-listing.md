@@ -4,7 +4,7 @@ topic: Google Business Profile
 task: run a business's Google Business Profile from the OS (reviews, review replies, weekly posts, profile numbers), connect Google, or sell the Google profile add-on
 keywords: [google listing, google business profile, GBP, business profile api, GBP_CLIENT_ID, GBP_CLIENT_SECRET, gbp-connect, gbp-watch, GoogleListingCard, gbpDrafts, gbpLog, review replies, local posts, localPosts, business.manage, fetchMultiDailyMetricsTimeSeries, google profile management]
 status: built, waiting on setup
-summary: Built 2026-10-26 after Google approved the Business Profile API (project 69639870912, 2026-10-23). A "Google listing" card on the Overview of BoldLine's own account and each owned business shows the profile's last 28 days (rating, calls, website clicks, direction requests, times seen, each against the 28 days before), every review still waiting for a reply with a drafted reply, and this week's post, all editable. NOTHING reaches Google until Bryson presses Post and confirms the exact words. A daily job (8:41am Phoenix) drafts replies to new reviews and a Monday post, and messages him (amber when a 1 or 2 star review is waiting). Needs GBP_CLIENT_ID and GBP_CLIENT_SECRET from an OAuth client in the BoldLine OS Cloud project, then "Connect Google" once.
+summary: Built 2026-10-26 after Google approved the Business Profile API (project 69639870912, 2026-10-23). A "Google listing" card on the Overview of BoldLine's own account and each owned business shows the profile's last 28 days (rating, calls, website clicks, direction requests, times seen, each against the 28 days before), every review still waiting for a reply with a drafted reply, and this week's post, all editable. NOTHING reaches Google until Bryson presses Post and confirms the exact words. A daily job (8:41am Phoenix) drafts replies to new reviews and, from Tuesday, next Monday's post (which goes up by itself Monday 8am unless held), and messages him (amber when a 1 or 2 star review is waiting). Needs GBP_CLIENT_ID and GBP_CLIENT_SECRET from an OAuth client in the BoldLine OS Cloud project, then "Connect Google" once.
 verified: 2026-10-26
 ---
 
@@ -74,3 +74,16 @@ The card was driven in the real OS at 390, 768, 1280 and 1600 wide.
 - ✅ **In the agreements and billing since 2026-10-28** (Bryson: "yes"). A box on the Contract tab and on the website
   deal puts it in the agreement; billing starts by itself once signed and the profile is linked here. KB `addon-billing`.
 
+
+## Weekly posts on the blog's clock (2026-10-28, Bryson: "just like the blogs and newsletter where its made on tuesday and posted on monday at 8am", plus editing and on demand)
+- `gbp-watch` (daily 8:41am Phoenix) writes NEXT Monday's post on any day except Monday (so in practice Tuesday, with
+  catch-up later in the week), unless a draft is waiting or that Monday's slot is already in `gbpLog` (`forSlot`).
+  The draft carries `scheduledFor` = Monday 8:00 Phoenix = 15:00 UTC (`nextPostSlot`), and `held`.
+- 🔴 **Posts now go up WITHOUT a button press.** `gbp-post-run` (`*/15 15-23 * * 1`, Monday from 8am Phoenix, retries
+  every 15 min) publishes each due, un-held draft with the words as saved, then logs `{forSlot, auto:true}`, clears the
+  draft and alerts (amber if one failed). Review replies are unchanged: they still wait for his approval.
+- Card: "Goes up on Google Monday, Nov 2, 8:00 AM unless you change it", Save changes (`savePost`: words, button, hold;
+  publishes nothing), Hold / Let it post, Post now (fills that Monday's slot via `forSlot`), Throw away, and "Write a new
+  one" with an optional topic, any time (keeps the slot and hold of the draft it replaces).
+- `postPayload`: a Book/Learn more button with no website, or one pointing at BoldLine, is dropped to "no button" on the
+  automatic post rather than failing. 70 checks in verify-google-listing (5 new mutations caught).

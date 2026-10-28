@@ -10109,7 +10109,7 @@ function GoogleListingCard({client}){
   const sub = {fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,margin:"16px 0 8px"};
   const small = (primary)=>({padding:"8px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,cursor:"pointer",border:`1px solid ${primary?C.borderAccent:C.border}`,backgroundColor:primary?"rgba(200,168,75,.1)":"rgba(255,255,255,.04)",color:primary?C.gold:C.textDim,flexShrink:0});
   const note = (k) => msg[k] ? <div style={{fontSize:11.5,lineHeight:1.55,marginTop:7,color:msg[k].ok?C.green:C.red}}>{msg[k].t}</div> : null;
-  const load = async () => { const r = await gbpCall("overview",{clientId:client.id}); if(r.ok){ setOv(r); setEdits({}); } else say("top",r.error,false); };
+  const load = async () => { const r = await gbpCall("overview",{clientId:client.id}); if(r.ok){ setOv(r); setEdits({}); if(r.drafts&&r.drafts.post) setCta(r.drafts.post.cta||""); } else say("top",r.error,false); };
   useEffect(()=>{ (async()=>{ const s = await gbpCall("status"); setSt(s.ok?s:{ready:false}); if(s.ok&&s.connected&&link) load(); })(); },[client.id]);
   const connect = async () => { setBusy("connect"); const r = await gbpCall("start"); setBusy(""); if(r.ok&&r.url) window.location.href = r.url; else say("top",r.error||"Could not start.",false); };
   const pickList = async () => { setBusy("locs"); const r = await gbpCall("locations"); setBusy(""); if(r.ok) setLocs(r.locations); else say("top",r.error,false); };
@@ -10122,8 +10122,11 @@ function GoogleListingCard({client}){
     setBusy("r"+rv.id); const r = await gbpCall("reply",{clientId:client.id,reviewId:rv.id,text}); setBusy("");
     if(r.ok){ say("top","Reply posted on Google.",true); load(); } else say(rv.id,r.error,false); };
   const toss = async (id) => { await gbpCall("dismiss",{clientId:client.id,reviewId:id||undefined}); load(); };
-  const draftPost = async () => { setBusy("post"); const r = await gbpCall("draftPost",{clientId:client.id,idea}); setBusy("");
+  const draftPost = async () => { if(edits.post!=null&&!confirm("Write a new post? Your unsaved changes to this one will be replaced.")) return; setBusy("post"); const r = await gbpCall("draftPost",{clientId:client.id,idea}); setBusy("");
     if(r.ok){ setOv(o=>({...o,drafts:r.drafts})); setEdits(e=>({...e,post:r.text})); setIdea(""); } else say("post",r.error,false); };
+  // Save his edits (words, button, hold) without posting. The draft goes up by itself Monday 8am unless held.
+  const savePost = async (text, held) => { setBusy("save"); const r = await gbpCall("savePost",{clientId:client.id,text,cta,held}); setBusy("");
+    if(r.ok){ setOv(o=>({...o,drafts:r.drafts})); setEdits(e=>{ const n={...e}; delete n.post; return n; }); say("post",held?"Saved and on hold. It won't go up by itself.":"Saved. This is what goes up Monday at 8am.",true); } else say("post",r.error,false); };
   const sendPost = async (text) => { if(!confirm(`Post this on ${client.name}'s Google profile?\n\n"${text}"`)) return;
     setBusy("send"); const r = await gbpCall("post",{clientId:client.id,text,cta,url:link&&link.website}); setBusy("");
     if(r.ok){ say("post","Posted on Google.",true); load(); } else say("post",r.error,false); };
@@ -10145,6 +10148,8 @@ function GoogleListingCard({client}){
   const drafts = (ov && ov.drafts) || {}, rdr = drafts.replies || {};
   const open = ov ? ov.reviews.filter(r=>!r.reply) : [];
   const postText = edits.post!=null ? edits.post : (drafts.post && drafts.post.text) || "";
+  const pd = drafts.post || null, held = !!(pd && pd.held), dirty = edits.post!=null || (pd && (pd.cta||"")!==cta);
+  const when = pd && pd.scheduledFor ? new Date(pd.scheduledFor).toLocaleString("en-US",{weekday:"long",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZone:"America/Phoenix"}) : "";
   const tile = (label, v, extra) => <div style={{padding:"10px 12px",borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.02)",minWidth:0}}>
     <div style={lbl}>{label}</div><div style={{fontSize:20,fontWeight:800,color:C.text}}>{v}</div>{extra&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:2,lineHeight:1.45}}>{extra}</div>}</div>;
   return (
@@ -10178,17 +10183,22 @@ function GoogleListingCard({client}){
           </div>; })}
 
         <div style={sub}>This week's post</div>
+        {postText&&pd&&<div style={{fontSize:11.5,lineHeight:1.55,marginBottom:6,color:held?C.amber:C.textDim}}>{held?"On hold. It won't go up by itself. Post it now, or press \"Let it post\".":when?`Goes up on Google ${when} unless you change it.`:"Ready to post."}{dirty?" You have unsaved changes.":""}</div>}
         {postText ? <>
             <textarea value={postText} onChange={e=>setEdits(x=>({...x,post:e.target.value}))} rows={5} style={{...inp,resize:"vertical",lineHeight:1.5}}/>
             <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap",alignItems:"center"}}>
               <select value={cta} onChange={e=>setCta(e.target.value)} style={{...inp,width:"auto",padding:"8px 10px",fontSize:12}}>{GBP_CTAS.map(([v,l])=><option key={v} value={v}>{v?`Button: ${l}`:l}</option>)}</select>
-              <button onClick={()=>sendPost(postText)} disabled={busy==="send"} style={small(true)}>{busy==="send"?"Posting...":"Post to Google"}</button>
+              {pd&&<button onClick={()=>savePost(postText,held)} disabled={!!busy||!dirty} style={{...small(!!dirty),opacity:dirty?1:.5}}>{busy==="save"?"Saving...":"Save changes"}</button>}
+              {pd&&<button onClick={()=>savePost(postText,!held)} disabled={!!busy} style={small(false)}>{held?"Let it post":"Hold"}</button>}
+              <button onClick={()=>sendPost(postText)} disabled={busy==="send"} style={small(!pd)}>{busy==="send"?"Posting...":"Post now"}</button>
               {drafts.post&&<button onClick={()=>toss(null)} style={small(false)}>Throw away</button>}</div>
+            <div style={{display:"flex",gap:6,marginTop:8}}><input value={idea} onChange={e=>setIdea(e.target.value)} placeholder="Want a different one? Say what it's about (optional)" style={{...inp,flex:1,minWidth:0}}/>
+              <button onClick={draftPost} disabled={busy==="post"} style={small(false)}>{busy==="post"?"Writing...":"Write a new one"}</button></div>
             {cta&&cta!=="CALL"&&!link.website&&<div style={{fontSize:10.5,color:C.amber,marginTop:5}}>This profile has no website listed, so pick "Call now" or "No button".</div>}</>
           : <div style={{display:"flex",gap:6}}><input value={idea} onChange={e=>setIdea(e.target.value)} placeholder="Optional: what it should be about" style={{...inp,flex:1,minWidth:0}}/>
-              <button onClick={draftPost} disabled={busy==="post"} style={small(true)}>{busy==="post"?"Writing...":"Write this week's post"}</button></div>}
+              <button onClick={draftPost} disabled={busy==="post"} style={small(true)}>{busy==="post"?"Writing...":"Write one now"}</button></div>}
         {note("post")}
-        <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Each morning new reviews get a reply drafted, and on Mondays a post, ready here for you. You'll get a message when they're waiting.</div>
+        <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Each morning new reviews get a reply drafted here for you to approve. Every Tuesday next week's post is written, and it goes up by itself on Monday at 8am unless you edit it, hold it or throw it away. You'll get a message either way.</div>
         {(ov.log||[]).length>0&&<><div style={sub}>Recently posted</div>{ov.log.slice(0,4).map((x,i)=><div key={i} style={{fontSize:11.5,color:C.textDim,lineHeight:1.5,padding:"5px 0",borderTop:i?`1px solid ${C.border}`:"none"}}>
           <span style={{color:C.textMuted}}>{new Date(x.at).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/Phoenix"})} · {x.type==="post"?"Post":"Review reply"}:</span> {String(x.text).slice(0,140)}{String(x.text).length>140?"...":""}</div>)}</>}
       </>}

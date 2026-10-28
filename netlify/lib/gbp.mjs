@@ -211,4 +211,28 @@ export async function draft(anthropic, { system, prompt }, models = ["claude-son
 }
 
 // What still needs Bryson: reviews with no reply yet, newest first. Drafts the card shows come from `gbpDrafts`.
+// ── The weekly post, on the blog's clock (Bryson, 2026-10-28: "just like the blogs and newsletter where its made on
+// tuesday and posted on monday at 8am", plus editing and writing one on demand). KB google-listing.
+// Arizona is UTC-7 all year, so Monday 8:00am Phoenix is always Monday 15:00 UTC.
+export const POST_HOUR_UTC = 15;
+export const phxDay = (now = Date.now()) => new Date(now - 7 * 3600e3).getUTCDay();   // 0 Sunday .. 1 Monday .. 6
+// The next Monday 8:00am Phoenix strictly after `now`.
+export function nextPostSlot(now = Date.now()) {
+  const d = new Date(now); const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), POST_HOUR_UTC));
+  for (let i = 0; i < 8; i++) { const c = new Date(t.getTime() + i * 864e5); if (c.getUTCDay() === 1 && c.getTime() > now) return c.toISOString(); }
+  return new Date(t.getTime() + 7 * 864e5).toISOString();
+}
+const httpsOnly = (u) => { const s = String(u || "").trim(); try { const x = new URL(/^https?:\/\//i.test(s) ? s : `https://${s}`); return x.protocol === "https:" ? x.href : ""; } catch (e) { return ""; } };
+// What actually goes to Google for a post: the button falls back to none rather than failing, and never points at
+// BoldLine. Used by the Monday job; the "Post now" button applies the same rules and refuses instead.
+export function postPayload(link, draft) {
+  const text = cleanPublic((draft && draft.text) || "", POST_MAX);
+  let cta = CTAS[(draft && draft.cta) || ""] ? draft.cta : "";
+  const url = cta && cta !== "CALL" ? httpsOnly(link && link.website) : "";
+  if (cta && cta !== "CALL" && (!url || /boldline/i.test(url))) cta = "";
+  return { text, cta, url: cta && cta !== "CALL" ? url : "" };
+}
+// Due now: a draft scheduled for a time that has passed, not on hold.
+export const postDue = (draft, now = Date.now()) => !!(draft && draft.text && draft.scheduledFor && !draft.held && Date.parse(draft.scheduledFor) <= now);
+
 export const waiting = (reviews) => (reviews || []).filter((r) => !r.reply).sort((a, b) => String(b.at).localeCompare(String(a.at)));

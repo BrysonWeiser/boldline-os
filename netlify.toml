@@ -231,10 +231,15 @@
 [functions."ad-access-watch"]
   schedule = "8,23,38,53 * * * *"
 
-# Daily: drafts a reply to each new Google review and, on Mondays, the week's Google post, for Bryson to approve in the
-# Google listing card. Publishes nothing. 15:41 UTC = 8:41am Phoenix (no daylight saving). KB google-listing.
+# Daily: drafts a reply to each new Google review (waits for Bryson's approval) and, from Tuesday on, next Monday's
+# Google post (goes up Monday 8am via gbp-post-run unless held). This job publishes nothing. 15:41 UTC = 8:41am Phoenix (no daylight saving). KB google-listing.
 [functions."gbp-watch"]
   schedule = "41 15 * * *"
+
+# Monday 8am Phoenix (15:00 UTC, no daylight saving): this week's Google post goes up, unless Bryson held it. Every 15
+# minutes through the morning so a Google hiccup retries. Same clock as the blog and newsletter. KB google-listing.
+[functions."gbp-post-run"]
+  schedule = "*/15 15-23 * * 1"
 
 [functions."blog-autopublish"]
   schedule = "*/15 * * * *"
