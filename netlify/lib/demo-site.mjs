@@ -60,6 +60,35 @@ export function demoClientOf(prospect, demo = {}) {
   };
 }
 
+// ── A pitch preview for a business that is ALREADY a client (Bryson, 2026-11-03, on Springbok: "I don't want to make
+// the website and him have access to download it or use it until he pays but I want to be able to show him and pitch
+// it"). Same builder, same private /demo/<token>/ link, same guard, strip and 30-day expiry as a demo. It lives on the
+// client record at `pitchSite` (server-owned), never at `website`, so the portal never shows it, nothing can download
+// or publish it, and it becomes their website only once the website agreement is signed and paid (index.html).
+// What the WRITER sees: the client's record minus Bryson's private notes and billing terms, so nothing internal can
+// end up in the copy.
+export function pitchWriterOf(clientData) {
+  const c = clientData || {};
+  // The name customers see (brandName in site-render: the website's brand, then the review sender name, then the record).
+  return { name: c.name, reviewSenderName: c.reviewSenderName || c.dba, website: { brandName: (c.website || {}).brandName }, niche: c.niche, services: c.services, brandVoice: c.brandVoice || {},
+    campaignSetup: { serviceArea: (c.campaignSetup || {}).serviceArea, targetLocations: (c.campaignSetup || {}).targetLocations,
+      mainOffer: (c.campaignSetup || {}).mainOffer, services: (c.campaignSetup || {}).services },
+    websiteIntake: c.websiteIntake || {}, researchFacts: s(c.researchFacts, 600) };
+}
+// What the RENDERER sees: a client-shaped record with nothing that could reach a real lead path.
+export function pitchClientOf(row, pitch = {}) {
+  const c = (row && row.data) || {};
+  const cs = c.campaignSetup || {};
+  return {
+    id: `demo-${s(row && row.id, 60)}`, demo: true,
+    name: s((c.website || {}).brandName, 80) || s(c.reviewSenderName, 80) || s(c.dba, 80) || s(c.name, 80), niche: s(c.niche, 60), services: s(c.services, 400),
+    businessPhone: s(c.businessPhone || c.phone, 30), businessAddress: s(c.businessAddress, 160),
+    campaignSetup: { serviceArea: s(cs.serviceArea || cs.targetLocations, 160) },
+    leadToken: "demo", landingSlug: "demo",
+    website: { content: pitch.content || null, stock: pitch.stock || [], theme: pitch.theme || DEMO_THEME_DEFAULT, published: false },
+  };
+}
+
 export const demoExpiresAt = (demo) => {
   const t = Date.parse((demo && demo.builtAt) || "");
   return Number.isFinite(t) ? new Date(t + DEMO_DAYS * 864e5).toISOString() : null;

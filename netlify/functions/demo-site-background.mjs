@@ -11,7 +11,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { writeCopy, stockPhotos } from "./site-build-background.mjs";
-import { demoClientOf, newDemoToken, validToken, DEMO_THEME_DEFAULT } from "../lib/demo-site.mjs";
+import { demoClientOf, newDemoToken, validToken, DEMO_THEME_DEFAULT, pitchWriterOf } from "../lib/demo-site.mjs";
 import { THEME_IDS } from "../lib/site-render.mjs";
 import { isBlocked } from "../lib/outreach.mjs";
 
@@ -37,6 +37,16 @@ export async function saveDemo(supabase, id, patch) {
   return !e2;
 }
 
+// The same for a pitch preview on an existing CLIENT: only `pitchSite` is touched (KB demo-sites, "pitch previews").
+export async function savePitch(supabase, id, patch) {
+  const { data: row, error } = await supabase.from("clients").select("data").eq("id", id).maybeSingle();
+  if (error || !row) return false;
+  const data = row.data || {};
+  const { error: e2 } = await supabase.from("clients").update({ data: { ...data, pitchSite: { ...(data.pitchSite || {}), ...patch } }, updated_at: new Date().toISOString() }).eq("id", id);
+  if (e2) console.error("demo-site-background: could not store pitch:", e2.message);
+  return !e2;
+}
+
 // A design that suits the trade, unless Bryson already picked one for this business.
 export const demoThemeFor = (niche, current) => (THEME_IDS.includes(current) ? current
   : /pool|roof|epoxy|floor|concrete|construct|remodel/i.test(String(niche || "")) ? "cinematic"
@@ -54,6 +64,7 @@ export default async (req) => {
   if (ae || !u || !u.user) return json({ ok: false, error: "Invalid session" }, 401);
 
   let body; try { body = JSON.parse((await req.text()) || "{}"); } catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+  if (body.clientId) return buildPitch(supabase, String(body.clientId));
   const id = String(body.prospectId || "");
   if (!id) return json({ ok: false, error: "prospectId required" }, 400);
   const p = await findProspect(supabase, id);
@@ -79,3 +90,25 @@ export default async (req) => {
   }
   return json({ ok: true, id: jobId }, 202);
 };
+
+// A pitch preview for an existing client: written from their own record (minus private notes), stored on `pitchSite`.
+async function buildPitch(supabase, clientId) {
+  const { data: row } = await supabase.from("clients").select("id, data").eq("id", clientId).maybeSingle();
+  if (!row || !row.data) return json({ ok: false, error: "That client could not be found." }, 404);
+  if (row.data.internal) return json({ ok: false, error: "Your own businesses build their website straight from the Website tab." }, 409);
+  const prev = row.data.pitchSite || {};
+  const token = validToken(prev.token) ? prev.token : newDemoToken();
+  const theme = demoThemeFor(row.data.niche, prev.theme);
+  const jobId = `pitch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await savePitch(supabase, row.id, { jobId, token, theme, status: "running", startedAt: new Date().toISOString(), error: null });
+  try {
+    const [content, stock] = await Promise.all([writeCopy(pitchWriterOf(row.data), new Anthropic()), stockPhotos(row.data.niche)]);
+    await savePitch(supabase, row.id, { jobId, status: "done", content, stock, builtAt: new Date().toISOString(), startedAt: null, error: null });
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    console.error("demo-site-background pitch failed:", msg);
+    const friendly = /credit balance|billing/i.test(msg) ? "The AI account is out of credits. Add credits in the Anthropic console, then try again." : msg.slice(0, 240);
+    await savePitch(supabase, row.id, { jobId, status: "error", startedAt: null, error: friendly });
+  }
+  return json({ ok: true, id: jobId }, 202);
+}

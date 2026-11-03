@@ -10,9 +10,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { renderSite, pageById, THEME_IDS, SITE_THEMES, siteReady } from "../lib/site-render.mjs";
-import { demoClientOf, demoExpired, demoSummary, decorateDemo, validToken } from "../lib/demo-site.mjs";
+import { demoClientOf, demoExpired, demoSummary, decorateDemo, validToken, pitchClientOf } from "../lib/demo-site.mjs";
 import { isBlocked } from "../lib/outreach.mjs";
-import { saveDemo, findProspect } from "./demo-site-background.mjs";
+import { saveDemo, findProspect, savePitch } from "./demo-site-background.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -38,9 +38,10 @@ async function owner(req, supabase) {
 }
 
 // The demo page itself. Exported for the tests, which render it without a database.
-export function renderDemo(prospect, seg, { host, theme: asked } = {}) {
-  const demo = (prospect && prospect.data && prospect.data.demoSite) || {};
-  const cl = demoClientOf(prospect, demo);
+// `pitch: true` = an existing client's pitch preview (`data.pitchSite`), rendered from a stripped-down copy of them.
+export function renderDemo(prospect, seg, { host, theme: asked, pitch = false } = {}) {
+  const demo = (prospect && prospect.data && (pitch ? prospect.data.pitchSite : prospect.data.demoSite)) || {};
+  const cl = pitch ? pitchClientOf(prospect, demo) : demoClientOf(prospect, demo);
   const pageId = seg ? (pageById(seg) && seg !== "book" ? seg : null) : "home";
   if (!pageId) return { status: 404, html: null };
   const theme = THEME_IDS.includes(asked) ? asked : cl.website.theme;
@@ -60,6 +61,20 @@ export default async (req) => {
   if (req.method === "POST") {
     if (!(await owner(req, supabase))) return json({ ok: false, error: "Not authenticated" }, 401);
     let body; try { body = JSON.parse((await req.text()) || "{}"); } catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+    // A pitch preview on an existing client (KB demo-sites, "pitch previews"): poll, design, or the finished copy.
+    if (body.clientId) {
+      const { data: crow } = await supabase.from("clients").select("id, data").eq("id", String(body.clientId)).maybeSingle();
+      if (!crow) return json({ ok: false, error: "That client could not be found." }, 404);
+      let pd = (crow.data && crow.data.pitchSite) || null;
+      if (body.action === "theme") {
+        if (!THEME_IDS.includes(body.theme)) return json({ ok: false, error: "Unknown design" }, 400);
+        await savePitch(supabase, crow.id, { theme: body.theme }); pd = { ...(pd || {}), theme: body.theme };
+      } else if (body.action === "content") {
+        if (!pd || pd.status !== "done" || !pd.content) return json({ ok: false, error: "The preview isn't finished yet." }, 409);
+        return json({ ok: true, content: pd.content, stock: pd.stock || [], theme: pd.theme || "aurora", builtAt: pd.builtAt || null });
+      } else if (body.action !== "poll") return json({ ok: false, error: "unknown action" }, 400);
+      return json({ ok: true, demo: demoSummary(pd, `https://${url.host}`) });
+    }
     const id = String(body.id || "");
     if (!id) return json({ ok: false, error: "id required" }, 400);
     const found = await findProspect(supabase, id, "id");
@@ -83,13 +98,17 @@ export default async (req) => {
   if (!validToken(token)) return plain("Page not found", "This page doesn't exist.", 404);
   const { data: rows, error } = await supabase.from("scout_prospects").select("*").eq("data->demoSite->>token", token).limit(1);
   if (error) { console.error("demo lookup failed:", error.message); return plain("Something went wrong", "Please try again in a moment.", 500); }
-  const p = rows && rows[0];
-  const demo = p && p.data && p.data.demoSite;
+  let p = rows && rows[0], pitch = false;
+  if (!p) {   // not a prospect's demo: maybe an existing client's pitch preview
+    const { data: crows } = await supabase.from("clients").select("id, data").eq("data->pitchSite->>token", token).limit(1);
+    if (crows && crows[0]) { p = crows[0]; pitch = true; }
+  }
+  const demo = p && p.data && (pitch ? p.data.pitchSite : p.data.demoSite);
   // 🔴 A business that asked not to be contacted never has a site with its name on it, even an old link.
-  if (!p || !demo || isBlocked(p)) return plain("Page not found", "This page doesn't exist.", 404);
-  if (demo.status !== "done" || !siteReady(demoClientOf(p, demo))) return plain("Almost ready", "This preview is still being put together. Try again in a minute.");
+  if (!p || !demo || (!pitch && isBlocked(p))) return plain("Page not found", "This page doesn't exist.", 404);
+  if (demo.status !== "done" || !siteReady(pitch ? pitchClientOf(p, demo) : demoClientOf(p, demo))) return plain("Almost ready", "This preview is still being put together. Try again in a minute.");
   if (demoExpired(demo)) return plain("This preview has ended", "Ask for a fresh link and we'll send one over.");
-  const out = renderDemo(p, seg, { host: url.host, theme: String(url.searchParams.get("theme") || "") });
+  const out = renderDemo(p, seg, { host: url.host, theme: String(url.searchParams.get("theme") || ""), pitch });
   if (!out.html) return plain("Page not found", "This page doesn't exist.", 404);
   return page(out.html, out.status);
 };

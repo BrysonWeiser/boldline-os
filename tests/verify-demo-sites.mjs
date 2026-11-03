@@ -74,7 +74,7 @@ const prospect = (extra = {}) => ({ id: "p1", name: "Desert Shine Mobile Detail"
   ok(`it ends ${DEMO_DAYS} days after it was built`, !demoExpired({ builtAt: new Date(Date.now() - 29 * 864e5).toISOString() }) && demoExpired({ builtAt: new Date(Date.now() - 31 * 864e5).toISOString() }) && demoExpired({}));
   const sum = demoSummary(prospect().data.demoSite, "https://os.x.com");
   ok("the OS gets the status and link, never the copy", !("content" in sum) && sum.url === `https://os.x.com/demo/${TOKEN}/`);
-  ok("🔴 a company that asked not to be contacted: no build, and an old link stops working", /if \(isBlocked\(p\)\) return json\(\{ ok: false, error: "They asked not to be contacted\." \}, 409\)/.test(BG) && /if \(!p \|\| !demo \|\| isBlocked\(p\)\) return plain\("Page not found"/.test(GET));
+  ok("🔴 a company that asked not to be contacted: no build, and an old link stops working", /if \(isBlocked\(p\)\) return json\(\{ ok: false, error: "They asked not to be contacted\." \}, 409\)/.test(BG) && /if \(!p \|\| !demo \|\| \(!pitch && isBlocked\(p\)\)\) return plain\("Page not found"/.test(GET));
   ok("an ended link says so instead of showing the site", /if \(demoExpired\(demo\)\) return plain\("This preview has ended"/.test(GET));
   ok("🔴 every demo answer is private: never cached, never indexed", /"cache-control": "no-store", "x-robots-tag": "noindex, nofollow"/.test(GET));
   ok("a rebuild keeps the link already texted to them", /const token = validToken\(prev\.token\) \? prev\.token : newDemoToken\(\);/.test(BG));

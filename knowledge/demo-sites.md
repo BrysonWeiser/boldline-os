@@ -80,3 +80,19 @@ words on it; that is the designed fallback.
 
 ## 2026-10-21: booking and payments on the handed-over site
 The download card now asks how customers book (their booking app link, call, or request form) plus an optional payment link before it downloads, checks the links, and lets them switch apps later by downloading again. The Download button itself was broken until then (read the server answer twice). Full detail in KB `own-site-booking`.
+
+## Pitch previews for EXISTING clients (2026-11-03)
+Bryson, on Springbok: *"I don't want to make the website and him have access to download it or use it until he pays but
+I want to be able to show him and pitch it"*. Demos only worked for Lead Scout/Outreach prospects, and the client
+Website tab won't build before signed + paid, so there was no way.
+- Website tab, card **"Preview to pitch"** (under the website agreement and "What we need from them"; the Overview's website offer has a
+  "Show them a preview" button that opens it). Same builder, same `/demo/<token>/` link, guard, preview strip, noindex,
+  design switcher and 30-day expiry as a demo (`demo-site-background` `{clientId}`; `demo-site` POST `{clientId}`;
+  GET falls back to `clients` where `data.pitchSite.token` matches).
+- 🔴 Stored on `pitchSite` (server-owned), NEVER `website`: not in the portal, no download, no publish. "Make it their
+  website" appears only when `wdBuildLock` is clear (website agreement signed AND first payment in), copies the words,
+  photos and design into `website` unpublished (`fromPitch`). Hidden for internal records and once a site is live.
+- The writer gets `pitchWriterOf`: name customers see (website brandName / reviewSenderName / dba), niche, services,
+  brand voice, service area, main offer, portal intake. 🔴 Never `notes`, `qualifiedLeadDef` or billing fields. The
+  renderer gets `pitchClientOf` (leadToken/landingSlug "demo", no email/portal token).
+- `tests/verify-pitch-preview.mjs` (18 checks, 4 mutations caught). Driven at 390/768/1280/1600.
