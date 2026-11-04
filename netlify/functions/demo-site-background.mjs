@@ -13,6 +13,7 @@ import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { writeCopy, stockPhotos } from "./site-build-background.mjs";
 import { demoClientOf, newDemoToken, validToken, DEMO_THEME_DEFAULT, pitchWriterOf } from "../lib/demo-site.mjs";
 import { PICK_THEMES } from "../lib/site-render.mjs";
+import { brandFromSite, currentSiteOf } from "../lib/brand-scrape.mjs";
 import { isBlocked } from "../lib/outreach.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -45,6 +46,14 @@ export async function savePitch(supabase, id, patch) {
   const { error: e2 } = await supabase.from("clients").update({ data: { ...data, pitchSite: { ...(data.pitchSite || {}), ...patch } }, updated_at: new Date().toISOString() }).eq("id", id);
   if (e2) console.error("demo-site-background: could not store pitch:", e2.message);
   return !e2;
+}
+
+// What their current website looks like, kept on the client for their real site and landing page (server-owned).
+export async function saveSiteBrand(supabase, id, brand) {
+  const { data: row } = await supabase.from("clients").select("data").eq("id", id).maybeSingle();
+  if (!row) return false;
+  const { error } = await supabase.from("clients").update({ data: { ...(row.data || {}), siteBrand: brand }, updated_at: new Date().toISOString() }).eq("id", id);
+  return !error;
 }
 
 // A design that suits the trade, unless Bryson already picked one for this business.
@@ -81,8 +90,10 @@ export default async (req) => {
   await saveDemo(supabase, p.id, { jobId, token, theme, status: "running", startedAt: new Date().toISOString(), error: null });
   try {
     const cl = demoClientOf(p);
-    const [content, stock] = await Promise.all([writeCopy(cl, new Anthropic()), stockPhotos(p.niche)]);
-    await saveDemo(supabase, p.id, { jobId, status: "done", content, stock, builtAt: new Date().toISOString(), startedAt: null, error: null });
+    // Their colours, logo and fonts from the website they have now, read at the same time as the words are written.
+    const site = currentSiteOf(p);
+    const [content, stock, brand] = await Promise.all([writeCopy(cl, new Anthropic()), stockPhotos(p.niche), site ? brandFromSite(site).catch(() => null) : null]);
+    await saveDemo(supabase, p.id, { jobId, status: "done", content, stock, brand: brand || prev.brand || null, builtAt: new Date().toISOString(), startedAt: null, error: null });
   } catch (e) {
     const msg = String((e && e.message) || e);
     console.error("demo-site-background failed:", msg);
@@ -103,8 +114,10 @@ async function buildPitch(supabase, clientId) {
   const jobId = `pitch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await savePitch(supabase, row.id, { jobId, token, theme, status: "running", startedAt: new Date().toISOString(), error: null });
   try {
-    const [content, stock] = await Promise.all([writeCopy(pitchWriterOf(row.data), new Anthropic()), stockPhotos(row.data.niche)]);
-    await savePitch(supabase, row.id, { jobId, status: "done", content, stock, builtAt: new Date().toISOString(), startedAt: null, error: null });
+    const site = currentSiteOf(row.data);
+    const [content, stock, brand] = await Promise.all([writeCopy(pitchWriterOf(row.data), new Anthropic()), stockPhotos(row.data.niche), site ? brandFromSite(site).catch(() => null) : null]);
+    await savePitch(supabase, row.id, { jobId, status: "done", content, stock, brand: brand || prev.brand || null, builtAt: new Date().toISOString(), startedAt: null, error: null });
+    if (brand) await saveSiteBrand(supabase, row.id, brand);
   } catch (e) {
     const msg = String((e && e.message) || e);
     console.error("demo-site-background pitch failed:", msg);
