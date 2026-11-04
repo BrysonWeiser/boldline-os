@@ -42,7 +42,7 @@ const prospect = (extra = {}) => ({ id: "p1", name: "Desert Shine Mobile Detail"
   ok("public facts go in, labelled as research", /Rated 4\.9 stars from 88 Google reviews/.test(cl.researchFacts) && /Owner: Marco\./.test(cl.researchFacts));
   ok("🔴 Bryson's private verdict and notes never reach the writer", !JSON.stringify(cl).includes("afford") && !JSON.stringify(cl).includes("2pm") && !cl.notes);
   ok("the copy writer has a line for research facts", /\["Public facts found in research", String\(cl\.researchFacts/.test(read("netlify/functions/site-build-background.mjs")));
-  ok("a design that suits the trade", demoThemeFor("Car Detailing") === "aurora" && demoThemeFor("Epoxy Floors") === "cinematic" && demoThemeFor("Chiropractic") === "editorial" && demoThemeFor("x", "editorial") === "editorial");
+  ok("a design that suits the trade", demoThemeFor("Car Detailing") === "showcase" && demoThemeFor("x", "aurora") === "showcase" && demoThemeFor("Epoxy Floors") === "cinematic" && demoThemeFor("Chiropractic") === "editorial" && demoThemeFor("x", "editorial") === "editorial");
 }
 
 // ── 2. The page: says what it is and sends nothing ───────────────────────────
@@ -134,7 +134,7 @@ const prospect = (extra = {}) => ({ id: "p1", name: "Desert Shine Mobile Detail"
   ok("both screens are handed the real way to add a client", UI.includes('onDealPrep={openDealPrep} onCreateClient={addClient}/>}') && (UI.match(/onDealPrep=\{openDealPrep\} onCreateClient=\{addClient\}\/>/g) || []).length === 2);
   const fn = UI.slice(UI.indexOf("function clientFromDemo("), UI.indexOf("function DemoSiteBox("));
   ok("🔴 'They want it' makes an unsigned website client, never a counted one", /clientFromMeeting\(\{\}, \{companyName:/.test(fn) && /WEB_PKG_ID\)/.test(fn) && !/contractSigned:true/.test(fn));
-  ok("the demo becomes their website, not live", /website:\{content:demo\.content, stock:demo\.stock\|\|\[\], theme:demo\.theme\|\|"aurora", published:false/.test(fn));
+  ok("the demo becomes their website, not live", /website:\{content:demo\.content, stock:demo\.stock\|\|\[\], theme:demo\.theme\|\|"showcase", published:false/.test(fn));
   ok("the plan picked on the meeting seeds the agreement", /websitePlanChoice:plan==="own"\?"own":"care"/.test(fn) && /mgmt:client\.websitePlanChoice==="own"\?"own":"care"/.test(UI));
   ok("the two plans are the prices he set", /\$1,500 build, then \$100\/mo/.test(UI) && /\$2,500 once\. They get the site files/.test(UI));
   ok("🔴 the build state survives Lead Scout re-drawing its cards", /const DEMO_STORE=\{\}; const DEMO_SUBS=new Set\(\);/.test(UI));

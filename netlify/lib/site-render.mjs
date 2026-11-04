@@ -79,8 +79,21 @@ export const SITE_THEMES = {
   cinematic: { label: "Cinematic", blurb: "Light and airy, huge type, a glass orb that reacts to the cursor." },
   aurora: { label: "Aurora", blurb: "Dark and bold, with a moving 3D backdrop matched to the trade." },
   editorial: { label: "Editorial", blurb: "Bright and refined, elegant serif headlines, photo-led." },
+  // Bryson, 2026-11-03, on Aurora: "might be out of date or just there might be a better style". Photo-first, the way
+  // the best service-business sites look now: their work fills the screen, the real star rating sits at the top, and
+  // services are photo tiles. Appended last on purpose: motionRecipe indexes by position, so existing sites keep their
+  // motion. KB website-builder.
+  showcase: { label: "Showcase", blurb: "Photo-first: their work fills the screen, the star rating up top, services as photo tiles." },
 };
+// Aurora is RETIRED: never offered again, but a site already on it renders exactly as before.
+SITE_THEMES.aurora.retired = true;
 export const THEME_IDS = Object.keys(SITE_THEMES);
+// The designs offered in every picker and switcher, best first.
+export const PICK_THEMES = ["showcase", "cinematic", "editorial"];
+// A switcher shows the offered designs, plus a retired one only for a site already using it.
+export const pickThemesFor = (current) => (PICK_THEMES.includes(current) || !SITE_THEMES[current] ? PICK_THEMES : PICK_THEMES.concat(current));
+// What a NEW site or demo starts on.
+export const THEME_DEFAULT = "showcase";
 export const themeOf = (cl, override) => {
   const t = String(override || (cl && cl.website && cl.website.theme) || "");
   return SITE_THEMES[t] ? t : "aurora";
@@ -141,7 +154,9 @@ export const glSceneFor = (cl) => {
 export function motionRecipe(cl, theme) {
   const w = (cl && cl.website) || {};
   const seed = hashStr(String(w.motionSeed || (cl && (cl.id || cl.landingSlug || cl.name)) || "site"));
-  const ti = Math.max(0, THEME_IDS.indexOf(theme));
+  // Showcase takes the retired Aurora's slot, so the three designs a client is offered still never share a scene
+  // or an entrance (motion for every existing site is unchanged).
+  const ti = Math.max(0, THEME_IDS.indexOf(theme === "showcase" ? "aurora" : theme));
   // One shuffle per client, indexed by design: the three designs never share a scene or an entrance.
   const base = prng(seed);
   const scenes = shuffle(MOTION.scene, base);
@@ -156,7 +171,7 @@ export function motionRecipe(cl, theme) {
     marquee: pick(MOTION.marquee),
     fill: r() < 0.6,
     cursor: r() < (theme === "aurora" ? 0.35 : 0.5),
-    gl: theme === "editorial" ? null : glSceneFor(cl),
+    gl: theme === "editorial" || theme === "showcase" ? null : glSceneFor(cl),
   };
 }
 
@@ -250,6 +265,10 @@ function paletteBase(theme, cl, scene) {
     const a = brand || "#2F5D50";
     return { bg: "#F7F6F2", bg2: "#FFFFFF", ink: "#171A18", mute: "#686D69", line: "rgba(23,26,24,.12)", accent: a, onAccent: onColor(a), card: "#FFFFFF", dark: false, gl: null };
   }
+  if (theme === "showcase") {
+    const a = brand || "#E4572E";
+    return { bg: "#F8F7F4", bg2: "#FFFFFF", ink: "#111214", mute: "#5E6166", line: "rgba(17,18,20,.10)", accent: a, onAccent: onColor(a), card: "#FFFFFF", dark: false, gl: null };
+  }
   const a = brand || "#E8A15B";
   return { bg: "#0A0C10", bg2: "#12151B", ink: "#F3F2EF", mute: "#9C9B96", line: "rgba(255,255,255,.09)", accent: a, onAccent: onColor(a), card: "rgba(255,255,255,.04)", dark: true,
     gl: glPalette(scene, true, a, "#0A0C10") };
@@ -260,15 +279,16 @@ const FONTS = {
   cinematic: "https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap",
   aurora: "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Geist:wght@300..700&display=swap",
   editorial: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Instrument+Sans:wght@400..700&display=swap",
+  showcase: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..800&display=swap",
 };
 
 // The design's own typefaces, with the business's Brand kit fonts in front when it has them (KB brand-kit).
 const typeOf = (theme, cl) => {
   const F = brandFonts(cl);
   return {
-    display: withFont(F.heading, theme === "cinematic" ? "'Archivo',system-ui,sans-serif" : theme === "editorial" ? "'Fraunces',Georgia,serif" : "'Bricolage Grotesque',system-ui,sans-serif"),
-    body: withFont(F.body, theme === "cinematic" ? "'Archivo',system-ui,sans-serif" : theme === "editorial" ? "'Instrument Sans',system-ui,sans-serif" : "'Geist',system-ui,sans-serif"),
-    r: theme === "editorial" ? "4px" : theme === "cinematic" ? "28px" : "18px",
+    display: withFont(F.heading, theme === "cinematic" ? "'Archivo',system-ui,sans-serif" : theme === "editorial" ? "'Fraunces',Georgia,serif" : theme === "showcase" ? "'Plus Jakarta Sans',system-ui,sans-serif" : "'Bricolage Grotesque',system-ui,sans-serif"),
+    body: withFont(F.body, theme === "cinematic" ? "'Archivo',system-ui,sans-serif" : theme === "editorial" ? "'Instrument Sans',system-ui,sans-serif" : theme === "showcase" ? "'Plus Jakarta Sans',system-ui,sans-serif" : "'Geist',system-ui,sans-serif"),
+    r: theme === "editorial" ? "4px" : theme === "cinematic" ? "28px" : theme === "showcase" ? "20px" : "18px",
     fontHrefs: F.hrefs,
   };
 };
@@ -295,7 +315,7 @@ body{background:var(--bg);color:var(--ink);font-family:${body};font-size:17px;li
 img{display:block;max-width:100%}
 a{color:inherit;text-decoration:none}
 .wrap{width:min(1240px,100% - 40px);margin:0 auto}
-.disp{font-family:${display};${theme === "cinematic" ? "font-stretch:125%;font-weight:600;letter-spacing:-.035em;" : theme === "editorial" ? "font-weight:380;letter-spacing:-.025em;font-variation-settings:'opsz' 144;" : "font-weight:700;font-variation-settings:'opsz' 96;letter-spacing:-.035em;"}line-height:.98}
+.disp{font-family:${display};${theme === "cinematic" ? "font-stretch:125%;font-weight:600;letter-spacing:-.035em;" : theme === "showcase" ? "font-weight:800;letter-spacing:-.04em;" : theme === "editorial" ? "font-weight:380;letter-spacing:-.025em;font-variation-settings:'opsz' 144;" : "font-weight:700;font-variation-settings:'opsz' 96;letter-spacing:-.035em;"}line-height:.98}
 .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--mute)}
 ${theme === "aurora" ? ".eyebrow{border:1px solid var(--line);border-radius:999px;padding:7px 14px 7px 12px;color:var(--ink);background:rgba(255,255,255,.03)}" : ""}
 .eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--ac3)}
@@ -558,6 +578,45 @@ function themeCss(theme) {
 .card{background:rgba(255,255,255,.6);backdrop-filter:blur(10px);box-shadow:0 30px 60px -40px rgba(22,19,15,.35)}
 .ctab{background:linear-gradient(160deg,#1B1916,#2B2621)}
 `;
+  if (theme === "showcase") return `
+.hero.sc{min-height:max(640px,100svh);color:#fff}
+.hero.sc .scbg{position:absolute;inset:0;z-index:-2;overflow:hidden;background:linear-gradient(160deg,color-mix(in srgb,var(--ac) 70%,#111),#111)}
+.hero.sc .scbg img{width:100%;height:100%;object-fit:cover;transform:scale(1.06);transition:transform 2.4s var(--ease)}
+html.mo .hero.sc .scbg img{animation:scz 2.4s var(--ease) both}
+@keyframes scz{from{transform:scale(1.14)}to{transform:scale(1.06)}}
+.hero.sc::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(8,9,11,.55) 0%,rgba(8,9,11,.15) 34%,rgba(8,9,11,.35) 58%,rgba(8,9,11,.86) 100%)}
+.disp .pn{margin-left:-.07em}
+.hero.sc .copy{width:min(1240px,100% - 40px);padding:150px 0 clamp(48px,8vh,84px);margin-inline:auto}
+.hero.sc h1{font-size:clamp(44px,7.6vw,118px);line-height:.98;max-width:1050px;text-shadow:0 2px 30px rgba(0,0,0,.25)}
+.hero.sc p.sub{color:rgba(255,255,255,.86);max-width:560px}
+.hero.sc .eyebrow{color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:999px;padding:7px 14px 7px 12px}
+.hero.sc .btn.ghost{color:#fff;border-color:rgba(255,255,255,.45);background:rgba(255,255,255,.06);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.hero.sc .btn.ghost:hover{border-color:#fff}
+.hero.sc .top{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.rate{display:inline-flex;align-items:center;gap:9px;padding:7px 14px;border-radius:999px;background:#fff;color:#111214;font-size:14px;font-weight:700;box-shadow:0 10px 30px -12px rgba(0,0,0,.45)}
+.rate .st{color:#F5A524;letter-spacing:1px}.rate small{font-size:13px;font-weight:500;color:#5E6166}
+body[data-page="home"] .hd:not(.solid){color:#fff}
+body[data-page="home"] .hd:not(.solid) .nav a{color:rgba(255,255,255,.82)}
+body[data-page="home"] .hd:not(.solid) .nav a:hover,body[data-page="home"] .hd:not(.solid) .nav a[aria-current]{color:#fff}
+body[data-page="home"] .hd:not(.solid) .burger{border-color:rgba(255,255,255,.35);color:#fff}
+.bento{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:minmax(220px,24vw);gap:14px}
+.bento a{position:relative;display:block;overflow:hidden;border-radius:var(--r);background:var(--bg2);isolation:isolate;color:#fff;min-height:220px}
+.bento a:first-child{grid-column:span 2;grid-row:span 2}
+.bento a:nth-child(2),.bento.n3 a:nth-child(3){grid-column:span 2}
+.bento.n1 a:first-child{grid-column:1/-1;grid-row:span 2}.bento.n2 a{grid-column:span 2;grid-row:span 2}
+.bento img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;transition:transform 1s var(--ease)}
+.bento a::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,transparent 35%,rgba(8,9,11,.82))}
+.bento a.np{color:var(--ink);border:1px solid var(--line)}.bento a.np::after{display:none}
+.bento .bt2{position:absolute;left:0;right:0;bottom:0;padding:22px 24px}
+.bento h3{font-size:clamp(20px,2vw,30px);line-height:1.1;letter-spacing:-.02em}
+.bento p{font-size:14.5px;opacity:.86;margin-top:8px;max-width:420px}
+.bento .go{position:absolute;top:18px;right:18px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.16);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:transform .5s var(--ease),background .3s}
+@media(hover:hover){.bento a:hover img{transform:scale(1.05)}.bento a:hover .go{transform:rotate(-45deg);background:var(--ac)}}
+@media(max-width:980px){.bento{grid-template-columns:repeat(2,1fr);grid-auto-rows:240px}.bento a:first-child,.bento.n2 a,.bento.n4 a:last-child{grid-column:span 2;grid-row:span 1}.bento a:nth-child(2),.bento.n3 a:nth-child(3),.bento.n2 a:nth-child(2){grid-column:span 1}.bento.n2 a:nth-child(2){grid-column:span 2}}
+@media(max-width:640px){.bento{grid-template-columns:1fr;grid-auto-rows:260px}.bento a,.bento a:first-child,.bento a:nth-child(2),.bento.n2 a,.bento.n3 a:nth-child(3),.bento.n4 a:last-child{grid-column:auto;grid-row:auto}}
+.card{box-shadow:0 1px 2px rgba(17,18,20,.04),0 18px 40px -30px rgba(17,18,20,.25)}
+.ctab{background:linear-gradient(150deg,#16171A,#24262B)}
+`;
   if (theme === "editorial") return `
 .hero{align-items:center}
 .hero .ed{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(24px,5vw,70px);align-items:end;padding:150px 0 80px}
@@ -662,7 +721,7 @@ var nv=navigator||{},lite=!!(nv.connection&&nv.connection.saveData);
 if(!rm)h.classList.add('mo');
 function q(s,r){return [].slice.call((r||d).querySelectorAll(s));}
 function cl(x,a,b){return x<a?a:x>b?b:x;}
-if(!rm&&M.e==='chars'){q('.hl').forEach(function(t){t.setAttribute('aria-label',t.textContent.trim());var i=0;q('.ln>span',t).forEach(function(s){s.setAttribute('aria-hidden','true');s.innerHTML=s.textContent.split(/(\\s+)/).map(function(w){if(/^\\s+$/.test(w))return ' ';return '<span style="display:inline-block;white-space:nowrap">'+w.split('').map(function(ch){return '<span class="ch" style="--i:'+(i++)+'">'+ch.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>';}).join('')+'</span>';}).join('');});});}
+if(!rm&&M.e==='chars'){q('.hl').forEach(function(t){t.setAttribute('aria-label',t.textContent.trim());var i=0;q('.ln>span',t).forEach(function(s){s.setAttribute('aria-hidden','true');s.innerHTML=s.textContent.split(/(\\s+)/).map(function(w){if(/^\\s+$/.test(w))return ' ';return '<span style="display:inline-block;white-space:nowrap">'+(w.match(/.[.,!?;:)]*/g)||[]).map(function(ch){return '<span class="ch" style="--i:'+(i++)+'">'+ch.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/^(.)([.,!?;:)]+)$/,'$1<span class="pn">$2</span>')+'</span>';}).join('')+'</span>';}).join('');});});}
 var io='IntersectionObserver' in window?new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{rootMargin:'0px 0px -8% 0px',threshold:.12}):null;
 q('.rv,.hl,.ph,.rule').forEach(function(el){if(io)io.observe(el);else el.classList.add('in');});
 var fl=q('.fill');fl.forEach(function(p){p.innerHTML=p.textContent.trim().split(/\\s+/).map(function(w){return '<span class="w">'+w.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span> ';}).join('');});
@@ -748,7 +807,8 @@ function lines(text, theme) {
   const out = [];
   for (let i = 0; i < words.length; i += per) out.push(words.slice(i, i + per).join(" "));
   // Joined with a space: without the script the lines sit inline, and "better.Feel" would run together.
-  const inner = out.map((l) => `<span class="ln"><span>${esc(l)}</span></span>`).join(" ");
+  // Trailing punctuation in its own tag, so a design can tuck it in (Showcase's heavy display face leaves "d ." gaps).
+  const inner = out.map((l) => `<span class="ln"><span>${theme === "showcase" ? esc(l).replace(/([^\s.,!?;:)])([.,!?;:)]+)(?=\s|$)/g, '$1<span class="pn">$2</span>') : esc(l)}</span></span>`).join(" ");
   // Editorial underlines its last word with a line that draws itself in.
   return theme === "editorial" ? inner.replace(/(\s|<span>)([^\s<]+)<\/span><\/span>$/, (m, pre, last) => `${pre}<span class="mk">${last}</span></span></span>`) : inner;
 }
@@ -786,8 +846,27 @@ function footer(cl, base, C, pages = SITE_PAGES) {
 <div class="pill">${ctaBtn(C, base)}${phone ? `<a class="btn ghost" href="tel:${esc(digits(phone))}" aria-label="Call ${esc(phone)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg><span class="pl-t">Call</span></a>` : ""}</div>`;
 }
 
+// The rating chip: only a REAL rating with a real count, never estimated (KB website-builder). From the business's own
+// Google profile once linked (gbpStats, saved by gbp-watch), a rating Bryson typed (website.rating), or for a demo
+// what the research found.
+export function ratingOf(cl) {
+  const w = (cl && cl.website) || {};
+  const g = cl && cl.gbpStats;
+  const pick = w.rating && Number(w.rating.stars) > 0 && Number(w.rating.count) > 0 ? { stars: Number(w.rating.stars), count: Math.round(Number(w.rating.count)), source: String(w.rating.source || "") }
+    : g && Number(g.average) > 0 && Number(g.total) > 0 ? { stars: Number(g.average), count: Math.round(Number(g.total)), source: "Google" } : null;
+  if (!pick || pick.stars > 5) return null;
+  return { stars: Math.round(pick.stars * 10) / 10, count: pick.count, source: /^[A-Za-z ]{0,20}$/.test(pick.source) ? pick.source : "" };
+}
+const rateChip = (R) => !R ? "" : `<span class="rate"><span class="st" aria-hidden="true">${"&#9733;".repeat(Math.max(1, Math.min(5, Math.round(R.stars))))}</span>${R.stars.toFixed(1)} <small>from ${R.count} ${R.source ? esc(R.source) + " " : ""}review${R.count === 1 ? "" : "s"}</small></span>`;
+
 function heroHome(theme, C, base, photos) {
   const acts = `<div class="acts rv d2">${ctaBtn(C, base)}${linkTo(base, "services", bt(C.cta.explore), "btn ghost")}</div>`;
+  if (theme === "showcase") {
+    const ph = photos[0];
+    return `<section class="hero sc"><div class="scbg">${ph ? `<img src="${esc(ph.url)}" alt="${esc(ph.alt)}" fetchpriority="high">` : ""}</div>
+<div class="copy"><div class="top rv"><span class="eyebrow"><i></i>${esc(C.hero.eyebrow)}</span>${rateChip(C.rating)}</div>
+<h1 class="disp hl" style="margin-top:22px">${lines(C.hero.headline, theme)}</h1><p class="sub rv d1">${esc(C.hero.sub)}</p>${acts}</div></section>`;
+  }
   if (theme === "cinematic") {
     const a = C.hero.lineA || C.hero.headline.split(/\s+/).slice(0, Math.ceil(C.hero.headline.split(/\s+/).length / 2)).join(" ");
     const b = C.hero.lineB || C.hero.headline.split(/\s+/).slice(Math.ceil(C.hero.headline.split(/\s+/).length / 2)).join(" ");
@@ -846,6 +925,15 @@ function servicesSection(scene, C, base, photos) {
     }).join("")}</div></div></section>`;
   }
   return `<section class="sec"><div class="wrap">${svcHead(C)}${svcCards(C, base, Math.min(C.services.length, C.services.length >= 4 ? 4 : 3))}</div></section>`;
+}
+
+function bento(C, base, photos) {
+  const list = C.services.slice(0, 5);
+  if (!list.length) return "";
+  return `<section class="sec"><div class="wrap">${svcHead(C)}<div class="bento n${list.length}">${list.map((s, i) => {
+    const ph = photos.length ? photos[i % photos.length] : null;
+    return `<a class="rv d${i % 3}${ph ? "" : " np"}" href="${esc(href(base, "services"))}#s${i + 1}" data-page="services">${ph ? `<img src="${esc(ph.url)}" alt="${esc(ph.alt)}" loading="lazy" decoding="async">` : ""}<span class="go" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12 12 4M5 4h7v7"/></svg></span><div class="bt2"><h3 class="disp">${esc(s.name)}</h3>${i < 2 ? `<p>${esc(s.blurb)}</p>` : ""}</div></a>`;
+  }).join("")}</div></div></section>`;
 }
 
 const portal = (C, ph, story) => `<section class="portal" data-scene="pin"><div class="stage"><div class="pword disp" aria-hidden="true">${esc(C.name)}</div>
@@ -973,7 +1061,7 @@ ${C.faqs.slice(0, 5).map((f) => `<details class="faq rv"><summary>${esc(f.q)}<i 
   const storySec = M.scene === "portal" ? portal(C, storyPh, story)
     : `<section class="sec"><div class="wrap split">${storyText(M.fill, story)}${photoBlock(storyPh, "4/5")}</div></section>`;
   const built = {
-    hero: () => heroHome(theme, C, base, photos), marquee: () => marquee(C), services: () => servicesSection(M.scene, C, base, photos),
+    hero: () => heroHome(theme, C, base, photos), marquee: () => marquee(C), services: () => theme === "showcase" ? bento(C, base, photos) : servicesSection(M.scene, C, base, photos),
     story: () => storySec, beforeafter: () => beforeAfterHTML(ba, { headClass: "disp rv" }), why: () => why, steps: () => steps, faq: () => faq,
     reviews: () => reviewsTeaser(cl, C, base), cta: () => ctaBand(C, base),
   };
@@ -1136,6 +1224,7 @@ export function renderSite(cl, pageId = "home", opts = {}) {
   const C = siteContent(cl);
   // How this business takes customers decides where every main button goes (ctaBtn).
   C.intake = intakeOf(cl);
+  C.rating = ratingOf(cl);
   C.bookOn = C.intake.how === "book";
   const photos = photosFor(cl);
   // Before-and-after pairs from the Brand kit: drawn on the home page once at least one is uploaded (KB brand-kit).

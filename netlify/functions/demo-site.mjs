@@ -9,7 +9,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/supabase-url.mjs";
-import { renderSite, pageById, THEME_IDS, SITE_THEMES, siteReady } from "../lib/site-render.mjs";
+import { renderSite, pageById, THEME_IDS, SITE_THEMES, siteReady, pickThemesFor, THEME_DEFAULT } from "../lib/site-render.mjs";
 import { demoClientOf, demoExpired, demoSummary, decorateDemo, validToken, pitchClientOf } from "../lib/demo-site.mjs";
 import { isBlocked } from "../lib/outreach.mjs";
 import { saveDemo, findProspect, savePitch } from "./demo-site-background.mjs";
@@ -48,7 +48,7 @@ export function renderDemo(prospect, seg, { host, theme: asked, pitch = false } 
   const base = `https://${String(host).replace(/^https?:\/\//, "").replace(/\/.*$/, "")}/demo/${encodeURIComponent(demo.token)}`;
   const query = theme !== cl.website.theme ? `?theme=${theme}` : "";
   const html = renderSite(cl, pageId, { base, theme, query, noindex: true });
-  const designs = THEME_IDS.map((t) => ({ id: t, label: SITE_THEMES[t].label, current: t === theme,
+  const designs = pickThemesFor(cl.website.theme).map((t) => ({ id: t, label: SITE_THEMES[t].label, current: t === theme,
     href: `${base}/${pageId === "home" ? "" : pageId + "/"}${t === cl.website.theme ? "" : `?theme=${t}`}` }));
   return { status: 200, html: decorateDemo(html, { name: cl.name, designs }) };
 }
@@ -71,7 +71,7 @@ export default async (req) => {
         await savePitch(supabase, crow.id, { theme: body.theme }); pd = { ...(pd || {}), theme: body.theme };
       } else if (body.action === "content") {
         if (!pd || pd.status !== "done" || !pd.content) return json({ ok: false, error: "The preview isn't finished yet." }, 409);
-        return json({ ok: true, content: pd.content, stock: pd.stock || [], theme: pd.theme || "aurora", builtAt: pd.builtAt || null });
+        return json({ ok: true, content: pd.content, stock: pd.stock || [], theme: pd.theme || THEME_DEFAULT, builtAt: pd.builtAt || null });
       } else if (body.action !== "poll") return json({ ok: false, error: "unknown action" }, 400);
       return json({ ok: true, demo: demoSummary(pd, `https://${url.host}`) });
     }
@@ -87,7 +87,7 @@ export default async (req) => {
       const row = await findProspect(supabase, found.id, "data");
       const d = (row && row.data && row.data.demoSite) || {};
       if (d.status !== "done" || !d.content) return json({ ok: false, error: "Their demo isn't finished yet." }, 409);
-      return json({ ok: true, content: d.content, stock: d.stock || [], theme: d.theme || "aurora", builtAt: d.builtAt || null });
+      return json({ ok: true, content: d.content, stock: d.stock || [], theme: d.theme || THEME_DEFAULT, builtAt: d.builtAt || null });
     } else if (body.action !== "poll") return json({ ok: false, error: "unknown action" }, 400);
     const row = await findProspect(supabase, found.id, "data");
     return json({ ok: true, demo: demoSummary(row && row.data && row.data.demoSite, `https://${url.host}`) });

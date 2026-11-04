@@ -537,3 +537,26 @@ Website buttons now book the "Website call" Calendly event and the OS labels tho
   - 🔴 **The website sections are built before `sigDot` exists**, so they use the dot markup directly. Using
     `sigDot` would have thrown for any client whose agreement was out but unsigned.
 - **Tests:** `tests/verify-portal-website-client.mjs` (8). Phone screenshots are in `docs/screens/`.
+
+## 2026-11-03: Showcase design added, Aurora retired
+Bryson: *"the aurora one might be out of date or just there might be a better style"*. My honest take, given and
+agreed: Aurora (dark, glowing gradient, centered type, no photo above the fold) reads as a 2023 software-startup
+template, makes every trade look alike, and was the DEFAULT for most demos. He said "yes" to a photo-first design.
+- **Showcase** (`SITE_THEMES.showcase`): their photo full-bleed behind the headline (dark gradient, white type, header
+  turns white over it on the home page), a **real** star rating chip at the top, services as a bento grid of photo
+  tiles (layout per count, `n1`..`n5`), Plus Jakarta Sans 800, warm off-white, no WebGL (the photo is the hero).
+  Before-and-after already exists as a home section and shows only real uploaded pairs (never faked).
+- 🔴 **Rating chip = real or nothing** (`ratingOf`): `website.rating {stars,count,source}` he set, else `gbpStats`
+  (the linked Google profile's average + total, saved by gbp-watch each morning), else for a demo the research rating.
+  Needs a count; over 5 or a missing count shows nothing.
+- **Aurora retired, not removed**: `SITE_THEMES.aurora.retired`, still renders for any site on it (themeOf default
+  unchanged), and still appears in THAT site's own picker (`pickThemesFor`, `siteThemeListFor`, `demoThemesFor`).
+  Offered list `PICK_THEMES` = showcase, cinematic, editorial. New sites and demos start on Showcase; a rebuilt Aurora
+  demo moves to Showcase; clinics still get Editorial, heavy trades Cinematic.
+- 🔴 Showcase was appended LAST to SITE_THEMES because `motionRecipe` indexes by position (existing sites keep their
+  motion), and it borrows Aurora's slot so the three offered designs never share a scene or entrance.
+- Headline fix for all designs: the letter-by-letter entrance kept a trailing "." or "," in its own box, losing the
+  font's kerning ("driveway ."). Punctuation now stays with the letter before it; Showcase also tucks it in (`.pn`).
+- Marketing site: homepage hero image, Websites page and the car-detailing/window-tint samples now use Showcase
+  (`scripts/build-site-showcase.cjs` now fetches Pexels through curl). /examples/aurora/ still exists, unlinked.
+- Tests: `verify-showcase-design` (20 checks); site-builder, sample-sites, demo-sites, google-listing updated.

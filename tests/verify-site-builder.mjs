@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { renderSite, siteContent, THEME_IDS, SITE_PAGES, brandName, siteReady, motionRecipe, glSceneFor, MOTION, LENIS, glShader } from "../netlify/lib/site-render.mjs";
+import { renderSite, siteContent, THEME_IDS, PICK_THEMES, SITE_PAGES, brandName, siteReady, motionRecipe, glSceneFor, MOTION, LENIS, glShader } from "../netlify/lib/site-render.mjs";
 import { parsePath, viewFor, siteBase } from "../netlify/functions/site.mjs";
 import { SITE_SCHEMA, buildPrompt, writeCopy, stockPhotos } from "../netlify/functions/site-build-background.mjs";
 
@@ -113,7 +113,7 @@ for (const k of ["entrance", "scene", "reveal", "transition", "marquee"]) {
   ok(`every ${k} option actually gets used across clients`, MOTION[k].every((o) => seen.has(o)), [...seen].join(","));
 }
 ok("🔴 the three designs one client sees never share the big scroll moment or the headline entrance",
-  recipes.every((cl) => new Set(THEME_IDS.map((t) => motionRecipe(cl, t).scene)).size === 3 && new Set(THEME_IDS.map((t) => motionRecipe(cl, t).entrance)).size === 3));
+  recipes.every((cl) => new Set(PICK_THEMES.map((t) => motionRecipe(cl, t).scene)).size === 3 && new Set(PICK_THEMES.map((t) => motionRecipe(cl, t).entrance)).size === 3));
 ok("the same client always gets the same mix (it doesn't change on every page load)", JSON.stringify(motionRecipe(FULL, "aurora")) === JSON.stringify(motionRecipe({ ...FULL }, "aurora")));
 const sig = (cl) => THEME_IDS.map((t) => { const r = motionRecipe(cl, t); return [r.entrance, r.scene, r.reveal, r.transition, r.marquee].join("/"); }).join("|");
 ok("'Try different animations' re-rolls the mix", sig(FULL) !== sig({ ...FULL, website: { ...FULL.website, motionSeed: "x9" } }));

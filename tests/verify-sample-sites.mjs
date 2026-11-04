@@ -16,11 +16,11 @@ let pass = 0; const fails = [];
 const ok = (what, cond, detail = "") => { if (cond) pass++; else fails.push(`${what}${detail ? " — " + detail : ""}`); };
 
 const { SAMPLE_FILES, LANDING_FILES, outputs } = await import("../scripts/build-marketing-site.mjs");
-const { THEME_IDS, SITE_PAGES } = await import("../netlify/lib/site-render.mjs");
+const { THEME_IDS, PICK_THEMES, SITE_PAGES } = await import("../netlify/lib/site-render.mjs");
 const { DEMO } = await import("../scripts/site-showcase-demo.mjs");
 
 const TRADE_SAMPLES = { "car-detailing": "/industries/car-detailing/", handyman: "/industries/handyman/", "epoxy-floors": "/industries/epoxy-floors/", "window-tint": "/industries/window-tint/" };
-ok("every design gets all five pages, and so does each trade sample", SAMPLE_FILES.length === (THEME_IDS.length + Object.keys(TRADE_SAMPLES).length) * SITE_PAGES.length && THEME_IDS.length === 3, `${SAMPLE_FILES.length}`);
+ok("every design gets all five pages, and so does each trade sample", SAMPLE_FILES.length === (THEME_IDS.length + Object.keys(TRADE_SAMPLES).length) * SITE_PAGES.length && PICK_THEMES.length === 3, `${SAMPLE_FILES.length}`);
 const { DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT } = await import("../scripts/site-showcase-demo.mjs");
 for (const d of [DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT]) {
   ok(`🔴 ${d.name}: its email can't belong to anyone`, /@[a-z0-9.-]+\.example$/.test(d.website.publicEmail), d.website.publicEmail);
@@ -48,7 +48,7 @@ for (const f of SAMPLE_FILES) {
   // Every link stays inside this sample, or is one of the bar's own (designs, back, book a call).
   const hrefs = [...html.matchAll(/\shref="([^"]+)"/g)].map((m) => m[1]);
   const stray = hrefs.filter((h) => !(
-    h.startsWith(`/examples/${theme}/`) || /^\/examples\/(cinematic|aurora|editorial)\/[a-z/]*$/.test(h)
+    h.startsWith(`/examples/${theme}/`) || /^\/examples\/(showcase|cinematic|aurora|editorial)\/[a-z/]*$/.test(h)
     || h === (TRADE_SAMPLES[theme] || "/websites/") || /^https:\/\/calendly\.com\/theboldlinemedia\/(30min|website)$/.test(h)
     || /^tel:\d{3}5550\d{3}$/.test(h) || /^mailto:[^@]+@[a-z0-9.-]+\.example$/.test(h)
     || /^https:\/\/fonts\.(googleapis|gstatic)\.com/.test(h)));
@@ -63,7 +63,8 @@ for (const f of SAMPLE_FILES) {
   const { SITE_PAGES: MAPPED } = await import("../marketing-site/netlify/functions/sitemap.mjs");
   ok("and the sitemap never lists a sample page", !MAPPED.some(([p]) => /examples/.test(p)));
   const web = readFileSync(join(MK, "websites/index.html"), "utf8");
-  for (const t of THEME_IDS) ok(`the Websites page opens the ${t} sample`, web.includes(`href="/examples/${t}/"`));
+  for (const t of PICK_THEMES) ok(`the Websites page opens the ${t} sample`, web.includes(`href="/examples/${t}/"`));
+  ok("the retired Aurora is no longer offered on the Websites page", !web.includes('href="/examples/aurora/"'));
   ok("and the homepage hero links into a sample", readFileSync(join(MK, "index.html"), "utf8").includes('href="/examples/cinematic/"'));
   for (const [slug, page] of Object.entries(TRADE_SAMPLES)) ok(`the ${slug} trade page opens its own sample`, readFileSync(join(MK, page.slice(1), "index.html"), "utf8").includes(`href="/examples/${slug}/"`));
 }
