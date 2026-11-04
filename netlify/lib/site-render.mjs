@@ -76,9 +76,9 @@ export const pageInSite = (cl, id) => pagesFor(cl).find((p) => p.id === id) || n
 export const pageByPath = (cl, seg) => pagesFor(cl).find((p) => p.path === String(seg || "")) || null;
 
 export const SITE_THEMES = {
-  cinematic: { label: "Cinematic", blurb: "Dark like a cinema screen, huge type, their best photo in a frame that tilts toward the cursor." },
+  cinematic: { label: "Cinematic", blurb: "Split screen told like a film: their photos stay pinned and change scene by scene as visitors scroll the story." },
   aurora: { label: "Aurora", blurb: "Dark and bold, with a moving 3D backdrop matched to the trade." },
-  editorial: { label: "Editorial", blurb: "Paper white like a magazine, elegant serif headlines, thin rules instead of boxes." },
+  editorial: { label: "Editorial", blurb: "Magazine style: elegant serif headlines, thin rules instead of boxes, led by their photos." },
   // Bryson, 2026-11-03, on Aurora: "might be out of date or just there might be a better style". Photo-first, the way
   // the best service-business sites look now: their work fills the screen, the real star rating sits at the top, and
   // services are photo tiles. Appended last on purpose: motionRecipe indexes by position, so existing sites keep their
@@ -97,6 +97,16 @@ export const THEME_DEFAULT = "showcase";
 export const themeOf = (cl, override) => {
   const t = String(override || (cl && cl.website && cl.website.theme) || "");
   return SITE_THEMES[t] ? t : "aurora";
+};
+// Light or dark is its own choice, separate from the design (Bryson, 2026-11-04: "some businesses would want a style
+// but have it either light or dark and that should be an option for all templates"). `website.mode`; when it is unset
+// each design shows in its natural one. Aurora (retired) only ever existed dark.
+export const MODES = ["light", "dark"];
+export const NATURAL_MODE = { showcase: "light", cinematic: "dark", editorial: "light", aurora: "dark" };
+export const modeOf = (cl, theme, override) => {
+  if (theme === "aurora") return "dark";
+  const m = String(override || (cl && cl.website && cl.website.mode) || "");
+  return MODES.includes(m) ? m : NATURAL_MODE[theme] || "light";
 };
 
 // Smooth scrolling. Pinned to one exact file: the integrity hash makes the browser refuse anything
@@ -251,29 +261,34 @@ export function brandColorOf(cl) {
   return null;
 }
 
-function palette(theme, cl, scene) {
-  const P = paletteBase(theme, cl, scene);
+function palette(theme, cl, scene, mode) {
+  const P = paletteBase(theme, cl, scene, mode || modeOf(cl, theme));
   // The Brand kit's second and accent colours (KB brand-kit); without them both are the main colour, so a
   // site with no kit looks exactly as before.
   const A = brandAccents(cl, P.accent);
-  return { ...P, accent2: A.second, accent3: A.accent };
+  let a2 = A.second, a3 = A.accent;
+  // On a dark page a very dark brand colour (navy, black) would vanish from the small touches (dots, ticks, stars),
+  // so those lift toward white. Buttons keep the true colour. Aurora is left exactly as it was.
+  if (P.dark && theme !== "aurora" && lum(P.accent) < 0.05) { if (a2 === P.accent) a2 = mix(P.accent, "#FFFFFF", 0.45); if (a3 === P.accent) a3 = mix(P.accent, "#FFFFFF", 0.45); }
+  return { ...P, mode: P.dark ? "dark" : "light", deep: P.dark ? P.bg2 : P.ink, accent2: a2, accent3: a3 };
 }
-function paletteBase(theme, cl, scene) {
+// Each design in light and in dark. The light and dark of one design keep its type, shapes and layout; only the
+// colours turn over.
+const SURFACES = {
+  cinematic: { light: { bg: "#F2F0EB", bg2: "#FFFFFF", ink: "#111111", mute: "#5F5B55", line: "rgba(17,17,17,.12)", card: "#FFFFFF" },
+    dark: { bg: "#0C0C0E", bg2: "#151518", ink: "#F2F0EB", mute: "#A19D95", line: "rgba(255,255,255,.10)", card: "rgba(255,255,255,.04)" } },
+  editorial: { light: { bg: "#F7F6F2", bg2: "#FFFFFF", ink: "#171A18", mute: "#686D69", line: "rgba(23,26,24,.12)", card: "#FFFFFF" },
+    dark: { bg: "#131513", bg2: "#1B1E1C", ink: "#ECEAE3", mute: "#9DA39E", line: "rgba(236,234,227,.14)", card: "#1B1E1C" } },
+  showcase: { light: { bg: "#F8F7F4", bg2: "#FFFFFF", ink: "#111214", mute: "#5E6166", line: "rgba(17,18,20,.10)", card: "#FFFFFF" },
+    dark: { bg: "#0F1012", bg2: "#18191C", ink: "#F4F3F0", mute: "#A3A6AC", line: "rgba(255,255,255,.10)", card: "#18191C" } },
+};
+const DEFAULT_ACCENT = { cinematic: "#2F6FED", editorial: "#2F5D50", showcase: "#E4572E" };
+function paletteBase(theme, cl, scene, mode) {
   const w = (cl && cl.website) || {};
   const brand = brandColorOf(cl);
-  if (theme === "cinematic") {
-    const a = brand || "#2F6FED";
-    // Dark, like a cinema screen (Bryson, 2026-11-04: the three designs must not look alike, and with the orb gone a
-    // light Cinematic read as Editorial with a different font). Showcase is the bright photo one, Editorial the paper one.
-    return { bg: "#0C0C0E", bg2: "#151518", ink: "#F2F0EB", mute: "#A19D95", line: "rgba(255,255,255,.10)", accent: a, onAccent: onColor(a), card: "rgba(255,255,255,.04)", dark: true, gl: null };
-  }
-  if (theme === "editorial") {
-    const a = brand || "#2F5D50";
-    return { bg: "#F7F6F2", bg2: "#FFFFFF", ink: "#171A18", mute: "#686D69", line: "rgba(23,26,24,.12)", accent: a, onAccent: onColor(a), card: "#FFFFFF", dark: false, gl: null };
-  }
-  if (theme === "showcase") {
-    const a = brand || "#E4572E";
-    return { bg: "#F8F7F4", bg2: "#FFFFFF", ink: "#111214", mute: "#5E6166", line: "rgba(17,18,20,.10)", accent: a, onAccent: onColor(a), card: "#FFFFFF", dark: false, gl: null };
+  if (SURFACES[theme]) {
+    const a = brand || DEFAULT_ACCENT[theme], dark = mode === "dark";
+    return { ...SURFACES[theme][dark ? "dark" : "light"], accent: a, onAccent: onColor(a), dark, gl: null };
   }
   const a = brand || "#E8A15B";
   return { bg: "#0A0C10", bg2: "#12151B", ink: "#F3F2EF", mute: "#9C9B96", line: "rgba(255,255,255,.09)", accent: a, onAccent: onColor(a), card: "rgba(255,255,255,.04)", dark: true,
@@ -310,10 +325,14 @@ export function siteBrandKit(cl) {
     fontHref: FONTS[theme], fontHrefs: T.fontHrefs, display: T.display, body: T.body, radius: T.r, second: P.accent2, accent3: P.accent3 };
 }
 
-function css(theme, P, cl) {
+const cssVars = (P) => `--bg:${P.bg};--bg2:${P.bg2};--ink:${P.ink};--mute:${P.mute};--line:${P.line};--ac:${P.accent};--ac2:${P.accent2};--ac3:${P.accent3};--on:${P.onAccent};--card:${P.card};--deep:${P.deep}`;
+// `alt` is the same design in the other mode: written in too, so a preview's light/dark switch flips instantly
+// (html[data-mode]) without a reload. A live site simply never switches.
+function css(theme, P, cl, alt) {
   const { display, body, r } = typeOf(theme, cl);
   return `
-:root{--bg:${P.bg};--bg2:${P.bg2};--ink:${P.ink};--mute:${P.mute};--line:${P.line};--ac:${P.accent};--ac2:${P.accent2};--ac3:${P.accent3};--on:${P.onAccent};--card:${P.card};--r:${r};--ease:cubic-bezier(.2,.7,.1,1);--io:cubic-bezier(.7,0,.2,1)}
+:root{${cssVars(P)};--r:${r};--ease:cubic-bezier(.2,.7,.1,1);--io:cubic-bezier(.7,0,.2,1)}
+${alt ? `html[data-mode=${alt.mode}]{${cssVars(alt)}}` : ""}
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 html.lenis,html.lenis body{height:auto}.lenis.lenis-smooth{scroll-behavior:auto!important}.lenis.lenis-stopped{overflow:hidden}
@@ -430,7 +449,7 @@ html.js .fill .w.lit{opacity:1}
 .hov img.on{opacity:1}
 /* rail of service panels */
 .track{width:min(1240px,100% - 40px);margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:18px}@media(max-width:700px){.track{grid-template-columns:1fr}}
-.rc{position:relative;display:block;aspect-ratio:4/5;overflow:hidden;border-radius:var(--r);background:radial-gradient(80% 70% at 30% 20%,color-mix(in srgb,var(--ac) 40%,transparent),transparent),${P.dark ? "var(--bg2)" : "var(--ink)"};color:#fff}
+.rc{position:relative;display:block;aspect-ratio:4/5;overflow:hidden;border-radius:var(--r);background:radial-gradient(80% 70% at 30% 20%,color-mix(in srgb,var(--ac) 40%,transparent),transparent),var(--deep);color:#fff}
 .rc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease)}
 .rc:hover img{transform:scale(1.06)}
 .rc::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%,rgba(0,0,0,.72))}
@@ -447,7 +466,7 @@ html.js .fill .w.lit{opacity:1}
 @media(max-width:760px){.sk{grid-template-columns:minmax(0,1fr)}}
 /* the portal: a photo seen through a window, then stepped into */
 .portal .stage{position:relative;min-height:88svh;display:grid;align-items:end;overflow:hidden}
-.pframe{position:absolute;inset:0;background:radial-gradient(70% 70% at 30% 30%,color-mix(in srgb,var(--ac) 45%,transparent),transparent),${P.dark ? "var(--bg2)" : "var(--ink)"}}
+.pframe{position:absolute;inset:0;background:radial-gradient(70% 70% at 30% 30%,color-mix(in srgb,var(--ac) 45%,transparent),transparent),var(--deep)}
 .pframe img{width:100%;height:100%;object-fit:cover}
 .pframe::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05) 30%,rgba(0,0,0,.62))}
 .pword{display:none}
@@ -485,7 +504,8 @@ details.faq p{color:var(--mute);margin-top:12px;max-width:780px}
 .thanks{display:none;padding:28px;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
 .info dt{font-size:13px;font-weight:600;color:var(--mute);margin-top:22px}
 .info dd{font-size:20px;font-weight:600}
-.map{aspect-ratio:16/10;border:0;width:100%;border-radius:var(--r);filter:${theme === "aurora" ? "invert(.9) hue-rotate(180deg) saturate(.6)" : "saturate(.7)"}}
+.map{aspect-ratio:16/10;border:0;width:100%;border-radius:var(--r);filter:saturate(.7)}
+html[data-mode=dark] .map{filter:invert(.9) hue-rotate(180deg) saturate(.6)}
 /* footer */
 .ft{padding:70px 0 40px;border-top:1px solid var(--line);margin-top:40px}
 .ft .wrap{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:30px}
@@ -573,39 +593,82 @@ html.mo [data-tilt]{transition:transform .8s var(--ease)}
 }
 
 function themeCss(theme) {
+  // Cinematic, rebuilt 2026-11-04 (Bryson: "redo one of them the whole layout and animations that way the three
+  // templates give three completely different options"). A split screen: their photos stay pinned on one half and change
+  // scene by scene, while the story scrolls on the other half. On a phone the photos become a band pinned under the
+  // header. Showcase is one big photo with tiles; Editorial is a magazine; this one is told like a film.
   if (theme === "cinematic") return `
-.hero{align-items:stretch}
-.hero .copy{display:grid;grid-template-rows:1fr auto;min-height:100svh}
-.hero .lA{font-size:clamp(52px,9.2vw,154px);align-self:start}
-.hero .ctop{display:grid;grid-template-columns:minmax(min-content,2.4fr) minmax(0,1fr);gap:clamp(24px,3.4vw,56px);align-items:stretch;align-self:start}
-.hero .ctop.solo{display:block}
-.hero .cdr{min-width:0;display:flex;justify-content:flex-end;will-change:transform;container-type:inline-size}
-@container (max-width:180px){.hero .cfr{display:none}}
-.hero .cfr{width:100%;max-width:560px;height:100%;min-height:clamp(200px,22vw,330px);margin-top:.4em;border-radius:var(--r);box-shadow:0 40px 80px -48px rgba(22,19,15,.55)}
-html.mo body .hero .cfr.ph.rv{opacity:1;transform:none;clip-path:inset(34% 0 34% 0 round var(--r));transition:clip-path 1.5s var(--io) .25s,transform .8s var(--ease)}
-html.mo body .hero .cfr.ph.rv.in{clip-path:inset(0 0 0 0 round var(--r))}
-html.mo .hero .cfr img{transform:scale(1.22);transition:transform 1.8s var(--ease)}
-/* The drift is a share of the photo's own height and stays inside the 6% the zoom leaves spare at each edge, so the frame never shows a gap (a 60px drift showed a grey strip on phones). */
-html.mo .hero .cfr.in img{transform:translate3d(0,calc(var(--y,0) * .08%),0) scale(1.12);transition:transform .7s cubic-bezier(.2,.7,.2,1)}
-.hero .copy{min-width:0}
-@media (max-width:899px){
-  /* On a phone the photo follows the buttons, so booking stays on the first screen and the photo peeks in below it. */
-  .hero .copy:has(.cdr){display:flex;flex-direction:column;min-height:0;padding:112px 0 28px}
-  .hero .copy:has(.cdr) .scroll{display:none}
-  .hero .ctop{display:contents}
-  .hero .lA{order:1}.hero .cbot{order:2;margin-top:clamp(18px,4vw,36px)}
-  .hero .cdr{order:3;display:block;margin-top:26px}
-  .hero .cfr{max-width:none;height:auto;min-height:0;aspect-ratio:4/3;max-height:56svh;margin-top:0}
-}
-.hero .lB{font-size:clamp(52px,9.2vw,154px);text-align:right;align-self:end}
-.hero .lower{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:26px;margin-top:28px}
-.hero .lower p{max-width:340px;font-size:15px;color:var(--mute)}
-.hero .scroll{font-size:13px;border-top:1px solid var(--line);padding-top:14px;min-width:240px;display:flex;justify-content:space-between;color:var(--mute)}
-.card{background:rgba(255,255,255,.035);border:1px solid var(--line);box-shadow:none}
+.cn{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);position:relative}
+.cn-media{position:sticky;top:0;height:100svh;overflow:hidden;background:radial-gradient(70% 60% at 30% 30%,color-mix(in srgb,var(--ac) 45%,transparent),transparent),var(--deep)}
+.cn-fr{position:absolute;inset:0}
+.cn-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.1);transition:opacity 1.1s var(--ease),transform 2.8s var(--ease)}
+.cn-img.on{opacity:1;transform:scale(1)}
+.cn-none{background:radial-gradient(60% 50% at 70% 70%,color-mix(in srgb,var(--ac) 55%,transparent),transparent)}
+.cn-media::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.45),transparent 24%,transparent 62%,rgba(0,0,0,.62))}
+.cn-cap{position:absolute;z-index:2;left:max(20px,(100vw - 1240px) / 2);right:clamp(20px,3vw,44px);bottom:clamp(22px,4vh,40px);display:flex;align-items:center;gap:18px;color:#fff;font-size:14px;font-weight:600;letter-spacing:.01em}
+.cn-lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62%}
+.cn-bar{flex:1;max-width:240px;height:2px;background:rgba(255,255,255,.28);border-radius:2px;overflow:hidden}
+.cn-bar b{display:block;height:100%;background:#fff;transform:scaleX(0);transform-origin:left}
+.cn-text{min-width:0;padding:0 max(20px,(100vw - 1240px) / 2) 0 clamp(32px,5.5vw,96px)}
+.cn-sc{min-height:86svh;display:flex;flex-direction:column;justify-content:center;padding:110px 0 70px;max-width:600px}
+.cn-top .cn-sc:first-child{min-height:100svh}
+.cn-sc+.cn-sc{border-top:1px solid var(--line)}
+.cn-sc h1{font-size:clamp(42px,4.6vw,84px);margin-top:22px}
+.cn-sc h2{font-size:clamp(34px,3.6vw,62px)}
+.cn-sc>p{color:var(--mute);margin-top:18px;font-size:clamp(16px,1.3vw,19px);max-width:520px}
+.cn-sc .eyebrow+h2{margin-top:16px}
+.cn-sc .lead{color:var(--ink);font-size:clamp(24px,2.3vw,36px);line-height:1.22;margin-top:16px}
+.cn-sc .go{margin-top:28px;display:flex;flex-wrap:wrap;gap:12px}
+.cn-sc .top{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.cn-why{list-style:none;margin-top:26px;display:grid;gap:16px}
+.cn-why li{padding-top:16px;border-top:1px solid var(--line)}
+.cn-why b{display:block;font-size:18px;letter-spacing:-.01em}
+.cn-why span{display:block;color:var(--mute);font-size:15.5px;margin-top:4px}
+.rate{display:inline-flex;align-items:center;gap:9px;padding:7px 14px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);font-size:14px;font-weight:700}
+.rate .st{color:#F5A524;letter-spacing:1px}.rate small{font-size:13px;font-weight:500;color:var(--mute)}
+/* the inside pages open on the same split: a photo on one half, the title on the other */
+.cnh{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:74svh}
+.cnh-m{position:relative;overflow:hidden;background:radial-gradient(70% 60% at 30% 30%,color-mix(in srgb,var(--ac) 45%,transparent),transparent),var(--deep)}
+.cnh-m img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cnh-m::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(0,0,0,.45),transparent 30%)}
+.cnh-t{min-width:0;display:flex;flex-direction:column;justify-content:center;padding:120px max(20px,(100vw - 1240px) / 2) 64px clamp(32px,5.5vw,96px)}
+.cnh-t h1{font-size:clamp(40px,4.4vw,80px);margin-top:20px}
+.cnh-t p.sub{max-width:520px;margin-top:20px;font-size:clamp(16px,1.4vw,19px);color:var(--mute)}
+/* the closing card: their photo behind the last word, like the end of a film */
+.cn-end{position:relative;isolation:isolate;overflow:hidden;min-height:78svh;display:grid;place-items:center;text-align:center;color:#fff;margin-top:clamp(60px,8vw,110px)}
+.cn-end-bg{position:absolute;inset:0;z-index:-1;background:radial-gradient(60% 70% at 50% 40%,color-mix(in srgb,var(--ac) 50%,transparent),transparent),#0B0B0C}
+.cn-end-bg img{width:100%;height:100%;object-fit:cover;opacity:.5;transform:scale(calc(1.14 - var(--p,0) * .14))}
+.cn-end-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.55))}
+.cn-end .wrap{padding:90px 0}
+.cn-end h2{font-size:clamp(38px,6vw,104px);max-width:1000px;margin:0 auto}
+.cn-end p{opacity:.82;max-width:560px;margin:20px auto 32px;font-size:clamp(16px,1.4vw,19px)}
+.card{border:1px solid var(--line);box-shadow:none}
 .card:hover{border-color:color-mix(in srgb,var(--ac) 55%,transparent)}
-.hero .cfr{box-shadow:0 40px 90px -40px color-mix(in srgb,var(--ac) 45%,#000),0 0 0 1px rgba(255,255,255,.08)}
 .ctab{background:radial-gradient(70% 120% at 90% 0%,color-mix(in srgb,var(--ac) 38%,transparent),transparent),var(--bg2);color:var(--ink);border:1px solid var(--line)}
 .ctab .glow{display:none}
+@media(min-width:900px){
+  /* The scene being told is lit; the others wait, dimmed. Only with motion on: every word is readable without it. */
+  html.mo .cn-sc>*{opacity:.16;transform:translateY(22px);transition:opacity .8s var(--ease),transform 1s var(--ease)}
+  html.mo .cn-sc.act>*{opacity:1;transform:none}
+  html.mo .cn-sc.act>:nth-child(2){transition-delay:.06s}html.mo .cn-sc.act>:nth-child(3){transition-delay:.12s}html.mo .cn-sc.act>:nth-child(4){transition-delay:.18s}
+  /* The business name sits over the photo half until the header turns solid. */
+  body[data-theme=cinematic] .hd:not(.solid) .brand{color:#fff;text-shadow:0 1px 14px rgba(0,0,0,.35)}
+  /* The menu can reach across onto the photo half on a narrower screen, so it sits in a frosted pill that reads on either. */
+  body[data-theme=cinematic] .hd:not(.solid) .nav{background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:999px;padding:11px 20px}
+}
+@media(max-width:899px){
+  .cn{display:block;padding-top:76px}
+  .cn-media{position:sticky;top:0;height:34svh;z-index:3}
+  .cn-cap{left:20px;right:20px;bottom:14px;font-size:13px}
+  .cn-text{padding:0 20px}
+  .cn-sc,.cn-top .cn-sc:first-child{min-height:0;padding:30px 0 42px;max-width:none}
+  .cn-sc h1{font-size:clamp(34px,9.2vw,54px);margin-top:16px}
+  .cn-sc .go{margin-top:22px}
+  .cnh{display:block;padding-top:76px;min-height:0}
+  .cnh-m{height:30svh}
+  .cnh-t{padding:30px 20px 8px}
+}
+@media (prefers-reduced-motion:reduce){.cn-img{transition:none;transform:none}.cn-end-bg img{transform:none}}
 `;
   if (theme === "showcase") return `
 .hero.sc{min-height:max(640px,100svh);color:#fff}
@@ -768,8 +831,11 @@ function upd(){var vh=innerHeight;sc.forEach(function(el){var r=el.getBoundingCl
 for(var i=0;i<sk.length-1;i++){var a=sk[i].getBoundingClientRect(),b=sk[i+1].getBoundingClientRect();sk[i].style.setProperty('--c',cl(1-(b.top-a.top)/Math.max(1,a.height),0,1).toFixed(3));}
 fl.forEach(function(p){var r=p.getBoundingClientRect(),ws=p.querySelectorAll('.w');var k=cl((vh*.85-r.top)/(r.height+vh*.35),0,1);var m=Math.round(k*ws.length);for(var j=0;j<ws.length;j++)ws[j].classList.toggle('lit',rm||j<m);});}
 var hd=d.querySelector('.hd'),pill=d.querySelector('.pill'),last=0,tk=false;
-var cdr=d.querySelector('.hero .cdr'),cfr=cdr&&cdr.querySelector('.cfr');
-function frame(){tk=false;var y=scrollY;if(cdr&&!rm&&y<innerHeight*1.5){cdr.style.transform=innerWidth>=900?'translate3d(0,'+(y*-.06).toFixed(1)+'px,0)':'';cfr.style.setProperty('--y',Math.min(y*.1,60).toFixed(1));}if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
+var cns=q('[data-cn]').map(function(s){return {s:s,sc:q('.cn-sc',s),im:q('.cn-img',s),lb:s.querySelector('.cn-lbl'),bar:s.querySelector('.cn-bar b'),k:0};});
+function cnUpd(){var vh=innerHeight,ln=innerWidth<900?vh*.62:vh*.5;cns.forEach(function(c){var k=0;for(var i=0;i<c.sc.length;i++){if(c.sc[i].getBoundingClientRect().top<ln)k=i;}
+if(k!==c.k){c.sc[c.k].classList.remove('act');c.sc[k].classList.add('act');for(var j=0;j<c.im.length;j++)c.im[j].classList.toggle('on',j===k);if(c.lb)c.lb.textContent=c.sc[k].getAttribute('data-l')||'';c.k=k;}
+if(c.bar){var R=c.s.getBoundingClientRect();c.bar.style.transform='scaleX('+cl(-R.top/Math.max(1,R.height-vh),0,1).toFixed(3)+')';}});}
+function frame(){tk=false;var y=scrollY;cnUpd();if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
 function onScroll(){if(!tk){tk=true;requestAnimationFrame(frame);}}
 measure();frame();addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',function(){measure();onScroll();});addEventListener('load',function(){measure();onScroll();});
 var mqe=d.querySelector('.marq');if(mqe&&!rm&&M.m==='velocity'){mqe.classList.add('vel');var tr=mqe.querySelector('.tr'),x=0,v=0,ly=scrollY,mv=true;
@@ -838,6 +904,9 @@ const href = (base, id) => { const path = pathOf(id); return `${base}/${path ? p
 const postHref = (base, slug) => `${base}/blog/${encodeURIComponent(slug)}/`;
 const linkTo = (base, id, inner, cls = "", extra = "") => `<a href="${esc(href(base, id))}" data-page="${id}"${cls ? ` class="${cls}"` : ""}${extra}>${inner}</a>`;
 
+// Cinematic's headlines sit in a half-width column, so they wrap where the words fall rather than in fixed thirds
+// (fixed thirds left "in" alone on a line on a phone).
+const oneLine = (text) => `<span class="ln"><span>${esc(text)}</span></span>`;
 function lines(text, theme) {
   // Splits a headline into up to three lines for the staggered entrance.
   const words = String(text).split(/\s+/).filter(Boolean);
@@ -905,19 +974,6 @@ function heroHome(theme, C, base, photos) {
 <div class="copy"><div class="top rv"><span class="eyebrow"><i></i>${esc(C.hero.eyebrow)}</span>${rateChip(C.rating)}</div>
 <h1 class="disp hl" style="margin-top:22px">${lines(C.hero.headline, theme)}</h1><p class="sub rv d1">${esc(C.hero.sub)}</p>${acts}</div></section>`;
   }
-  if (theme === "cinematic") {
-    const a = C.hero.lineA || C.hero.headline.split(/\s+/).slice(0, Math.ceil(C.hero.headline.split(/\s+/).length / 2)).join(" ");
-    const b = C.hero.lineB || C.hero.headline.split(/\s+/).slice(Math.ceil(C.hero.headline.split(/\s+/).length / 2)).join(" ");
-    // Their best photo sits beside the first line in a rounded frame: it opens like a film frame, drifts as the page
-    // scrolls and tilts toward the cursor. It has its own column (its own row on a phone), so it is never behind a word.
-    const ph = photos[0];
-    const frame = ph ? `<div class="cdr"><div class="ph rv d1 cfr" data-tilt><img src="${esc(ph.url)}" alt="${esc(ph.alt)}" fetchpriority="high"></div></div>` : "";
-    return `<section class="hero"><div class="fx" style="background:radial-gradient(55% 60% at 78% 30%,color-mix(in srgb,var(--ac) 30%,transparent),transparent),radial-gradient(40% 50% at 10% 90%,color-mix(in srgb,var(--ac) 12%,transparent),transparent),var(--bg)"></div>
-<div class="wrap copy"><div class="ctop${ph ? "" : " solo"}"><h1 class="disp lA hl"><span class="ln"><span>${esc(a)}</span></span></h1>${frame}</div>
-<div class="cbot"><h2 class="disp lB hl" aria-hidden="true"><span class="ln"><span>${esc(b)}</span></span></h2>
-<div class="lower"><div class="rv d1"><span class="eyebrow"><i></i>${esc(C.hero.eyebrow)}</span><p style="margin-top:12px">${esc(C.hero.sub)}</p>${acts}</div>
-<div class="scroll rv d3"><span>Scroll</span><span>to explore</span></div></div></div></div></section>`;
-  }
   if (theme === "editorial") {
     const ph = photos[0];
     return `<section class="hero"><div class="wrap ed"><div><span class="eyebrow rv"><i></i>${esc(C.hero.eyebrow)}</span>
@@ -929,7 +985,9 @@ function heroHome(theme, C, base, photos) {
 <p class="sub rv d1">${esc(C.hero.sub)}</p>${acts}</div></section>`;
 }
 
-function pageHero(theme, title, sub, eyebrow) {
+function pageHero(theme, title, sub, eyebrow, ph) {
+  if (theme === "cinematic") return `<section class="cnh"><div class="cnh-m" aria-hidden="true">${ph ? `<img src="${esc(ph.url)}" alt="" fetchpriority="high">` : ""}</div>
+<div class="cnh-t"><span class="eyebrow rv"><i></i>${esc(eyebrow)}</span><h1 class="disp hl">${oneLine(title)}</h1>${sub ? `<p class="sub rv d1">${esc(sub)}</p>` : ""}</div></section>`;
   const fx = theme === "editorial" ? "" : `<div class="fx" style="background:radial-gradient(50% 60% at 75% 80%,color-mix(in srgb,var(--ac) ${theme === "aurora" ? 26 : 16}%,transparent),transparent),var(--bg)">${theme === "aurora" ? `<canvas aria-hidden="true"></canvas>` : ""}</div>`;
   return `<section class="hero page-hero">${fx}<div class="wrap copy"><span class="eyebrow rv"><i></i>${esc(eyebrow)}</span>
 <h1 class="disp hl" style="margin-top:22px">${lines(title, theme)}</h1>${sub ? `<p class="sub rv d1">${esc(sub)}</p>` : ""}</div></section>`;
@@ -982,8 +1040,22 @@ const portal = (C, ph, story) => `<section class="portal" data-scene="pin"><div 
 <div class="pframe">${ph ? `<img src="${esc(ph.url)}" alt="${esc(ph.alt)}" loading="lazy" decoding="async">` : ""}</div>
 <div class="wrap pcopy"><p class="disp">${esc(story)}</p></div></div></section>`;
 
-const ctaBand = (C, base) => `<section class="sec"><div class="wrap"><div class="ctab rv"><span class="glow" style="right:-120px;top:-160px"></span>
+const ctaBand = (C, base) => C.theme === "cinematic" ? `<section class="cn-end" data-scene="pass"><div class="cn-end-bg" aria-hidden="true">${C.endPh ? `<img src="${esc(C.endPh.url)}" alt="" loading="lazy" decoding="async">` : ""}</div>
+<div class="wrap"><h2 class="disp rv">${esc(C.cta.headline)}</h2><p class="rv d1">${esc(C.cta.sub)}</p><div class="rv d2">${ctaBtn(C, base)}</div></div></section>` : `<section class="sec"><div class="wrap"><div class="ctab rv"><span class="glow" style="right:-120px;top:-160px"></span>
 <h2 class="disp">${esc(C.cta.headline)}</h2><p>${esc(C.cta.sub)}</p>${ctaBtn(C, base)}</div></div></section>`;
+
+// Cinematic's split screen. Each scene: { label, ph, html, id }. One photo per scene, stacked on the pinned half; the
+// script lights the one whose words are being read (cnUpd). Without the script the first photo shows and every word
+// is readable. The photos are decoration here (the words carry the meaning), so they are hidden from screen readers.
+function cinemaScenes(scenes, top = false) {
+  if (!scenes.length) return "";
+  const media = scenes.map((x, i) => x.ph ? `<img class="cn-img${i ? "" : " on"}" src="${esc(x.ph.url)}" alt=""${i ? ' loading="lazy" decoding="async"' : top ? ' fetchpriority="high"' : ""}>` : `<div class="cn-img cn-none${i ? "" : " on"}"></div>`).join("");
+  return `<section class="cn${top ? " cn-top" : ""}" data-cn><div class="cn-media" aria-hidden="true"><div class="cn-fr">${media}</div><div class="cn-cap"><span class="cn-lbl">${esc(scenes[0].label)}</span><i class="cn-bar"><b></b></i></div></div>
+<div class="cn-text">${scenes.map((x, i) => `<div class="cn-sc${i ? "" : " act"}" data-l="${esc(x.label)}"${x.id ? ` id="${x.id}"` : ""}>${x.html}</div>`).join("\n")}</div></section>`;
+}
+const moreOn = (name) => name.length <= 14 ? `More on ${name.toLowerCase()}` : "See the details";
+const serviceScene = (C, base, s, i, first) => ({ label: s.name, html: `${first ? `<span class="eyebrow"><i></i>What we do</span>` : ""}<h2 class="disp">${esc(s.name)}</h2><p>${esc(s.detail || s.blurb)}</p>
+<div class="go"><a class="btn ghost" href="${esc(href(base, "services"))}#s${i + 1}" data-page="services">${bt(moreOn(s.name))}</a></div>` });
 
 function photoBlock(ph, ratio = "4/3") {
   if (!ph) return `<div class="ph rv" style="aspect-ratio:${ratio};background:radial-gradient(70% 70% at 30% 30%,color-mix(in srgb,var(--ac) 35%,transparent),transparent),var(--bg2)"></div>`;
@@ -1107,9 +1179,34 @@ ${C.faqs.slice(0, 5).map((f) => `<details class="faq rv"><summary>${esc(f.q)}<i 
     story: () => storySec, beforeafter: () => beforeAfterHTML(ba, { headClass: "disp rv" }), why: () => why, steps: () => steps, faq: () => faq,
     reviews: () => reviewsTeaser(cl, C, base), cta: () => ctaBand(C, base),
   };
+  if (theme === "cinematic") return cinemaHome(cl, C, base, photos, pk, story, built, theme, photos0);
   // The order, and which parts are switched off, are his (website.layout.home); added sections live in website.blocks.
   return homeLayout(cl).filter((x) => !x.hidden).map((x) => x.key.startsWith("b:") ? renderBlock(theme, blockOf(cl, x.key.slice(2)), C, base, photos0) : (built[x.key] ? built[x.key]() : ""))
     .filter(Boolean).join("\n");
+}
+
+// Cinematic's home: the top, the services, the story and "why us" become scenes of the split screen, in his order;
+// everything else (strip, before and after, steps, questions, reviews, the closing card, his added sections) follows
+// it at full width, also in his order. Hidden parts stay hidden.
+const SCENE_KEYS = ["hero", "services", "story", "why"];
+function cinemaHome(cl, C, base, photos, pk, story, built, theme, photos0) {
+  let n = 0;
+  const next = () => (photos.length ? photos[n++ % photos.length] : null);
+  const scenes = [], pre = [], post = [];
+  for (const x of homeLayout(cl).filter((y) => !y.hidden)) {
+    if (SCENE_KEYS.includes(x.key)) {
+      if (x.key === "hero") scenes.push({ label: "Scroll to explore", ph: next(), html: `<div class="top"><span class="eyebrow"><i></i>${esc(C.hero.eyebrow)}</span>${rateChip(C.rating)}</div>
+<h1 class="disp hl">${oneLine(C.hero.headline)}</h1><p class="sub">${esc(C.hero.sub)}</p><div class="go">${ctaBtn(C, base)}${linkTo(base, "services", bt(C.cta.explore), "btn ghost")}</div>` });
+      else if (x.key === "services") C.services.slice(0, 6).forEach((sv, i) => scenes.push({ ...serviceScene(C, base, sv, i, i === 0), ph: next() }));
+      else if (x.key === "story") scenes.push({ label: "Our story", ph: pk.story || next(), html: `<span class="eyebrow"><i></i>Our story</span><p class="lead disp">${esc(story)}</p>
+<div class="go">${linkTo(base, "about", bt("Read our story"), "btn ghost")}</div>` });
+      else if (x.key === "why" && C.why.length) scenes.push({ label: "Why us", ph: next(), html: `<h2 class="disp">Why people choose ${esc(C.name)}</h2><ul class="cn-why">${C.why.map((w) => `<li><b>${esc(w.title)}</b><span>${esc(w.text)}</span></li>`).join("")}</ul>` });
+      continue;
+    }
+    const html = x.key.startsWith("b:") ? renderBlock(theme, blockOf(cl, x.key.slice(2)), C, base, photos0) : (built[x.key] ? built[x.key]() : "");
+    if (html) (scenes.length ? post : pre).push(html);
+  }
+  return [...pre, cinemaScenes(scenes, !pre.length && homeLayout(cl).some((y) => y.key === "hero" && !y.hidden)), ...post].filter(Boolean).join("\n");
 }
 
 function reviewsTeaser(cl, C, base) {
@@ -1122,9 +1219,13 @@ function reviewsTeaser(cl, C, base) {
 }
 
 function servicesBody(theme, C, base, photos) {
+  if (theme === "cinematic") return `${pageHero(theme, "Our services", C.hero.sub, C.niche || "Services", C.pagePh)}
+${cinemaScenes(C.services.map((sv, i) => ({ label: sv.name, ph: photos.length ? photos[(i + 1) % photos.length] : null, id: `s${i + 1}`,
+    html: `<h2 class="disp">${esc(sv.name)}</h2><p>${esc(sv.detail || sv.blurb)}</p><div class="go">${ctaBtn(C, base)}</div>` })))}
+${ctaBand(C, base)}`;
   // On a computer, a photo follows the pointer down the list. Phones just get the list.
   const hov = photos.length ? `<figure class="hov" aria-hidden="true">${photos.slice(0, 6).map((p) => `<img src="${esc(p.url)}" alt="" loading="lazy" decoding="async">`).join("")}</figure>` : "";
-  return `${pageHero(theme, "Our services", C.hero.sub, C.niche || "Services")}
+  return `${pageHero(theme, "Our services", C.hero.sub, C.niche || "Services", C.pagePh)}
 <section class="sec"><div class="wrap svl">${C.services.map((s, i) => `<div class="svc rv" id="s${i + 1}"><h3 class="disp">${esc(s.name)}</h3><div><p>${esc(s.detail || s.blurb)}</p></div></div>`).join("")}${hov}</div></section>
 ${photos.length > 1 ? `<section class="sec" style="padding-top:0"><div class="wrap grid gal ${photos.length >= 3 ? "g3" : "g2"}">${photos.slice(0, 3).map((p) => photoBlock(p, photos.length >= 3 ? "3/4" : "4/3")).join("")}</div></section>` : ""}
 ${ctaBand(C, base)}`;
@@ -1135,7 +1236,7 @@ function aboutBody(theme, C, base, photos0, M, cl) {
   const photos = pk.about ? [pk.about, ...photos0.filter((p) => p.url !== pk.about.url)] : photos0;
   const [first, ...rest] = C.about.story.length ? C.about.story : [C.hero.sub];
   // The word-by-word light goes wherever the home page did not use it.
-  return `${pageHero(theme, C.about.headline, "", "About us")}
+  return `${pageHero(theme, C.about.headline, "", "About us", C.pagePh)}
 <section class="sec"><div class="wrap">${storyText(!(M.fill && M.scene !== "portal"), first)}</div></section>
 ${rest.length || photos.length ? `<section class="sec" style="padding-top:0"><div class="wrap split">${photoBlock(photos[0], "5/4")}<div>${rest.map((p) => `<p class="rv" style="font-size:19px;margin-bottom:18px">${esc(p)}</p>`).join("")}${C.area ? `<p class="rv" style="color:var(--mute)">Proudly serving ${esc(C.area)}.</p>` : ""}</div></div></section>` : ""}
 ${C.why.length ? `<section class="sec"><div class="wrap grid ${C.why.length === 4 ? "g4" : "g3"}">${C.why.map((w, i) => `<div class="card rv d${i % 3}"><span class="tick"></span><h3>${esc(w.title)}</h3><p>${esc(w.text)}</p></div>`).join("")}</div></section>` : ""}
@@ -1147,7 +1248,7 @@ function reviewsBody(theme, cl, C, base) {
   const listing = httpsUrl(cl && cl.website && cl.website.googleListingUrl);
   const write = httpsUrl(cl && cl.googleReviewUrl);
   const buttons = `${listing ? `<a class="btn" href="${esc(listing)}" target="_blank" rel="noopener">${bt("Read our Google reviews")}</a>` : ""}${write ? `<a class="btn ghost" href="${esc(write)}" target="_blank" rel="noopener">${bt("Leave a review")}</a>` : ""}`;
-  return `${pageHero(theme, "What our customers say", revs.length ? "" : "We'd love to hear about your experience.", "Reviews")}
+  return `${pageHero(theme, "What our customers say", revs.length ? "" : "We'd love to hear about your experience.", "Reviews", C.pagePh)}
 <section class="sec"><div class="wrap">${revs.length ? `<div class="revs">${revs.map((r, i) => `<figure class="card rev rv d${i % 3}"><div class="stars">${"&#9733;".repeat(r.stars)}</div><blockquote style="font-size:17px">${esc(r.text)}</blockquote><figcaption style="margin-top:16px;color:var(--mute);font-size:14px">${esc(r.name)}</figcaption></figure>`).join("")}</div>` : ""}
 ${buttons ? `<div class="rv" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:${revs.length ? 40 : 0}px">${buttons}</div>` : ""}</div></section>
 ${ctaBand(C, base)}`;
@@ -1159,7 +1260,7 @@ function contactBody(theme, cl, C, base) {
   const addr = String((cl && cl.businessAddress) || "").trim();
   const hours = clean((cl && cl.website && cl.website.hours) || (cl && cl.websiteIntake && cl.websiteIntake.hours), 160);
   const map = addr ? `<iframe class="map rv" loading="lazy" title="Map" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=${encodeURIComponent(addr)}&amp;output=embed"></iframe>` : "";
-  return `${pageHero(theme, C.cta.headline, C.cta.sub, "Contact")}
+  return `${pageHero(theme, C.cta.headline, C.cta.sub, "Contact", C.pagePh)}
 <section class="sec" style="padding-top:20px"><div class="wrap split" style="align-items:start">
 <div class="rv"><form id="sf" class="form" novalidate>
 <label>Your name<input name="nm" autocomplete="name" required></label>
@@ -1180,7 +1281,7 @@ function bookBody(theme, cl, C) {
   const DN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const t12 = (m) => { const h = Math.floor(m / 60), mm = m % 60; return `${((h + 11) % 12) + 1}${mm ? ":" + String(mm).padStart(2, "0") : ""}${h < 12 ? "am" : "pm"}`; };
   const hours = cfg.hours.map((h, i) => h ? `${DN[i]} ${t12(h[0])} to ${t12(h[1])}` : "").filter(Boolean);
-  return `${pageHero(theme, `Book ${C.name}`, cfg.note || "Pick a package and a time that works for you. It takes about a minute.", "Book")}
+  return `${pageHero(theme, `Book ${C.name}`, cfg.note || "Pick a package and a time that works for you. It takes about a minute.", "Book", C.pagePh)}
 <section class="sec" style="padding-top:20px"><div class="wrap bk-wrap">
 ${bookingWidgetHTML(cl, { btnClass: "btn", headClass: "disp bk-h" })}
 <aside class="bk-side">${phone ? `<div class="bk-call"><div>Rather talk to a person?</div><a class="btn ghost" href="tel:${esc(digits(phone))}">Call ${esc(phone)}</a></div>` : ""}${hours.length ? `<p>${hours.map(esc).join("<br>")}</p>` : ""}</aside>
@@ -1200,7 +1301,7 @@ ${BOOKING_WIDGET_CSS}
 function extraBody(theme, C, base, photos, page) {
   const c = page.extra.content || {};
   const sections = (Array.isArray(c.sections) ? c.sections : []).slice(0, 8).map((x) => ({ h: clean(x && x.heading, 90), t: clean(x && x.text, 900) })).filter((x) => x.h && x.t);
-  return `${pageHero(theme, clean(c.headline, 90) || page.label, clean(c.intro, 260), page.label)}
+  return `${pageHero(theme, clean(c.headline, 90) || page.label, clean(c.intro, 260), page.label, C.pagePh)}
 ${sections.map((x, i) => `<section class="sec"${i ? ' style="padding-top:0"' : ""}><div class="wrap split">${i % 2 && photos[i % photos.length] ? photoBlock(photos[i % photos.length], "4/3") : ""}<div><h2 class="disp rv" style="font-size:clamp(28px,3.6vw,48px)">${esc(x.h)}</h2><p class="rv d1" style="margin-top:16px;font-size:18px;color:var(--mute)">${esc(x.t)}</p></div>${!(i % 2) && photos[i % Math.max(1, photos.length)] ? photoBlock(photos[i % photos.length], "4/3") : ""}</div></section>`).join("")}
 ${ctaBand(C, base)}`;
 }
@@ -1210,7 +1311,7 @@ const fmtDate = (iso) => { try { return new Date(iso).toLocaleDateString("en-US"
 // The blog list. Posts come from the server (site-blog.mjs), already filtered to the published ones.
 function blogBody(theme, C, base, posts) {
   const list = (posts || []).slice(0, 60);
-  return `${pageHero(theme, "News and tips", `From the team at ${C.name}.`, "Blog")}
+  return `${pageHero(theme, "News and tips", `From the team at ${C.name}.`, "Blog", C.pagePh)}
 <section class="sec" style="padding-top:10px"><div class="wrap">${list.length ? `<div class="grid g3">${list.map((p, i) =>
     `<a class="card rv d${i % 3}" href="${esc(postHref(base, p.slug))}" data-page="blog"><span class="num">${esc(fmtDate(p.publishAt))}</span><h3>${esc(clean(p.title, 120))}</h3><p>${esc(clean(p.excerpt, 220))}</p></a>`).join("")}</div>`
     : `<p class="rv" style="color:var(--mute);font-size:18px">The first articles are on their way.</p>`}</div></section>
@@ -1220,7 +1321,7 @@ ${ctaBand(C, base)}`;
 // One article. Headings and paragraphs only: the writer returns blocks, never HTML.
 function postBody(theme, C, base, post) {
   const blocks = (Array.isArray(post.blocks) ? post.blocks : []).slice(0, 60);
-  return `${pageHero(theme, clean(post.title, 120), "", fmtDate(post.publishAt))}
+  return `${pageHero(theme, clean(post.title, 120), "", fmtDate(post.publishAt), C.pagePh)}
 <section class="sec" style="padding-top:10px"><div class="wrap" style="max-width:760px">${blocks.map((b) => b && b.kind === "h2"
     ? `<h2 class="disp rv" style="font-size:clamp(24px,3vw,36px);margin:36px 0 12px">${esc(clean(b.text, 140))}</h2>`
     : `<p class="rv" style="font-size:18px;line-height:1.75;margin-bottom:18px">${esc(clean(b && b.text, 1600))}</p>`).join("")}
@@ -1262,13 +1363,18 @@ export function renderSite(cl, pageId = "home", opts = {}) {
   const base = String(opts.base || "").replace(/\/+$/, "");
   if (!/^https:\/\//.test(base)) throw new Error("renderSite needs an absolute https base");
   const M = motionRecipe(cl, theme);
-  const P = palette(theme, cl, M.gl);
+  const mode = modeOf(cl, theme, opts.mode);
+  const P = palette(theme, cl, M.gl, mode);
+  const alt = theme === "aurora" ? null : palette(theme, cl, M.gl, mode === "dark" ? "light" : "dark");
   const C = siteContent(cl);
   // How this business takes customers decides where every main button goes (ctaBtn).
   C.intake = intakeOf(cl);
   C.rating = ratingOf(cl);
   C.bookOn = C.intake.how === "book";
   const photos = photosFor(cl);
+  C.theme = theme;
+  C.pagePh = photos[1] || photos[0] || null;
+  C.endPh = photos[2] || photos[0] || null;
   // Before-and-after pairs from the Brand kit: drawn on the home page once at least one is uploaded (KB brand-kit).
   const ba = beforeAfterPairs(cl);
   const body = page === "book" && C.bookOn ? bookBody(theme, cl, C)
@@ -1288,13 +1394,13 @@ export function renderSite(cl, pageId = "home", opts = {}) {
   const canonical = post ? postHref(cbase, post.slug) : href(cbase, page);
   const ogImg = photos[0] ? `<meta property="og:image" content="${esc(photos[0].url)}">` : "";
   const hasGl = !!P.gl && /<canvas/.test(body);
-  const out = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  const out = `<!doctype html><html lang="en" data-mode="${mode}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>${esc(title)}</title><meta name="description" content="${esc(desc)}"><link rel="canonical" href="${esc(canonical)}">
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:url" content="${esc(canonical)}">${ogImg}
 <meta name="theme-color" content="${P.bg}">${opts.noindex ? '<meta name="robots" content="noindex">' : ""}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${FONTS[theme]}" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="${FONTS[theme]}"></noscript>
 ${fontLinks(typeOf(theme, cl).fontHrefs)}
-<style>${css(theme, P, cl)}${IOS_NO_ZOOM}</style><style>${HPH_CSS}${C.bookOn ? BOOK_CSS : ""}${ba.length && page === "home" ? `.ba-sec{--ba-r:var(--r);--ba-mute:var(--mute)}${BEFORE_AFTER_CSS}` : ""}</style><script type="application/ld+json">${jsonLd(cl, C, base)}</script>${post ? `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BlogPosting", headline: clean(post.title, 110), datePublished: post.publishAt, author: { "@type": "Organization", name: C.name }, mainEntityOfPage: canonical }).replace(/</g, "\\u003c")}</script>` : ""}</head>
+<style>${css(theme, P, cl, alt)}${IOS_NO_ZOOM}</style><style>${HPH_CSS}${C.bookOn ? BOOK_CSS : ""}${ba.length && page === "home" ? `.ba-sec{--ba-r:var(--r);--ba-mute:var(--mute)}${BEFORE_AFTER_CSS}` : ""}</style><script type="application/ld+json">${jsonLd(cl, C, base)}</script>${post ? `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BlogPosting", headline: clean(post.title, 110), datePublished: post.publishAt, author: { "@type": "Organization", name: C.name }, mainEntityOfPage: canonical }).replace(/</g, "\\u003c")}</script>` : ""}</head>
 <body data-theme="${theme}" data-page="${page}" data-in="${M.entrance}" data-rv="${M.reveal}" data-tx="${M.transition}">
 ${header(cl, base, page, C, pages)}
 <main>${body}</main>

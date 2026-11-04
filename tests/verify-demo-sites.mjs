@@ -134,7 +134,7 @@ const prospect = (extra = {}) => ({ id: "p1", name: "Desert Shine Mobile Detail"
   ok("both screens are handed the real way to add a client", UI.includes('onDealPrep={openDealPrep} onCreateClient={addClient}/>}') && (UI.match(/onDealPrep=\{openDealPrep\} onCreateClient=\{addClient\}\/>/g) || []).length === 2);
   const fn = UI.slice(UI.indexOf("function clientFromDemo("), UI.indexOf("function DemoSiteBox("));
   ok("🔴 'They want it' makes an unsigned website client, never a counted one", /clientFromMeeting\(\{\}, \{companyName:/.test(fn) && /WEB_PKG_ID\)/.test(fn) && !/contractSigned:true/.test(fn));
-  ok("the demo becomes their website, not live", /website:\{content:demo\.content, stock:demo\.stock\|\|\[\], theme:demo\.theme\|\|"showcase", published:false/.test(fn));
+  ok("the demo becomes their website, not live", /website:\{content:demo\.content, stock:demo\.stock\|\|\[\], theme:demo\.theme\|\|"showcase", \.\.\.\(demo\.mode\?\{mode:demo\.mode\}:\{\}\), published:false/.test(fn));
   ok("the plan picked on the meeting seeds the agreement", /websitePlanChoice:plan==="own"\?"own":"care"/.test(fn) && /mgmt:client\.websitePlanChoice==="own"\?"own":"care"/.test(UI));
   ok("the two plans are the prices he set", /\$1,500 build, then \$100\/mo/.test(UI) && /\$2,500 once\. They get the site files/.test(UI));
   ok("🔴 the build state survives Lead Scout re-drawing its cards", /const DEMO_STORE=\{\}; const DEMO_SUBS=new Set\(\);/.test(UI));
