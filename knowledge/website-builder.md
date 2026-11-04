@@ -428,8 +428,11 @@ Now `editorialHome` (his order and hidden parts respected; other sections are th
 - **Why us = newspaper columns** (`.ed-why`, vertical rules, italic serif titles); **review = pull quote** (`.rvt`, a big
   opening quote mark); **strip = italic ticker**; inside-page heroes get a heavy rule under the title.
 - Motion is quiet on purpose: rules draw in (`.rule`), photos open top to bottom (clip-path from 78%, not 100%, because an
-  IntersectionObserver never fires on a fully clipped element), the per-client headline entrance stays. Fraunces italic is
-  now actually loaded (font URL has `ital`). The per-client "scroll moment" (portal/rail/stack) now only runs on Aurora.
+  IntersectionObserver never fires on a fully clipped element), the per-client headline entrance stays. 🔴 NO ITALICS in Editorial
+  (Bryson, same day, on the pull quote: "change this font because it's too hard to read"): Fraunces italic at the display
+  optical size, tightly spaced, crowded and its swash "v" read as "w". The italic font is no longer loaded; the pull quote,
+  why-us titles, ticker, row hover and the big story line are upright, and mid-size serif text uses the reading cut
+  (`font-variation-settings:normal;font-optical-sizing:auto`) with normal spacing. Only big headlines keep the display cut. The per-client "scroll moment" (portal/rail/stack) now only runs on Aurora.
 Pinned in `verify-showcase-design` section 7.
 
 ### 🔴 Light or dark is its OWN choice, on every design (Bryson, 2026-11-04)

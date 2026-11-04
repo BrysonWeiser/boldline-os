@@ -299,7 +299,7 @@ function paletteBase(theme, cl, scene, mode) {
 const FONTS = {
   cinematic: "https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap",
   aurora: "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Geist:wght@300..700&display=swap",
-  editorial: "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:wght@400..700&display=swap",
+  editorial: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Instrument+Sans:wght@400..700&display=swap",
   showcase: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..800&display=swap",
 };
 
@@ -773,16 +773,16 @@ html.mo .edh-fig .ph.in,html.mo .ed-fig .ph.in{clip-path:inset(0 0 0 0)}
 /* services: a table of contents */
 .ed-idx{position:relative}
 .ed-row{position:relative;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) 48px;gap:28px;align-items:center;padding:30px 0;border-bottom:1px solid var(--line)}
-.ed-row h3{font-size:clamp(28px,3.4vw,52px);font-weight:360;line-height:1.02;letter-spacing:-.02em;transition:transform .55s var(--ease)}
+.ed-row h3{font-size:clamp(28px,3.4vw,52px);font-weight:380;line-height:1.05;letter-spacing:-.01em;transition:transform .55s var(--ease),color .3s}
 .ed-row p{color:var(--mute);font-size:16px}
 .ed-go{justify-self:end;width:46px;height:46px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;transition:transform .5s var(--ease),background .3s,border-color .3s,color .3s}
 .ed-go svg{width:18px;height:18px}
 .ed-th{display:none}
-@media(hover:hover){.ed-row:hover h3{transform:translateX(14px);font-style:italic}.ed-row:hover .ed-go{background:var(--ac);border-color:var(--ac);color:var(--on);transform:rotate(-45deg)}}
+@media(hover:hover){.ed-row:hover h3{transform:translateX(14px);color:var(--ac3)}.ed-row:hover .ed-go{background:var(--ac);border-color:var(--ac);color:var(--on);transform:rotate(-45deg)}}
 /* the story: a feature spread */
 .ed-feat{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(28px,5vw,80px);align-items:start;margin-top:clamp(28px,4vw,48px)}
 .ed-fig .ph{aspect-ratio:4/5;border-radius:2px}
-.ed-big{font-size:clamp(28px,3.3vw,50px);line-height:1.14;font-weight:340}
+.ed-big{font-size:clamp(28px,3.3vw,50px);line-height:1.18;font-weight:380;letter-spacing:-.01em}
 .ed-cols{display:grid;grid-template-columns:repeat(var(--c,1),minmax(0,1fr));gap:0 44px;max-width:var(--mw,560px);margin-top:34px;color:var(--mute);font-size:16.5px;line-height:1.7}
 .ed-cols p+p{border-left:1px solid var(--line);padding-left:44px;margin-left:-22px}
 /* a drop cap only on a paragraph long enough to wrap around it */
@@ -792,13 +792,15 @@ html.mo .edh-fig .ph.in,html.mo .ed-fig .ph.in{clip-path:inset(0 0 0 0)}
 .ed-why{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));margin-top:clamp(28px,4vw,44px)}
 .ed-why>div{padding:4px 28px 0;border-left:1px solid var(--line)}
 .ed-why>div:first-child{padding-left:0;border-left:0}
-.ed-why h3{font-family:'Fraunces',Georgia,serif;font-size:clamp(22px,2vw,28px);font-style:italic;font-weight:380;line-height:1.15;margin-bottom:10px}
+.ed-why h3{font-family:'Fraunces',Georgia,serif;font-size:clamp(22px,2vw,28px);font-weight:460;line-height:1.2;margin-bottom:10px}
 .ed-why p{color:var(--mute);font-size:16px}
+/* Mid-size serif text uses the reading cut, not the display cut, with normal spacing (Bryson: "too hard to read"). */
+.rvt p.disp,.ed-big,.ed-row h3,.ed-why h3,.marq span,.ed-sh h2{font-variation-settings:normal;font-optical-sizing:auto}
 /* the review: a pull quote */
-.rvt p.disp{font-style:italic;font-weight:340}
+.rvt p.disp{font-weight:400;letter-spacing:0;line-height:1.3}
 .rvt .wrap::before{content:"\\201C";display:block;font-family:'Fraunces',Georgia,serif;font-size:150px;line-height:.62;color:var(--ac3);margin-bottom:4px}
 /* the strip: an italic ticker */
-.marq span{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:340}
+.marq span{font-family:'Fraunces',Georgia,serif;font-weight:400}
 /* inside pages */
 .page-hero{min-height:0}
 .page-hero .copy{padding:150px 0 44px;border-bottom:1px solid var(--ink)}
