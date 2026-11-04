@@ -560,3 +560,14 @@ template, makes every trade look alike, and was the DEFAULT for most demos. He s
 - Marketing site: homepage hero image, Websites page and the car-detailing/window-tint samples now use Showcase
   (`scripts/build-site-showcase.cjs` now fetches Pexels through curl). /examples/aurora/ still exists, unlinked.
 - Tests: `verify-showcase-design` (20 checks); site-builder, sample-sites, demo-sites, google-listing updated.
+
+## 2026-11-04: Exit button on website previews
+Bryson: *"make sure that it's updated on the website and when any previews are made"* (checked: the live marketing site
+serves Showcase; new sites, demos and pitch previews start on it) and *"add an exit button in a clients portal when
+I'm viewing the preview for the website"*. The portal opens the site in a new tab, and on a phone there was no way back.
+- Every `/site/<slug>/?preview=` page now carries a slim top bar, "Website preview. Not live yet." with **Exit preview**
+  (`PREVIEW_BAR` / `withPreviewBar` in site.mjs). Never on the live site.
+- Exit goes to the portal this browser last opened: the portal saves its own address (`/portal?token=...`, path only)
+  to localStorage `bl_portal_back` (same origin), never from the OS's own portal preview. Only a `/portal?token=` path
+  is accepted, within 7 days. Else `history.back()`, else `window.close()`, else the button says the tab can be closed.
+- `tests/verify-preview-exit.mjs` (7 checks); driven in a browser: portal, tap See your website, Exit, back on the portal.

@@ -45,6 +45,23 @@ export const parsePath = (pathname) => {
 // 🔴 Who may see what. Published: everyone, in the chosen design. Unpublished: only someone holding
 // the site's own preview key (never the portal token, which would leak in the referrer header to
 // every font host), and only then may a different design be shown via ?theme=.
+// ── The preview bar, with a way out (Bryson, 2026-11-04: "add an exit button in a clients portal when I'm viewing the
+// preview for the website"). The portal opens the site in its own tab, and on a phone there was no obvious way back.
+// Exit goes to the portal this browser last opened (the portal remembers itself, same address, see portal.mjs),
+// else back, else closes the tab, else says it can be closed. Only on a preview link, never on the live site.
+// No dashes, no emoji: the client reads it.
+export const PREVIEW_BAR = `<style>
+.bl-pv{position:fixed;top:0;left:0;right:0;height:44px;z-index:80;display:flex;align-items:center;gap:12px;padding:0 14px;background:#0B0D12;color:#E9E6DF;font:500 13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;border-bottom:1px solid rgba(255,255,255,.08)}
+.bl-pv i{width:7px;height:7px;border-radius:50%;background:#C8A84B;flex-shrink:0}.bl-pv .bl-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.bl-pv .bl-t span{color:#A9A59C}
+.bl-pv button{margin-left:auto;flex-shrink:0;min-height:32px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:#fff;color:#111;font:700 13px/1 inherit;cursor:pointer}
+.hd{inset:44px 0 auto!important}.hdr{top:44px!important}body{padding-top:44px}
+@media(max-width:520px){.bl-pv .bl-t span{display:none}}
+</style>
+<div class="bl-pv" role="note" aria-label="Website preview"><i></i><span class="bl-t"><b>Website preview</b> <span>Not live yet.</span></span><button type="button" id="bl-exit">Exit preview</button></div>
+<script>(function(){var b=document.getElementById('bl-exit');if(!b)return;b.onclick=function(){var u='';try{var v=JSON.parse(localStorage.getItem('bl_portal_back')||'null');if(v&&typeof v.u==='string'&&v.u.indexOf('/portal?token=')===0&&Date.now()-v.t<6048e5)u=v.u;}catch(e){}
+if(u){location.href=u;return;}if(history.length>1){history.back();return;}try{window.close();}catch(e){}setTimeout(function(){b.textContent='You can close this tab';b.disabled=true;},250);};})();</script>`;
+export const withPreviewBar = (page) => String(page).replace(/<body([^>]*)>/i, (m) => `${m}\n${PREVIEW_BAR}`);
+
 export function viewFor(website, query) {
   const w = website || {};
   const key = String(query.get("preview") || "");
@@ -184,7 +201,8 @@ async function renderPublic(supabase, cl, where, url, { base, hitUrl, canonicalB
   }
   // Count the visit only on the live public site (never a preview link).
   const track = !view.previewing && cl.website.published ? { url: hitUrl, slug } : null;
-  return html(renderSite(cl, pg.id, { base, canonicalBase, theme: view.theme, query, posts, post, track, noindex: !!view.previewing || !cl.website.published }),
+  const page = renderSite(cl, pg.id, { base, canonicalBase, theme: view.theme, query, posts, post, track, noindex: !!view.previewing || !cl.website.published });
+  return html(view.previewing ? withPreviewBar(page) : page,
     200, { ...(view.previewing ? { "cache-control": "no-store" } : {}), ...tag });
 }
 
