@@ -413,6 +413,15 @@ invisible (it did, once). (2) Headline lines must be joined with a space, or wit
 |---|---|---|
 | **Cinematic** | light, Archivo Expanded at huge sizes, two-part hero (line A top left, line B bottom right) | their best photo in a rounded frame beside line A (opens like a film frame, drifts on scroll, tilts toward the pointer). No WebGL since 2026-11-04 |
 
+### ✅ LIVE 2026-11-04 ~4:50pm Phoenix (merge `eb4052e`, rollback `rollback/20261104-234910`)
+The split-screen Cinematic, the magazine Editorial, light or dark on every design, and top-on-refresh. Verified by fetching
+the live pages, not assumed: boldlinemedia.com samples (`cn cn-top`, `edh`, the light/dark button), the Websites page
+descriptions, the three design pictures (byte-identical to the build) and the OS (`ModePills`) all served the new version
+within ~1 minute. The client-websites site rebuilds on its own when the renderer changes (sites/ignore.mjs) but has no
+public address to fetch until a client site is live on its own domain, so it was not fetched. (Bryson had asked to "make sure
+the website is updated as well it looked like it wasn't before": before this merge boldlinemedia.com WAS on the previous
+release, Showcase; today's work was only on the test copy until "go".)
+
 ### 🔴 Editorial REBUILT as a magazine (Bryson, 2026-11-04: "I like cinematic now I want to make editorial look better")
 Before: headline crammed into four lines beside a plain photo, services in shadowed white boxes, every section the same.
 Now `editorialHome` (his order and hidden parts respected; other sections are the shared ones restyled):
