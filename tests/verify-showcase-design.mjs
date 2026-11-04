@@ -51,5 +51,19 @@ ok("new demos start on Showcase, and a rebuilt Aurora demo moves to it", DEMO_TH
 ok("the OS offers Showcase first, starts new sites on it, and keeps Aurora only for a site already on it",
   /const SITE_THEME_LIST=\[\["showcase","Showcase"/.test(UI) && !/const SITE_THEME_LIST=\[[^\n]*"aurora"/.test(UI) && /theme:w\.theme\|\|"showcase",previewKey/.test(UI) && /siteThemeListFor\(theme\)\.map/.test(UI));
 
+// ── 4. Cinematic: their photo, never a random bubble ────────────────────────────
+// Bryson, 2026-11-04: "cinematic still has the bubble and I feel like that should change where we don't have a random bubble".
+{
+  const cin = (extra = {}) => renderSite({ ...DEMO_DETAIL, ...extra, website: { ...DEMO_DETAIL.website, theme: "cinematic", ...(extra.website || {}) } }, "home", { base: BASE });
+  const C = cin();
+  ok("🔴 Cinematic draws no 3D orb, on the home page or any other", !/getContext\('webgl'/.test(C) && !/<canvas/.test(C) && ["services", "about"].every((p) => !/<canvas/.test(renderSite({ ...DEMO_DETAIL, website: { ...DEMO_DETAIL.website, theme: "cinematic" } }, p, { base: BASE }))) && motionRecipe({ id: "a" }, "cinematic").gl === null);
+  ok("their photo sits in a frame beside the first line, before the second, and tilts", /<h1 class="disp lA hl">[\s\S]*?<div class="cdr"><div class="ph rv d1 cfr" data-tilt><img src="https:\/\/images\.pexels\.com[^"]+" alt="[^"]+" fetchpriority="high"><\/div><\/div><\/div>\s*<div class="cbot"><h2 class="disp lB/.test(C));
+  ok("🔴 on a phone the photo follows the buttons (booking stays on the first screen)", /@media \(max-width:899px\)\{[^}]*\.hero \.copy:has\(\.cdr\)\{display:flex;flex-direction:column[\s\S]{0,200}\.hero \.cdr\{order:3/.test(C));
+  ok("no photos: no empty frame", !/class="cdr"/.test(cin({ website: { stock: [], photos: [] } })));
+  ok("the services section starts on a different photo than the hero", (() => { const m = [...C.matchAll(/<img src="([^"]+)"/g)].map((x) => x[1]); return m.length > 2 && m[0] !== m[1]; })());
+  ok("aurora (retired) keeps its 3D for a site already on it", /getContext\('webgl'/.test(renderSite({ ...DEMO_DETAIL, website: { ...DEMO_DETAIL.website, theme: "aurora" } }, "home", { base: BASE })));
+  ok("the design is described by what it shows", SITE_THEMES.cinematic.blurb.includes("photo") && !/orb/.test(SITE_THEMES.cinematic.blurb) && /\["cinematic","Cinematic","[^"]*photo[^"]*"\]/.test(UI));
+}
+
 console.log(`verify-showcase-design: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

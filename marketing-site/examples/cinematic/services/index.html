@@ -273,8 +273,26 @@ html.mo [data-tilt]{transition:transform .8s var(--ease)}
 
 .hero{align-items:stretch}
 .hero .copy{display:grid;grid-template-rows:1fr auto;min-height:100svh}
-.hero .lA{font-size:clamp(52px,10vw,170px);align-self:start}
-.hero .lB{font-size:clamp(52px,10vw,170px);text-align:right;align-self:end}
+.hero .lA{font-size:clamp(52px,9.2vw,154px);align-self:start}
+.hero .ctop{display:grid;grid-template-columns:minmax(min-content,2.4fr) minmax(0,1fr);gap:clamp(24px,3.4vw,56px);align-items:stretch;align-self:start}
+.hero .ctop.solo{display:block}
+.hero .cdr{min-width:0;display:flex;justify-content:flex-end;will-change:transform;container-type:inline-size}
+@container (max-width:180px){.hero .cfr{display:none}}
+.hero .cfr{width:100%;max-width:560px;height:100%;min-height:clamp(200px,22vw,330px);margin-top:.4em;border-radius:var(--r);box-shadow:0 40px 80px -48px rgba(22,19,15,.55)}
+html.mo body .hero .cfr.ph.rv{opacity:1;transform:none;clip-path:inset(34% 0 34% 0 round var(--r));transition:clip-path 1.5s var(--io) .25s,transform .8s var(--ease)}
+html.mo body .hero .cfr.ph.rv.in{clip-path:inset(0 0 0 0 round var(--r))}
+html.mo .hero .cfr img{transform:scale(1.22);transition:transform 1.8s var(--ease)}
+html.mo .hero .cfr.in img{transform:translate3d(0,calc(var(--y,0) * 1px),0) scale(1.12);transition:transform .7s cubic-bezier(.2,.7,.2,1)}
+.hero .copy{min-width:0}
+@media (max-width:899px){
+  /* On a phone the photo follows the buttons, so booking stays on the first screen and the photo peeks in below it. */
+  .hero .copy:has(.cdr){display:flex;flex-direction:column;min-height:0;padding-bottom:28px}
+  .hero .ctop{display:contents}
+  .hero .lA{order:1}.hero .cbot{order:2;margin-top:clamp(18px,4vw,36px)}
+  .hero .cdr{order:3;display:block;margin-top:28px}
+  .hero .cfr{max-width:none;height:auto;min-height:0;aspect-ratio:4/3;max-height:56svh;margin-top:0}
+}
+.hero .lB{font-size:clamp(52px,9.2vw,154px);text-align:right;align-self:end}
 .hero .lower{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:26px;margin-top:28px}
 .hero .lower p{max-width:340px;font-size:15px;color:var(--mute)}
 .hero .scroll{font-size:13px;border-top:1px solid var(--line);padding-top:14px;min-width:240px;display:flex;justify-content:space-between;color:var(--mute)}
@@ -316,7 +334,7 @@ body{padding-top:44px}
 <div class="mnav" role="dialog" aria-label="Menu"><button class="burger close" aria-label="Close menu"><span style="transform:translateY(3px) rotate(45deg)"></span><span style="transform:translateY(-3px) rotate(-45deg)"></span></button>
 <a href="/examples/cinematic/" data-page="home">Home</a><a href="/examples/cinematic/services/" data-page="services">Services</a><a href="/examples/cinematic/about/" data-page="about">About</a><a href="/examples/cinematic/reviews/" data-page="reviews">Reviews</a><a href="/examples/cinematic/contact/" data-page="contact">Contact</a>
 <a href="tel:6025550148">(602) 555-0148</a></div>
-<main><section class="hero page-hero"><div class="fx" style="background:radial-gradient(50% 60% at 75% 80%,color-mix(in srgb,var(--ac) 16%,transparent),transparent),var(--bg)"><canvas aria-hidden="true"></canvas></div><div class="wrap copy"><span class="eyebrow rv"><i></i>Pool Construction</span>
+<main><section class="hero page-hero"><div class="fx" style="background:radial-gradient(50% 60% at 75% 80%,color-mix(in srgb,var(--ac) 16%,transparent),transparent),var(--bg)"></div><div class="wrap copy"><span class="eyebrow rv"><i></i>Pool Construction</span>
 <h1 class="disp hl" style="margin-top:22px"><span class="ln"><span>Our services</span></span></h1><p class="sub rv d1">Custom pools designed around how your family actually uses the yard, built on schedule and backed for ten years.</p></div></section>
 <section class="sec"><div class="wrap svl"><div class="svc rv" id="s1"><h3 class="disp">Custom pool builds</h3><div><p>Designed for your yard, your budget and the way you swim.</p></div></div><div class="svc rv" id="s2"><h3 class="disp">Remodels</h3><div><p>New finish, tile and lighting for a pool that&#39;s seen better days.</p></div></div><div class="svc rv" id="s3"><h3 class="disp">Spas and water features</h3><div><p>Add warmth and sound without starting over.</p></div></div><figure class="hov" aria-hidden="true"><img src="/img/sample/pool-189296.jpg" alt="" loading="lazy" decoding="async"><img src="/img/sample/pool-261102.jpg" alt="" loading="lazy" decoding="async"></figure></div></section>
 <section class="sec" style="padding-top:0"><div class="wrap grid gal g2"><div class="ph rv" style="aspect-ratio:4/3"><img src="/img/sample/pool-189296.jpg" alt="Pool at dusk" loading="lazy" decoding="async"></div><div class="ph rv" style="aspect-ratio:4/3"><img src="/img/sample/pool-261102.jpg" alt="Rooftop pool" loading="lazy" decoding="async"></div></div></section>
@@ -348,7 +366,8 @@ function upd(){var vh=innerHeight;sc.forEach(function(el){var r=el.getBoundingCl
 for(var i=0;i<sk.length-1;i++){var a=sk[i].getBoundingClientRect(),b=sk[i+1].getBoundingClientRect();sk[i].style.setProperty('--c',cl(1-(b.top-a.top)/Math.max(1,a.height),0,1).toFixed(3));}
 fl.forEach(function(p){var r=p.getBoundingClientRect(),ws=p.querySelectorAll('.w');var k=cl((vh*.85-r.top)/(r.height+vh*.35),0,1);var m=Math.round(k*ws.length);for(var j=0;j<ws.length;j++)ws[j].classList.toggle('lit',rm||j<m);});}
 var hd=d.querySelector('.hd'),pill=d.querySelector('.pill'),last=0,tk=false;
-function frame(){tk=false;var y=scrollY;if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
+var cdr=d.querySelector('.hero .cdr'),cfr=cdr&&cdr.querySelector('.cfr');
+function frame(){tk=false;var y=scrollY;if(cdr&&!rm&&y<innerHeight*1.5){cdr.style.transform='translate3d(0,'+(y*-.06).toFixed(1)+'px,0)';cfr.style.setProperty('--y',Math.min(y*.1,60).toFixed(1));}if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
 function onScroll(){if(!tk){tk=true;requestAnimationFrame(frame);}}
 measure();frame();addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',function(){measure();onScroll();});addEventListener('load',function(){measure();onScroll();});
 var mqe=d.querySelector('.marq');if(mqe&&!rm&&M.m==='velocity'){mqe.classList.add('vel');var tr=mqe.querySelector('.tr'),x=0,v=0,ly=scrollY,mv=true;
@@ -387,22 +406,5 @@ function done(){f.style.display='none';d.getElementById('sthx').style.display='b
 if(PREVIEW){done();return;}
 if(MAILTO){location.href='mailto:'+MAILTO+'?subject='+encodeURIComponent('New enquiry from your website')+'&body='+encodeURIComponent('Name: '+p.name+'\nPhone: '+ph+'\nEmail: '+em+(p.message?'\n\n'+p.message:''));done();return;}
 fetch('/lead?token=demo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(function(r){if(!r.ok)throw 0;done();})
-.catch(function(){er.textContent='Something went wrong, please try again or call us.';er.style.display='block';b.disabled=false;b.textContent=lbl;});});}})();</script><script>(function(){var c=document.querySelector('.hero canvas');if(!c)return;
-var mq=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;var nv=navigator||{};
-if(mq||(nv.connection&&nv.connection.saveData)||(nv.deviceMemory&&nv.deviceMemory<4))return;
-function go(){var g=c.getContext('webgl',{antialias:false,alpha:false,powerPreference:'low-power'});if(!g)return;
-function sh(t,s){var o=g.createShader(t);g.shaderSource(o,s);g.compileShader(o);return o;}
-var pr=g.createProgram();g.attachShader(pr,sh(g.VERTEX_SHADER,'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}'));
-g.attachShader(pr,sh(g.FRAGMENT_SHADER,"#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\nuniform vec2 R;uniform float T;uniform vec2 M;uniform vec3 A;uniform vec3 B;uniform vec3 C;uniform vec3 D;\nfloat h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}\nfloat fb(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*n(p);p=p*2.02+vec2(3.1,1.7);a*=.5;}return v;}\nvec2 h2(vec2 p){return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}\nfloat vo(vec2 p,float t){vec2 i=floor(p),f=fract(p);float d1=8.,d2=8.;for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){vec2 g=vec2(float(x),float(y));vec2 o=h2(i+g);o=.5+.42*sin(t*.5+6.2831*o);float d=length(g+o-f);if(d<d1){d2=d1;d1=d;}else if(d<d2){d2=d;}}return d2-d1;}\nvec3 field(vec2 uv,float t){vec2 p=uv*vec2(R.x/R.y,1.)*3.;p+=.35*vec2(fb(p*.7+t*.06),fb(p*.7-t*.05+4.));\nfloat l=(1.-smoothstep(0.,.2,vo(p,t)))*.7+(1.-smoothstep(0.,.12,vo(p*1.7+5.3,t*1.3)))*.35;\nvec3 c=mix(A,B,clamp(uv.y*.75+fb(p*.4+t*.02)*.45,0.,1.));return c+C*l*.5;}\nvoid main(){vec2 uv=gl_FragCoord.xy/R;vec2 a=vec2(R.x/R.y,1.);vec2 p=(uv-.5)*a;vec3 col=field(uv+M*.03,T);\nvec2 c=vec2(0.,.02)+M*.04;float rad=.31*min(1.,a.x*.62+.18);vec2 d=p-c;float l=length(d);\nfloat edge=1.-smoothstep(rad-.004,rad,l);vec3 calm=mix(col,A,.45);if(l<rad){float z=sqrt(max(rad*rad-l*l,0.));vec3 nr=normalize(vec3(d,z));vec3 L=normalize(vec3(-.5+M.x*.6,.6+M.y*.4,.8));\nfloat df=max(dot(nr,L),0.);float fr=pow(1.-nr.z,2.4);vec3 inside=field(uv+nr.xy*.22+vec2(.07,0.),T*1.3);\nfloat sp=pow(max(dot(reflect(-L,nr),vec3(0,0,1)),0.),40.);vec3 sph=mix(inside*1.08,vec3(1.),fr*.55)+df*.06+sp*.9;col=mix(calm,sph,edge);}\nelse{col=calm*(1.-.18*(1.-smoothstep(rad,rad+.12,l)));}float g=h(gl_FragCoord.xy+fract(T))*.03;gl_FragColor=vec4(col+g-.015,1.);}"));g.linkProgram(pr);if(!g.getProgramParameter(pr,g.LINK_STATUS))return;g.useProgram(pr);
-var b=g.createBuffer();g.bindBuffer(g.ARRAY_BUFFER,b);g.bufferData(g.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),g.STATIC_DRAW);
-var lp=g.getAttribLocation(pr,'p');g.enableVertexAttribArray(lp);g.vertexAttribPointer(lp,2,g.FLOAT,false,0,0);
-var U=function(n){return g.getUniformLocation(pr,n);};g.uniform3f(U('A'),0.741,0.875,0.918);g.uniform3f(U('B'),0.408,0.725,0.820);g.uniform3f(U('C'),0.965,0.984,0.988);g.uniform3f(U('D'),0.118,0.561,0.722);
-var dpr=Math.min(window.devicePixelRatio||1,1.5),mx=0,my=0,tx=0,ty=0,vis=true,t0=performance.now(),n=0,slow=0,lt=0,dead=false;
-function sz(){var w=c.clientWidth,h=c.clientHeight,k=dpr*.75;if(w*h*k*k>1500000)k=Math.sqrt(1500000/(w*h));c.width=Math.max(1,w*k|0);c.height=Math.max(1,h*k|0);g.viewport(0,0,c.width,c.height);g.uniform2f(U('R'),c.width,c.height);}
-sz();addEventListener('resize',sz);addEventListener('pointermove',function(e){tx=e.clientX/innerWidth-.5;ty=.5-e.clientY/innerHeight;},{passive:true});
-if('IntersectionObserver' in window){new IntersectionObserver(function(es){vis=es[0].isIntersecting;}).observe(c);}
-function fr(now){if(dead)return;if(vis&&!document.hidden){if(lt&&n<120){n++;if(now-lt>40)slow++;if(n===120&&slow>60){dead=true;return;}}lt=now;
-mx+=(tx-mx)*.04;my+=(ty-my)*.04;g.uniform1f(U('T'),(now-t0)/1000);g.uniform2f(U('M'),mx,my);g.drawArrays(g.TRIANGLE_STRIP,0,4);}else{lt=0;}requestAnimationFrame(fr);}
-requestAnimationFrame(function(t){fr(t);c.classList.add('on');});}
-(window.requestIdleCallback||function(f){setTimeout(f,400);})(go);})();</script>
+.catch(function(){er.textContent='Something went wrong, please try again or call us.';er.style.display='block';b.disabled=false;b.textContent=lbl;});});}})();</script>
 </body></html>

@@ -11708,7 +11708,7 @@ function SiteFilesHandover({client,paid}){
 // The designs offered, best first (mirror of site-render PICK_THEMES). Aurora was retired 2026-11-03 for the photo-first
 // Showcase (Bryson: "the aurora one might be out of date"); a site already on Aurora still renders it, and still sees it
 // in its own picker so nothing changes under it (siteThemeListFor). KB website-builder.
-const SITE_THEME_LIST=[["showcase","Showcase","Photo-first: their work fills the screen, the star rating up top, services as photo tiles."],["cinematic","Cinematic","Light and airy, huge type, a glass orb that reacts to the cursor."],["editorial","Editorial","Bright and refined, elegant serif headlines, photo-led."]];
+const SITE_THEME_LIST=[["showcase","Showcase","Photo-first: their work fills the screen, the star rating up top, services as photo tiles."],["cinematic","Cinematic","Light and airy, huge type, their best photo in a frame that tilts toward the cursor."],["editorial","Editorial","Bright and refined, elegant serif headlines, photo-led."]];
 const SITE_THEME_RETIRED=[["aurora","Aurora","Dark and bold, with a moving 3D backdrop matched to the trade. Retired: no longer offered to new sites."]];
 const siteThemeListFor=(cur)=>SITE_THEME_LIST.some(x=>x[0]===cur)?SITE_THEME_LIST:SITE_THEME_LIST.concat(SITE_THEME_RETIRED.filter(x=>x[0]===cur));
 // Hand-typed edits go through the same no-dash rule as everything else a visitor reads.

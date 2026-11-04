@@ -344,7 +344,7 @@ body{padding-top:44px}
 <div class="mnav" role="dialog" aria-label="Menu"><button class="burger close" aria-label="Close menu"><span style="transform:translateY(3px) rotate(45deg)"></span><span style="transform:translateY(-3px) rotate(-45deg)"></span></button>
 <a href="/examples/window-tint/" data-page="home">Home</a><a href="/examples/window-tint/services/" data-page="services">Services</a><a href="/examples/window-tint/about/" data-page="about">About</a><a href="/examples/window-tint/reviews/" data-page="reviews">Reviews</a><a href="/examples/window-tint/contact/" data-page="contact">Contact</a>
 <a href="tel:4805550187">(480) 555-0187</a></div>
-<main><section class="hero page-hero"><div class="fx" style="background:radial-gradient(50% 60% at 75% 80%,color-mix(in srgb,var(--ac) 16%,transparent),transparent),var(--bg)"><canvas aria-hidden="true"></canvas></div><div class="wrap copy"><span class="eyebrow rv"><i></i>Reviews</span>
+<main><section class="hero page-hero"><div class="fx" style="background:radial-gradient(50% 60% at 75% 80%,color-mix(in srgb,var(--ac) 16%,transparent),transparent),var(--bg)"></div><div class="wrap copy"><span class="eyebrow rv"><i></i>Reviews</span>
 <h1 class="disp hl" style="margin-top:22px"><span class="ln"><span>What our</span></span> <span class="ln"><span>customers say</span></span></h1></div></section>
 <section class="sec"><div class="wrap"><div class="revs"><figure class="card rev rv d0"><div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><blockquote style="font-size:17px">Full front film on my new car and you honestly can&#39;t see the edges. Worth every dollar.</blockquote><figcaption style="margin-top:16px;color:var(--mute);font-size:14px">Marco V.</figcaption></figure><figure class="card rev rv d1"><div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><blockquote style="font-size:17px">Ceramic tint made a huge difference in the Arizona sun. In and out the same afternoon.</blockquote><figcaption style="margin-top:16px;color:var(--mute);font-size:14px">Kelsey T.</figcaption></figure></div>
 </div></section>
@@ -376,7 +376,8 @@ function upd(){var vh=innerHeight;sc.forEach(function(el){var r=el.getBoundingCl
 for(var i=0;i<sk.length-1;i++){var a=sk[i].getBoundingClientRect(),b=sk[i+1].getBoundingClientRect();sk[i].style.setProperty('--c',cl(1-(b.top-a.top)/Math.max(1,a.height),0,1).toFixed(3));}
 fl.forEach(function(p){var r=p.getBoundingClientRect(),ws=p.querySelectorAll('.w');var k=cl((vh*.85-r.top)/(r.height+vh*.35),0,1);var m=Math.round(k*ws.length);for(var j=0;j<ws.length;j++)ws[j].classList.toggle('lit',rm||j<m);});}
 var hd=d.querySelector('.hd'),pill=d.querySelector('.pill'),last=0,tk=false;
-function frame(){tk=false;var y=scrollY;if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
+var cdr=d.querySelector('.hero .cdr'),cfr=cdr&&cdr.querySelector('.cfr');
+function frame(){tk=false;var y=scrollY;if(cdr&&!rm&&y<innerHeight*1.5){cdr.style.transform='translate3d(0,'+(y*-.06).toFixed(1)+'px,0)';cfr.style.setProperty('--y',Math.min(y*.1,60).toFixed(1));}if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
 function onScroll(){if(!tk){tk=true;requestAnimationFrame(frame);}}
 measure();frame();addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',function(){measure();onScroll();});addEventListener('load',function(){measure();onScroll();});
 var mqe=d.querySelector('.marq');if(mqe&&!rm&&M.m==='velocity'){mqe.classList.add('vel');var tr=mqe.querySelector('.tr'),x=0,v=0,ly=scrollY,mv=true;

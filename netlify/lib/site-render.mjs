@@ -76,7 +76,7 @@ export const pageInSite = (cl, id) => pagesFor(cl).find((p) => p.id === id) || n
 export const pageByPath = (cl, seg) => pagesFor(cl).find((p) => p.path === String(seg || "")) || null;
 
 export const SITE_THEMES = {
-  cinematic: { label: "Cinematic", blurb: "Light and airy, huge type, a glass orb that reacts to the cursor." },
+  cinematic: { label: "Cinematic", blurb: "Light and airy, huge type, their best photo in a frame that tilts toward the cursor." },
   aurora: { label: "Aurora", blurb: "Dark and bold, with a moving 3D backdrop matched to the trade." },
   editorial: { label: "Editorial", blurb: "Bright and refined, elegant serif headlines, photo-led." },
   // Bryson, 2026-11-03, on Aurora: "might be out of date or just there might be a better style". Photo-first, the way
@@ -171,7 +171,9 @@ export function motionRecipe(cl, theme) {
     marquee: pick(MOTION.marquee),
     fill: r() < 0.6,
     cursor: r() < (theme === "aurora" ? 0.35 : 0.5),
-    gl: theme === "editorial" || theme === "showcase" ? null : glSceneFor(cl),
+    // Cinematic used to show the backdrop through a glass orb. Bryson, 2026-11-04: "I feel like that should change where we
+    // don't have a random bubble". It now shows their own photo in a frame instead, so only Aurora still draws 3D.
+    gl: theme === "aurora" ? glSceneFor(cl) : null,
   };
 }
 
@@ -261,8 +263,7 @@ function paletteBase(theme, cl, scene) {
   const brand = brandColorOf(cl);
   if (theme === "cinematic") {
     const a = brand || "#2F6FED";
-    return { bg: "#F3F1EC", bg2: "#FFFFFF", ink: "#16130F", mute: "#6C655C", line: "rgba(22,19,15,.10)", accent: a, onAccent: onColor(a), card: "rgba(255,255,255,.72)", dark: false,
-      gl: glPalette(scene, false, a, "#F3F1EC") };
+    return { bg: "#F3F1EC", bg2: "#FFFFFF", ink: "#16130F", mute: "#6C655C", line: "rgba(22,19,15,.10)", accent: a, onAccent: onColor(a), card: "rgba(255,255,255,.72)", dark: false, gl: null };
   }
   if (theme === "editorial") {
     const a = brand || "#2F5D50";
@@ -573,8 +574,26 @@ function themeCss(theme) {
   if (theme === "cinematic") return `
 .hero{align-items:stretch}
 .hero .copy{display:grid;grid-template-rows:1fr auto;min-height:100svh}
-.hero .lA{font-size:clamp(52px,10vw,170px);align-self:start}
-.hero .lB{font-size:clamp(52px,10vw,170px);text-align:right;align-self:end}
+.hero .lA{font-size:clamp(52px,9.2vw,154px);align-self:start}
+.hero .ctop{display:grid;grid-template-columns:minmax(min-content,2.4fr) minmax(0,1fr);gap:clamp(24px,3.4vw,56px);align-items:stretch;align-self:start}
+.hero .ctop.solo{display:block}
+.hero .cdr{min-width:0;display:flex;justify-content:flex-end;will-change:transform;container-type:inline-size}
+@container (max-width:180px){.hero .cfr{display:none}}
+.hero .cfr{width:100%;max-width:560px;height:100%;min-height:clamp(200px,22vw,330px);margin-top:.4em;border-radius:var(--r);box-shadow:0 40px 80px -48px rgba(22,19,15,.55)}
+html.mo body .hero .cfr.ph.rv{opacity:1;transform:none;clip-path:inset(34% 0 34% 0 round var(--r));transition:clip-path 1.5s var(--io) .25s,transform .8s var(--ease)}
+html.mo body .hero .cfr.ph.rv.in{clip-path:inset(0 0 0 0 round var(--r))}
+html.mo .hero .cfr img{transform:scale(1.22);transition:transform 1.8s var(--ease)}
+html.mo .hero .cfr.in img{transform:translate3d(0,calc(var(--y,0) * 1px),0) scale(1.12);transition:transform .7s cubic-bezier(.2,.7,.2,1)}
+.hero .copy{min-width:0}
+@media (max-width:899px){
+  /* On a phone the photo follows the buttons, so booking stays on the first screen and the photo peeks in below it. */
+  .hero .copy:has(.cdr){display:flex;flex-direction:column;min-height:0;padding-bottom:28px}
+  .hero .ctop{display:contents}
+  .hero .lA{order:1}.hero .cbot{order:2;margin-top:clamp(18px,4vw,36px)}
+  .hero .cdr{order:3;display:block;margin-top:28px}
+  .hero .cfr{max-width:none;height:auto;min-height:0;aspect-ratio:4/3;max-height:56svh;margin-top:0}
+}
+.hero .lB{font-size:clamp(52px,9.2vw,154px);text-align:right;align-self:end}
 .hero .lower{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:26px;margin-top:28px}
 .hero .lower p{max-width:340px;font-size:15px;color:var(--mute)}
 .hero .scroll{font-size:13px;border-top:1px solid var(--line);padding-top:14px;min-width:240px;display:flex;justify-content:space-between;color:var(--mute)}
@@ -734,7 +753,8 @@ function upd(){var vh=innerHeight;sc.forEach(function(el){var r=el.getBoundingCl
 for(var i=0;i<sk.length-1;i++){var a=sk[i].getBoundingClientRect(),b=sk[i+1].getBoundingClientRect();sk[i].style.setProperty('--c',cl(1-(b.top-a.top)/Math.max(1,a.height),0,1).toFixed(3));}
 fl.forEach(function(p){var r=p.getBoundingClientRect(),ws=p.querySelectorAll('.w');var k=cl((vh*.85-r.top)/(r.height+vh*.35),0,1);var m=Math.round(k*ws.length);for(var j=0;j<ws.length;j++)ws[j].classList.toggle('lit',rm||j<m);});}
 var hd=d.querySelector('.hd'),pill=d.querySelector('.pill'),last=0,tk=false;
-function frame(){tk=false;var y=scrollY;if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
+var cdr=d.querySelector('.hero .cdr'),cfr=cdr&&cdr.querySelector('.cfr');
+function frame(){tk=false;var y=scrollY;if(cdr&&!rm&&y<innerHeight*1.5){cdr.style.transform='translate3d(0,'+(y*-.06).toFixed(1)+'px,0)';cfr.style.setProperty('--y',Math.min(y*.1,60).toFixed(1));}if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
 function onScroll(){if(!tk){tk=true;requestAnimationFrame(frame);}}
 measure();frame();addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',function(){measure();onScroll();});addEventListener('load',function(){measure();onScroll();});
 var mqe=d.querySelector('.marq');if(mqe&&!rm&&M.m==='velocity'){mqe.classList.add('vel');var tr=mqe.querySelector('.tr'),x=0,v=0,ly=scrollY,mv=true;
@@ -873,9 +893,13 @@ function heroHome(theme, C, base, photos) {
   if (theme === "cinematic") {
     const a = C.hero.lineA || C.hero.headline.split(/\s+/).slice(0, Math.ceil(C.hero.headline.split(/\s+/).length / 2)).join(" ");
     const b = C.hero.lineB || C.hero.headline.split(/\s+/).slice(Math.ceil(C.hero.headline.split(/\s+/).length / 2)).join(" ");
-    return `<section class="hero"><div class="fx" style="background:radial-gradient(60% 60% at 50% 40%,color-mix(in srgb,var(--ac) 20%,#fff),var(--bg))"><canvas aria-hidden="true"></canvas></div>
-<div class="wrap copy"><h1 class="disp lA hl"><span class="ln"><span>${esc(a)}</span></span></h1>
-<div><h2 class="disp lB hl" aria-hidden="true"><span class="ln"><span>${esc(b)}</span></span></h2>
+    // Their best photo sits beside the first line in a rounded frame: it opens like a film frame, drifts as the page
+    // scrolls and tilts toward the cursor. It has its own column (its own row on a phone), so it is never behind a word.
+    const ph = photos[0];
+    const frame = ph ? `<div class="cdr"><div class="ph rv d1 cfr" data-tilt><img src="${esc(ph.url)}" alt="${esc(ph.alt)}" fetchpriority="high"></div></div>` : "";
+    return `<section class="hero"><div class="fx" style="background:radial-gradient(60% 60% at 50% 40%,color-mix(in srgb,var(--ac) 14%,#fff),var(--bg))"></div>
+<div class="wrap copy"><div class="ctop${ph ? "" : " solo"}"><h1 class="disp lA hl"><span class="ln"><span>${esc(a)}</span></span></h1>${frame}</div>
+<div class="cbot"><h2 class="disp lB hl" aria-hidden="true"><span class="ln"><span>${esc(b)}</span></span></h2>
 <div class="lower"><div class="rv d1"><span class="eyebrow"><i></i>${esc(C.hero.eyebrow)}</span><p style="margin-top:12px">${esc(C.hero.sub)}</p>${acts}</div>
 <div class="scroll rv d3"><span>Scroll</span><span>to explore</span></div></div></div></div></section>`;
   }
@@ -891,7 +915,7 @@ function heroHome(theme, C, base, photos) {
 }
 
 function pageHero(theme, title, sub, eyebrow) {
-  const fx = theme === "editorial" ? "" : `<div class="fx" style="background:radial-gradient(50% 60% at 75% 80%,color-mix(in srgb,var(--ac) ${theme === "aurora" ? 26 : 16}%,transparent),transparent),var(--bg)"><canvas aria-hidden="true"></canvas></div>`;
+  const fx = theme === "editorial" ? "" : `<div class="fx" style="background:radial-gradient(50% 60% at 75% 80%,color-mix(in srgb,var(--ac) ${theme === "aurora" ? 26 : 16}%,transparent),transparent),var(--bg)">${theme === "aurora" ? `<canvas aria-hidden="true"></canvas>` : ""}</div>`;
   return `<section class="hero page-hero">${fx}<div class="wrap copy"><span class="eyebrow rv"><i></i>${esc(eyebrow)}</span>
 <h1 class="disp hl" style="margin-top:22px">${lines(title, theme)}</h1>${sub ? `<p class="sub rv d1">${esc(sub)}</p>` : ""}</div></section>`;
 }
@@ -1064,7 +1088,7 @@ ${C.faqs.slice(0, 5).map((f) => `<details class="faq rv"><summary>${esc(f.q)}<i 
   const storySec = M.scene === "portal" ? portal(C, storyPh, story)
     : `<section class="sec"><div class="wrap split">${storyText(M.fill, story)}${photoBlock(storyPh, "4/5")}</div></section>`;
   const built = {
-    hero: () => heroHome(theme, C, base, photos), marquee: () => marquee(C), services: () => theme === "showcase" ? bento(C, base, photos) : servicesSection(M.scene, C, base, photos),
+    hero: () => heroHome(theme, C, base, photos), marquee: () => marquee(C), services: () => theme === "showcase" ? bento(C, base, photos) : servicesSection(M.scene, C, base, theme === "cinematic" && photos.length > 1 ? [...photos.slice(1), photos[0]] : photos),
     story: () => storySec, beforeafter: () => beforeAfterHTML(ba, { headClass: "disp rv" }), why: () => why, steps: () => steps, faq: () => faq,
     reviews: () => reviewsTeaser(cl, C, base), cta: () => ctaBand(C, base),
   };
