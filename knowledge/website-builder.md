@@ -434,11 +434,13 @@ JS). Everything else in his layout (strip, before/after, steps, FAQ, reviews, hi
 order; hidden parts stay hidden. Phone (<900px): the photos become a band (34svh) pinned under the header. Inside pages
 open on the same split (`.cnh`, `pageHero(..., C.pagePh)`); Services page is told as scenes too (ids s1..sN, so the
 home links land); the closing CTA is a full-bleed photo end card (`.cn-end`, `ctaBand` when `C.theme==="cinematic"`).
-Headlines use `oneLine` (natural wrapping; fixed thirds left "in" alone on a phone). **Phone clean-up (Bryson, same day: "at least on mobile
-it's a bit tight"):** band 30svh (min 180px) with a soft bg-coloured fade under it; `cnTop()` (called in `frame()`) sets the
-band's sticky `top` to just under the menu while the menu shows and to the strip/top when it hides, so the menu never
-covers it (it did in his screenshot); more space between scenes; phone-sized headings; the "more on" buttons become text
-links with an underline and an arrow (the hero's two buttons stay real buttons). The menu sits in a frosted pill on
+Headlines use `oneLine` (natural wrapping; fixed thirds left "in" alone on a phone). **Phone, second pass (Bryson, same day: "at least on mobile it's a bit tight", then
+"It's still tight I think we need to change up the design a bit when scrolling"):** a photo band pinned on a phone ate a
+third of the screen whatever its size (a `cnTop` script that slid it under the menu was tried and REMOVED). Now on a phone
+nothing is pinned: `.cn-media` is hidden and each scene carries its own full-width photo (`figure.cn-ph`, 16:9 for the top,
+4:3 for the rest; hidden on computers) that opens from a letterbox slit as it scrolls in (clip-path 34% then 0, observed with
+the other reveals; 34% because IntersectionObserver counts a clip-path), words underneath, 64px between scenes; the
+"more on" buttons are underlined text links with an arrow. Computers keep the pinned split screen unchanged. The menu sits in a frosted pill on
 desktop because it can reach over the photo half. Pinned in `verify-showcase-design` sections 4 and 6.
 
 ### 🔴 The three offered designs must never look alike (Bryson, 2026-11-04)

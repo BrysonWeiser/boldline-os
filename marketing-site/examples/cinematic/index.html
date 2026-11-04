@@ -299,6 +299,7 @@ html.mo [data-tilt]{transition:transform .8s var(--ease)}
 .cn-why li{padding-top:16px;border-top:1px solid var(--line)}
 .cn-why b{display:block;font-size:18px;letter-spacing:-.01em}
 .cn-why span{display:block;color:var(--mute);font-size:15.5px;margin-top:4px}
+.cn-ph{display:none}
 .rate{display:inline-flex;align-items:center;gap:9px;padding:7px 14px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);font-size:14px;font-weight:700}
 .rate .st{color:#F5A524;letter-spacing:1px}.rate small{font-size:13px;font-weight:500;color:var(--mute)}
 /* the inside pages open on the same split: a photo on one half, the title on the other */
@@ -323,7 +324,7 @@ html.mo [data-tilt]{transition:transform .8s var(--ease)}
 .ctab .glow{display:none}
 @media(min-width:900px){
   /* The scene being told is lit; the others wait, dimmed. Only with motion on: every word is readable without it. */
-  html.mo .cn-sc>*{opacity:.16;transform:translateY(22px);transition:opacity .8s var(--ease),transform 1s var(--ease)}
+  html.mo .cn-sc>*:not(.cn-ph){opacity:.16;transform:translateY(22px);transition:opacity .8s var(--ease),transform 1s var(--ease)}
   html.mo .cn-sc.act>*{opacity:1;transform:none}
   html.mo .cn-sc.act>:nth-child(2){transition-delay:.06s}html.mo .cn-sc.act>:nth-child(3){transition-delay:.12s}html.mo .cn-sc.act>:nth-child(4){transition-delay:.18s}
   /* The business name sits over the photo half until the header turns solid. */
@@ -332,16 +333,23 @@ html.mo [data-tilt]{transition:transform .8s var(--ease)}
   body[data-theme=cinematic] .hd:not(.solid) .nav{background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:999px;padding:11px 20px}
 }
 @media(max-width:899px){
-  /* Phone (Bryson, 2026-11-04: "at least on mobile it's a bit tight"): a shorter band that sits just under the menu
-     (the script moves it as the menu slides in and out, so the menu never covers it), a soft fade under the band so
-     words don't scroll hard against the photo, more room between scenes, phone-sized headings, and the "more on"
-     links as light text links instead of big outlined buttons. */
+  /* Phone (Bryson, 2026-11-04: "it's still tight I think we need to change up the design a bit when scrolling"). A
+     photo pinned at the top of a phone always ate a third of the screen, so on a phone there is no pinned photo: each
+     scene is its own full-width photo, opening like a film frame as it scrolls in, with its words underneath and room
+     to breathe. Computers keep the split screen. */
   .cn{display:block;padding-top:76px}
-  .cn-media{position:sticky;top:0;height:30svh;min-height:180px;z-index:3;box-shadow:0 22px 24px -4px var(--bg);transition:top .5s var(--ease)}
-  .cn-cap{left:22px;right:22px;bottom:14px;font-size:13px}
+  .cn-media{display:none}
   .cn-text{padding:0 22px}
-  .cn-sc,.cn-top .cn-sc:first-child{min-height:0;padding:52px 0 56px;max-width:none}
-  .cn-top .cn-sc:first-child{padding-top:30px}
+  .cn-sc,.cn-top .cn-sc:first-child{min-height:0;padding:0 0 64px;max-width:none}
+  .cn-sc+.cn-sc{border-top:0}
+  .cn-ph{display:block;position:relative;margin:0 -22px 26px;aspect-ratio:4/3;overflow:hidden;background:var(--deep)}
+  .cn-top .cn-sc:first-child .cn-ph{aspect-ratio:16/9}
+  .cn-ph img{width:100%;height:100%;object-fit:cover}
+  html.mo .cn-ph{clip-path:inset(34% 0 34% 0);transition:clip-path 1.3s var(--io)}
+  html.mo .cn-ph.in{clip-path:inset(0 0 0 0)}
+  html.mo .cn-ph img{transform:scale(1.18);transition:transform 2.4s var(--ease)}
+  html.mo .cn-ph.in img{transform:scale(1)}
+  html.mo .cn-top .cn-sc:first-child .cn-ph{clip-path:none}
   .cn-sc h1{font-size:clamp(32px,8.4vw,46px);margin-top:14px}
   .cn-sc h2{font-size:clamp(27px,7.2vw,40px)}
   .cn-sc .eyebrow+h2{margin-top:12px}
@@ -401,17 +409,17 @@ var b=document.querySelector('.bl-mode');if(b)b.addEventListener('click',functio
 <a href="/examples/cinematic/" data-page="home">Home</a><a href="/examples/cinematic/services/" data-page="services">Services</a><a href="/examples/cinematic/about/" data-page="about">About</a><a href="/examples/cinematic/reviews/" data-page="reviews">Reviews</a><a href="/examples/cinematic/contact/" data-page="contact">Contact</a>
 <a href="tel:6025550148">(602) 555-0148</a></div>
 <main><section class="cn cn-top" data-cn><div class="cn-media" aria-hidden="true"><div class="cn-fr"><img class="cn-img on" src="/img/sample/pool-189296.jpg" alt="" fetchpriority="high"><img class="cn-img" src="/img/sample/pool-261102.jpg" alt="" loading="lazy" decoding="async"><img class="cn-img" src="/img/sample/pool-189296.jpg" alt="" loading="lazy" decoding="async"><img class="cn-img" src="/img/sample/pool-261102.jpg" alt="" loading="lazy" decoding="async"><img class="cn-img" src="/img/sample/pool-189296.jpg" alt="" loading="lazy" decoding="async"><img class="cn-img" src="/img/sample/pool-261102.jpg" alt="" loading="lazy" decoding="async"></div><div class="cn-cap"><span class="cn-lbl">Scroll to explore</span><i class="cn-bar"><b></b></i></div></div>
-<div class="cn-text"><div class="cn-sc act" data-l="Scroll to explore"><div class="top"><span class="eyebrow"><i></i>Custom pools in Phoenix</span></div>
+<div class="cn-text"><div class="cn-sc act" data-l="Scroll to explore"><figure class="cn-ph" aria-hidden="true"><img src="/img/sample/pool-189296.jpg" alt=""></figure><div class="top"><span class="eyebrow"><i></i>Custom pools in Phoenix</span></div>
 <h1 class="disp hl"><span class="ln"><span>Your backyard, finished.</span></span></h1><p class="sub">Custom pools designed around how your family actually uses the yard, built on schedule and backed for ten years.</p><div class="go"><a href="/examples/cinematic/contact/" data-page="contact" class="btn"><span class="bt"><span data-t="Book a design visit">Book a design visit</span></span></a><a href="/examples/cinematic/services/" data-page="services" class="btn ghost"><span class="bt"><span data-t="See finished pools">See finished pools</span></span></a></div></div>
-<div class="cn-sc" data-l="Custom pool builds"><span class="eyebrow"><i></i>What we do</span><h2 class="disp">Custom pool builds</h2><p>Designed for your yard, your budget and the way you swim.</p>
+<div class="cn-sc" data-l="Custom pool builds"><figure class="cn-ph" aria-hidden="true"><img src="/img/sample/pool-261102.jpg" alt="" loading="lazy" decoding="async"></figure><span class="eyebrow"><i></i>What we do</span><h2 class="disp">Custom pool builds</h2><p>Designed for your yard, your budget and the way you swim.</p>
 <div class="go"><a class="btn ghost" href="/examples/cinematic/services/#s1" data-page="services"><span class="bt"><span data-t="See the details">See the details</span></span></a></div></div>
-<div class="cn-sc" data-l="Remodels"><h2 class="disp">Remodels</h2><p>New finish, tile and lighting for a pool that&#39;s seen better days.</p>
+<div class="cn-sc" data-l="Remodels"><figure class="cn-ph" aria-hidden="true"><img src="/img/sample/pool-189296.jpg" alt="" loading="lazy" decoding="async"></figure><h2 class="disp">Remodels</h2><p>New finish, tile and lighting for a pool that&#39;s seen better days.</p>
 <div class="go"><a class="btn ghost" href="/examples/cinematic/services/#s2" data-page="services"><span class="bt"><span data-t="More on remodels">More on remodels</span></span></a></div></div>
-<div class="cn-sc" data-l="Spas and water features"><h2 class="disp">Spas and water features</h2><p>Add warmth and sound without starting over.</p>
+<div class="cn-sc" data-l="Spas and water features"><figure class="cn-ph" aria-hidden="true"><img src="/img/sample/pool-261102.jpg" alt="" loading="lazy" decoding="async"></figure><h2 class="disp">Spas and water features</h2><p>Add warmth and sound without starting over.</p>
 <div class="go"><a class="btn ghost" href="/examples/cinematic/services/#s3" data-page="services"><span class="bt"><span data-t="See the details">See the details</span></span></a></div></div>
-<div class="cn-sc" data-l="Our story"><span class="eyebrow"><i></i>Our story</span><p class="lead disp">We started with one truck and a promise to answer the phone.</p>
+<div class="cn-sc" data-l="Our story"><figure class="cn-ph" aria-hidden="true"><img src="/img/sample/pool-189296.jpg" alt="" loading="lazy" decoding="async"></figure><span class="eyebrow"><i></i>Our story</span><p class="lead disp">We started with one truck and a promise to answer the phone.</p>
 <div class="go"><a href="/examples/cinematic/about/" data-page="about" class="btn ghost"><span class="bt"><span data-t="Read our story">Read our story</span></span></a></div></div>
-<div class="cn-sc" data-l="Why us"><h2 class="disp">Why people choose Saguaro Pool</h2><ul class="cn-why"><li><b>Fixed quotes</b><span>The number we give you is the number you pay.</span></li><li><b>Weekly updates</b><span>Photos and a plain update every Friday.</span></li><li><b>Ten year warranty</b><span>On the shell and the plumbing.</span></li></ul></div></div></section>
+<div class="cn-sc" data-l="Why us"><figure class="cn-ph" aria-hidden="true"><img src="/img/sample/pool-261102.jpg" alt="" loading="lazy" decoding="async"></figure><h2 class="disp">Why people choose Saguaro Pool</h2><ul class="cn-why"><li><b>Fixed quotes</b><span>The number we give you is the number you pay.</span></li><li><b>Weekly updates</b><span>Photos and a plain update every Friday.</span></li><li><b>Ten year warranty</b><span>On the shell and the plumbing.</span></li></ul></div></div></section>
 <div class="marq" aria-hidden="true"><div class="tr"><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span></div></div>
 <section class="sec"><div class="wrap split"><div><span class="eyebrow rv"><i></i>How it works</span><h2 class="disp rv" style="font-size:clamp(34px,5vw,68px);margin-top:18px">Simple from the first call.</h2></div>
 <div class="steps" data-scene="pass"><div class="step rv"><span class="num">Step 1</span><div><h3>Design visit</h3><p>We measure, listen and sketch.</p></div></div><div class="step rv"><span class="num">Step 2</span><div><h3>Fixed quote</h3><p>Clear scope and one price.</p></div></div><div class="step rv"><span class="num">Step 3</span><div><h3>Build</h3><p>Most pools finish in five to eight weeks.</p></div></div></div></div></section>
@@ -441,7 +449,7 @@ function q(s,r){return [].slice.call((r||d).querySelectorAll(s));}
 function cl(x,a,b){return x<a?a:x>b?b:x;}
 if(!rm&&M.e==='chars'){q('.hl').forEach(function(t){t.setAttribute('aria-label',t.textContent.trim());var i=0;q('.ln>span',t).forEach(function(s){s.setAttribute('aria-hidden','true');s.innerHTML=s.textContent.split(/(\s+)/).map(function(w){if(/^\s+$/.test(w))return ' ';return '<span style="display:inline-block;white-space:nowrap">'+(w.match(/.[.,!?;:)]*/g)||[]).map(function(ch){return '<span class="ch" style="--i:'+(i++)+'">'+ch.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/^(.)([.,!?;:)]+)$/,'$1<span class="pn">$2</span>')+'</span>';}).join('')+'</span>';}).join('');});});}
 var io='IntersectionObserver' in window?new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{rootMargin:'0px 0px -8% 0px',threshold:.12}):null;
-q('.rv,.hl,.ph,.rule').forEach(function(el){if(io)io.observe(el);else el.classList.add('in');});
+q('.rv,.hl,.ph,.rule,.cn-ph').forEach(function(el){if(io)io.observe(el);else el.classList.add('in');});
 var fl=q('.fill');fl.forEach(function(p){p.innerHTML=p.textContent.trim().split(/\s+/).map(function(w){return '<span class="w">'+w.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span> ';}).join('');});
 var sc=q('[data-scene]'),sk=q('.stk .sk'),rails=q('.rail');
 function measure(){rails.forEach(function(r){var tr=r.querySelector('.track'),on=!rm&&innerWidth>=900&&r.querySelectorAll('.rc').length>=5;r.classList.toggle('on',on);if(!on){r.style.height='';return;}var dx=Math.max(0,tr.scrollWidth-innerWidth);if(dx<innerWidth*.4){r.classList.remove('on');r.style.height='';return;}r.style.setProperty('--dx',dx);r.style.height=(innerHeight+dx)+'px';});}
@@ -453,9 +461,7 @@ var cns=q('[data-cn]').map(function(s){return {s:s,sc:q('.cn-sc',s),im:q('.cn-im
 function cnUpd(){var vh=innerHeight,ln=innerWidth<900?vh*.62:vh*.5;cns.forEach(function(c){var k=0;for(var i=0;i<c.sc.length;i++){if(c.sc[i].getBoundingClientRect().top<ln)k=i;}
 if(k!==c.k){c.sc[c.k].classList.remove('act');c.sc[k].classList.add('act');for(var j=0;j<c.im.length;j++)c.im[j].classList.toggle('on',j===k);if(c.lb)c.lb.textContent=c.sc[k].getAttribute('data-l')||'';c.k=k;}
 if(c.bar){var R=c.s.getBoundingClientRect();c.bar.style.transform='scaleX('+cl(-R.top/Math.max(1,R.height-vh),0,1).toFixed(3)+')';}});}
-var cnm=q('.cn-media');
-function cnTop(){if(!cnm.length)return;var t='';if(innerWidth<900&&hd){var b=parseFloat(getComputedStyle(hd).top)||0;t=(hd.classList.contains('hide')?b:b+hd.offsetHeight)+'px';}cnm.forEach(function(m){m.style.top=t;});}
-function frame(){tk=false;var y=scrollY;cnUpd();if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}cnTop();last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
+function frame(){tk=false;var y=scrollY;cnUpd();if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
 function onScroll(){if(!tk){tk=true;requestAnimationFrame(frame);}}
 measure();frame();addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',function(){measure();onScroll();});addEventListener('load',function(){measure();onScroll();});
 var mqe=d.querySelector('.marq');if(mqe&&!rm&&M.m==='velocity'){mqe.classList.add('vel');var tr=mqe.querySelector('.tr'),x=0,v=0,ly=scrollY,mv=true;
