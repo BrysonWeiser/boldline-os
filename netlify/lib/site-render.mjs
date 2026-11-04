@@ -734,10 +734,13 @@ requestAnimationFrame(function(t){fr(t);c.classList.add('on');});}
 
 // Everything that moves. Shipped verbatim to the client's domain, so: no comments, and nothing
 // that only a modern build tool understands.
+// A refresh always opens at the top (Bryson, 2026-11-04: "When I refresh it starts here make sure it starts at the top");
+// a link to a section (#s2) still lands on it.
 function motionScript(cl, recipe) {
   const M = JSON.stringify({ e: recipe.entrance, m: recipe.marquee, c: !!recipe.cursor }).replace(/</g, "\\u003c");
   return `(function(){var d=document,h=d.documentElement;h.classList.add('js');
 var PREVIEW=String(location.href).indexOf('about:')===0;
+try{if('scrollRestoration' in history)history.scrollRestoration='manual';if(!location.hash)scrollTo(0,0);}catch(x){}
 try{var M=${M};
 var rm=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 var fine=window.matchMedia&&matchMedia('(hover: hover) and (pointer: fine)').matches;

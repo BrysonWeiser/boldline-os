@@ -425,7 +425,9 @@ image inside by `--y * .08%` of its own height (max 4.8%, inside the 6% the 1.12
 and Bryson's iPhone showed a grey strip across the top of the frame. Phones also drop "Scroll to explore" and use 112px
 top padding so the photo follows the buttons closely. Only without reduced motion. Entrance: `clip-path` opens from 34% top/bottom (not more: IntersectionObserver counts a
 clip-path, and at 47% only 6% showed so the 12% threshold never fired and the frame stayed shut). With 2+ photos the
-services section starts on photo 2 so the same picture never sits twice in a row. Pinned in `verify-showcase-design` §4.
+services section starts on photo 2 so the same picture never sits twice in a row. **A refresh opens at the top** (every design): `motionScript`
+sets `history.scrollRestoration='manual'` and scrolls to 0 unless the address has a #section. Bryson's iPhone reopened the
+Cinematic sample halfway down. Pinned in `verify-showcase-design` §4.
 | **Aurora** | dark, Bricolage Grotesque, eyebrow pill, centered hero, marquee strip | the trade's 3D backdrop full screen |
 | **Editorial** | paper white, Fraunces serif, drawn underline, photo-led hero | no WebGL (deliberate); tilt on the hero photo |
 Motion per client: see the table above. Header hides on scroll down, floating pill CTA (Book + Call).
