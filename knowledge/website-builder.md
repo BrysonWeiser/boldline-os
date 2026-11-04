@@ -434,7 +434,11 @@ JS). Everything else in his layout (strip, before/after, steps, FAQ, reviews, hi
 order; hidden parts stay hidden. Phone (<900px): the photos become a band (34svh) pinned under the header. Inside pages
 open on the same split (`.cnh`, `pageHero(..., C.pagePh)`); Services page is told as scenes too (ids s1..sN, so the
 home links land); the closing CTA is a full-bleed photo end card (`.cn-end`, `ctaBand` when `C.theme==="cinematic"`).
-Headlines use `oneLine` (natural wrapping; fixed thirds left "in" alone on a phone). The menu sits in a frosted pill on
+Headlines use `oneLine` (natural wrapping; fixed thirds left "in" alone on a phone). **Phone clean-up (Bryson, same day: "at least on mobile
+it's a bit tight"):** band 30svh (min 180px) with a soft bg-coloured fade under it; `cnTop()` (called in `frame()`) sets the
+band's sticky `top` to just under the menu while the menu shows and to the strip/top when it hides, so the menu never
+covers it (it did in his screenshot); more space between scenes; phone-sized headings; the "more on" buttons become text
+links with an underline and an arrow (the hero's two buttons stay real buttons). The menu sits in a frosted pill on
 desktop because it can reach over the photo half. Pinned in `verify-showcase-design` sections 4 and 6.
 
 ### 🔴 The three offered designs must never look alike (Bryson, 2026-11-04)

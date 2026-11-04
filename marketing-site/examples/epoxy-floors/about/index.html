@@ -332,13 +332,28 @@ html.mo [data-tilt]{transition:transform .8s var(--ease)}
   body[data-theme=cinematic] .hd:not(.solid) .nav{background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:999px;padding:11px 20px}
 }
 @media(max-width:899px){
+  /* Phone (Bryson, 2026-11-04: "at least on mobile it's a bit tight"): a shorter band that sits just under the menu
+     (the script moves it as the menu slides in and out, so the menu never covers it), a soft fade under the band so
+     words don't scroll hard against the photo, more room between scenes, phone-sized headings, and the "more on"
+     links as light text links instead of big outlined buttons. */
   .cn{display:block;padding-top:76px}
-  .cn-media{position:sticky;top:0;height:34svh;z-index:3}
-  .cn-cap{left:20px;right:20px;bottom:14px;font-size:13px}
-  .cn-text{padding:0 20px}
-  .cn-sc,.cn-top .cn-sc:first-child{min-height:0;padding:30px 0 42px;max-width:none}
-  .cn-sc h1{font-size:clamp(34px,9.2vw,54px);margin-top:16px}
-  .cn-sc .go{margin-top:22px}
+  .cn-media{position:sticky;top:0;height:30svh;min-height:180px;z-index:3;box-shadow:0 22px 24px -4px var(--bg);transition:top .5s var(--ease)}
+  .cn-cap{left:22px;right:22px;bottom:14px;font-size:13px}
+  .cn-text{padding:0 22px}
+  .cn-sc,.cn-top .cn-sc:first-child{min-height:0;padding:52px 0 56px;max-width:none}
+  .cn-top .cn-sc:first-child{padding-top:30px}
+  .cn-sc h1{font-size:clamp(32px,8.4vw,46px);margin-top:14px}
+  .cn-sc h2{font-size:clamp(27px,7.2vw,40px)}
+  .cn-sc .eyebrow+h2{margin-top:12px}
+  .cn-sc>p{font-size:16px;margin-top:14px}
+  .cn-sc .lead{font-size:clamp(22px,6vw,30px)}
+  .cn-why{margin-top:20px;gap:14px}.cn-why b{font-size:17px}
+  .cn-sc .go{margin-top:20px}
+  .cn-sc .go .btn.ghost{min-height:44px;padding:0;border:0;background:none;color:var(--ink);font-weight:650;gap:8px}
+  .cn-sc .go .btn.ghost .bt{border-bottom:2px solid var(--ac3);padding-bottom:3px}
+  .cn-sc .go .btn.ghost::after{content:"\2192";color:var(--ac3)}
+  .cn-top .cn-sc:first-child .go .btn.ghost{min-height:52px;padding:0 28px;border:1px solid var(--line)}
+  .cn-top .cn-sc:first-child .go .btn.ghost .bt{border:0;padding:0}.cn-top .cn-sc:first-child .go .btn.ghost::after{content:none}
   .cnh{display:block;padding-top:76px;min-height:0}
   .cnh-m{height:30svh}
   .cnh-t{padding:30px 20px 8px}
@@ -423,7 +438,9 @@ var cns=q('[data-cn]').map(function(s){return {s:s,sc:q('.cn-sc',s),im:q('.cn-im
 function cnUpd(){var vh=innerHeight,ln=innerWidth<900?vh*.62:vh*.5;cns.forEach(function(c){var k=0;for(var i=0;i<c.sc.length;i++){if(c.sc[i].getBoundingClientRect().top<ln)k=i;}
 if(k!==c.k){c.sc[c.k].classList.remove('act');c.sc[k].classList.add('act');for(var j=0;j<c.im.length;j++)c.im[j].classList.toggle('on',j===k);if(c.lb)c.lb.textContent=c.sc[k].getAttribute('data-l')||'';c.k=k;}
 if(c.bar){var R=c.s.getBoundingClientRect();c.bar.style.transform='scaleX('+cl(-R.top/Math.max(1,R.height-vh),0,1).toFixed(3)+')';}});}
-function frame(){tk=false;var y=scrollY;cnUpd();if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
+var cnm=q('.cn-media');
+function cnTop(){if(!cnm.length)return;var t='';if(innerWidth<900&&hd){var b=parseFloat(getComputedStyle(hd).top)||0;t=(hd.classList.contains('hide')?b:b+hd.offsetHeight)+'px';}cnm.forEach(function(m){m.style.top=t;});}
+function frame(){tk=false;var y=scrollY;cnUpd();if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}cnTop();last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
 function onScroll(){if(!tk){tk=true;requestAnimationFrame(frame);}}
 measure();frame();addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',function(){measure();onScroll();});addEventListener('load',function(){measure();onScroll();});
 var mqe=d.querySelector('.marq');if(mqe&&!rm&&M.m==='velocity'){mqe.classList.add('vel');var tr=mqe.querySelector('.tr'),x=0,v=0,ly=scrollY,mv=true;
