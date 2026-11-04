@@ -79,3 +79,27 @@ and points to the Brand kit.
 - `tests/verify-brand-kit.mjs` (27 checks).
 - Driven in a browser on laptop and phone: uploading a two-colour PNG gave exactly #0F766E and #F59E0B,
   and tapping a swatch filled the slot. No sideways scroll.
+
+## 2026-11-04: every preview in the business's own colours, read off its current website
+Bryson: *"make sure any previews are done in the brands colors using anything we can from their website. Right now
+it's not using the brand colors for every preview"*. Two real gaps: demos never read the prospect's site at all, and
+pitch previews (KB demo-sites) DROPPED the client's Brand kit, typed colour and logo.
+- `netlify/lib/brand-scrape.mjs` `brandFromSite(url)`: the home page plus up to 3 of its own stylesheets (toolkit
+  sheets like bootstrap, font-awesome, wp block-library skipped) and its logo if it is an SVG. Scores colours: logo
+  fills 30, theme-color 40, `--primary/--brand/--accent...` variables 14, button colours 6, everything else 1.
+  🔴 Toolkit defaults (Bootstrap 3/4/5 incl. hover and border shades, WordPress presets, Elementor) never count:
+  chemdry.com read as Bootstrap's link blue before that. Greys, near white and near black never count. Also the logo
+  (image files only) and Google fonts. Public https only (safePublicUrl, every redirect re-checked), 7s timeouts.
+  Nothing usable returns null and the design keeps its own colours (no guessing).
+- Stored as `siteBrand` on a client (server-owned) and `demoSite.brand` / `pitchSite.brand` on previews.
+  `currentSiteOf`: prospect `domain`, a typed `website` string, `websiteUrl`, portal `websiteIntake.domain`, their own
+  domain before our site is live on it. Never social profiles, directories, BoldLine or internal addresses.
+- 🔴 Hand-set always wins: brandColorOf puts siteBrand LAST (after Brand kit, website.brandColor, brandColor, landing
+  page colour); its second/accent colours only come along when the main colour is also theirs; kit fonts beat its
+  fonts; an uploaded logo beats its logo.
+- Read automatically when a demo, a pitch preview or a client's real website is built (real builds at most every 30
+  days). "Use their website's colours" on both preview cards re-reads without rewriting the words, and asks for the
+  address when the OS doesn't know it.
+- Spot-checked live: servpro.com orange, rotorooter.com navy + red, stanleysteemer.com yellow, twomenandatruck.com
+  yellow; chemdry.com gives nothing (all toolkit colours), so its preview keeps the design's own.
+- `tests/verify-site-brand.mjs` (24 checks, 4 mutations caught).

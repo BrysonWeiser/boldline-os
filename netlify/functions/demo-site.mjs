@@ -12,7 +12,9 @@ import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { renderSite, pageById, THEME_IDS, SITE_THEMES, siteReady, pickThemesFor, THEME_DEFAULT } from "../lib/site-render.mjs";
 import { demoClientOf, demoExpired, demoSummary, decorateDemo, validToken, pitchClientOf } from "../lib/demo-site.mjs";
 import { isBlocked } from "../lib/outreach.mjs";
-import { saveDemo, findProspect, savePitch } from "./demo-site-background.mjs";
+import { saveDemo, findProspect, savePitch, saveSiteBrand } from "./demo-site-background.mjs";
+import { brandFromSite, currentSiteOf } from "../lib/brand-scrape.mjs";
+import { safePublicUrl } from "../lib/biz-email.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -61,6 +63,31 @@ export default async (req) => {
   if (req.method === "POST") {
     if (!(await owner(req, supabase))) return json({ ok: false, error: "Not authenticated" }, 401);
     let body; try { body = JSON.parse((await req.text()) || "{}"); } catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+    // "Use their website's colours" (KB brand-kit): read their current site again, words untouched. `url` is an address
+    // Bryson typed when the OS doesn't know one.
+    if (body.action === "brand") {
+      const typed = body.url ? safePublicUrl(/^https?:\/\//i.test(String(body.url)) ? String(body.url).replace(/^http:/i, "https:") : `https://${String(body.url).trim()}`) : "";
+      if (body.url && !typed) return json({ ok: false, error: "That doesn't look like a website address." }, 400);
+      if (body.clientId) {
+        const { data: crow } = await supabase.from("clients").select("id, data").eq("id", String(body.clientId)).maybeSingle();
+        if (!crow) return json({ ok: false, error: "That client could not be found." }, 404);
+        const site = typed || currentSiteOf(crow.data);
+        if (!site) return json({ ok: false, needUrl: true, error: "What's their current website address?" });
+        const brand = await brandFromSite(site);
+        if (!brand) return json({ ok: false, error: "Couldn't read colours from that site. Set them by hand in their Brand kit (Assets tab)." });
+        await saveSiteBrand(supabase, crow.id, brand);
+        if (crow.data.pitchSite) await savePitch(supabase, crow.id, { brand });
+        return json({ ok: true, brand });
+      }
+      const pr = await findProspect(supabase, String(body.id || ""), "*");
+      if (!pr) return json({ ok: false, error: "That company could not be found." }, 404);
+      const site = typed || currentSiteOf(pr);
+      if (!site) return json({ ok: false, needUrl: true, error: "What's their current website address?" });
+      const brand = await brandFromSite(site);
+      if (!brand) return json({ ok: false, error: "Couldn't read colours from that site." });
+      await saveDemo(supabase, pr.id, { brand });
+      return json({ ok: true, brand });
+    }
     // A pitch preview on an existing client (KB demo-sites, "pitch previews"): poll, design, or the finished copy.
     if (body.clientId) {
       const { data: crow } = await supabase.from("clients").select("id, data").eq("id", String(body.clientId)).maybeSingle();

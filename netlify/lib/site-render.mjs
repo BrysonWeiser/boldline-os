@@ -220,7 +220,8 @@ function photosFor(cl) {
   const stock = (((cl && cl.website && cl.website.stock) || [])).filter((s) => s && httpsUrl(s.url)).map((s) => ({ url: httpsUrl(s.url), alt: clean(s.alt || "", 80), own: false }));
   return own.concat(stock);
 }
-const logoOf = (cl) => { const m = ((cl && cl.mediaLibrary) || []).find((x) => x && x.category === "logo" && httpsUrl(x.url)); return m ? httpsUrl(m.url) : ""; };
+// Their uploaded logo, else the one on their current website (siteBrand).
+const logoOf = (cl) => { const m = ((cl && cl.mediaLibrary) || []).find((x) => x && x.category === "logo" && httpsUrl(x.url)); return m ? httpsUrl(m.url) : httpsUrl(cl && cl.siteBrand && cl.siteBrand.logo); };
 
 // ── Palettes ──────────────────────────────────────────────────────────────────────────────
 // The 3D backdrop's colors: a base set per scene, leaned toward the client's own color.
@@ -242,7 +243,9 @@ function glPalette(scene, dark, a, bg) {
 export function brandColorOf(cl) {
   const w = (cl && cl.website) || {};
   // A brand kit he set by hand (KB brand-kit) beats anything a generator chose.
-  for (const c of [cl && cl.brandKit && cl.brandKit.primary, w.brandColor, cl && cl.brandColor, cl && cl.landingPage && cl.landingPage.brandColor]) if (hexOk(c)) return c;
+  // Last: the colour read off their CURRENT website (siteBrand, KB brand-kit), so every preview is in their colours
+  // even before anyone sets a kit. Anything set by hand still wins.
+  for (const c of [cl && cl.brandKit && cl.brandKit.primary, w.brandColor, cl && cl.brandColor, cl && cl.landingPage && cl.landingPage.brandColor, cl && cl.siteBrand && cl.siteBrand.primary]) if (hexOk(c)) return c;
   return null;
 }
 

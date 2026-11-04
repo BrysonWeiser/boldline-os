@@ -19,8 +19,10 @@ const gfHref = (name, weights) => `https://fonts.googleapis.com/css2?family=${en
 // Two stylesheets per font: the plain one always loads for any Google font, the one with bold weights may not
 // exist for a single-weight display face, and a missing one only costs that one request.
 export function brandFonts(cl) {
-  const k = (cl && cl.brandKit) || {};
-  const heading = fontName(k.headingFont), body = fontName(k.bodyFont);
+  // The kit's fonts, else the Google fonts their current website loads (siteBrand, KB brand-kit).
+  const k = (cl && cl.brandKit) || {}, sb = (cl && cl.siteBrand) || {};
+  const kh = fontName(k.headingFont), kb = fontName(k.bodyFont);
+  const heading = kh || (kb ? "" : fontName(sb.headingFont)), body = kb || (kh ? "" : fontName(sb.bodyFont));
   const hrefs = [...new Set([heading, body].filter(Boolean))].flatMap((n) => [gfHref(n, ""), gfHref(n, "400;600;700")]);
   return { heading, body, hrefs };
 }
@@ -31,8 +33,11 @@ export const fontLinks = (hrefs) => hrefs.map((h) => `<link rel="stylesheet" hre
 // ── Colours ───────────────────────────────────────────────────────────────────────────────
 // The second and accent colours, each falling back to the main colour.
 export function brandAccents(cl, main) {
-  const k = (cl && cl.brandKit) || {};
-  return { second: hex6(k.secondary) ? k.secondary : main, accent: hex6(k.accent) ? k.accent : main };
+  const k = (cl && cl.brandKit) || {}, sb = (cl && cl.siteBrand) || {};
+  // Only borrow their website's second and accent colours when the main colour is theirs too: a hand-set main
+  // colour beside two colours read off the old site could clash.
+  const fromSite = !!(sb.primary && String(main || "").toLowerCase() === String(sb.primary).toLowerCase());
+  return { second: hex6(k.secondary) ? k.secondary : fromSite && hex6(sb.second) ? sb.second : main, accent: hex6(k.accent) ? k.accent : fromSite && hex6(sb.accent) ? sb.accent : main };
 }
 
 // ── Before and after ──────────────────────────────────────────────────────────────────────

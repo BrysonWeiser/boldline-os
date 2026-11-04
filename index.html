@@ -6283,6 +6283,14 @@ function clientFromDemo(p,demo,plan){
 // until he pays but I want to be able to show him and pitch it". The preview lives on `pitchSite` (server-owned),
 // NOT `website`: the portal never shows it, there is no download and no publish, and the private link expires after
 // 30 days. It becomes their website only once the website agreement is signed and the first payment is in.
+// Read the business's colours, logo and fonts off its current website again, without rewriting the words (KB brand-kit).
+const useSiteColours=async(body,setMsg)=>{
+  try{
+    let d=await fetch("/.netlify/functions/demo-site",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await demoAuth())},body:JSON.stringify({action:"brand",...body})}).then(r=>r.json()).catch(()=>({ok:false,error:"Could not reach the server."}));
+    if(!d.ok&&d.needUrl){ const u=window.prompt("What's their current website address? (for example theirbusiness.com)"); if(!u) return; d=await fetch("/.netlify/functions/demo-site",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await demoAuth())},body:JSON.stringify({action:"brand",...body,url:u})}).then(r=>r.json()).catch(()=>({ok:false,error:"Could not reach the server."})); }
+    setMsg(d.ok?`Done. Using their colours${d.brand&&d.brand.primary?` (${d.brand.primary})`:""}${d.brand&&d.brand.logo?" and logo":""}. Open the preview to see it.`:(d.error||"That didn't work."));
+  }catch(e){ setMsg(e.message); }
+};
 const PITCH_STORE={}; const PITCH_SUBS=new Set();
 const pitchSet=(id,patch)=>{ PITCH_STORE[id]={...(PITCH_STORE[id]||{}),...patch}; PITCH_SUBS.forEach(f=>f()); };
 const pitchPoll=async(id)=>{
@@ -6355,7 +6363,8 @@ function PitchPreviewCard({client,onUpdate}){
               <span style={{fontSize:10.5,color:C.textMuted}}>Opens in</span>
               {demoThemesFor(demo.theme).map(([t,l])=>{ const on=demo.theme===t; return <button key={t} onClick={()=>!on&&setTheme(t)} aria-pressed={on}
                 style={{padding:"3px 10px",fontSize:11,fontWeight:700,borderRadius:999,border:`1px solid ${on?C.gold:C.border}`,background:on?C.goldDim:"transparent",color:on?C.gold:C.textDim,cursor:on?"default":"pointer"}}>{l}</button>; })}
-              <button onClick={build} style={{marginLeft:"auto",background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Rebuild</button>
+              <button onClick={()=>useSiteColours({clientId:id},m=>pitchSet(id,{msg:m}))} style={{marginLeft:"auto",background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Use their website's colours</button>
+              <button onClick={build} style={{background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Rebuild</button>
             </div>
           </>
         : <button onClick={build} style={btn(true)}>{demo&&demo.expired?"Build a fresh preview":"Build a preview to pitch"}</button>}
@@ -6418,7 +6427,8 @@ function DemoSiteBox({prospect,onCreateClient}){
               <span style={{fontSize:10.5,color:C.textMuted}}>Opens in</span>
               {demoThemesFor(demo.theme).map(([t,l])=>{ const on=demo.theme===t; return <button key={t} onClick={()=>!on&&setTheme(t)} aria-pressed={on}
                 style={{padding:"3px 10px",fontSize:11,fontWeight:700,borderRadius:999,border:`1px solid ${on?C.gold:C.border}`,background:on?C.goldDim:"transparent",color:on?C.gold:C.textDim,cursor:on?"default":"pointer"}}>{l}</button>; })}
-              <button onClick={build} style={{marginLeft:"auto",background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Rebuild</button>
+              <button onClick={()=>useSiteColours({id},m=>demoSet(id,{msg:m}))} style={{marginLeft:"auto",background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Use their website's colours</button>
+              <button onClick={build} style={{background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Rebuild</button>
             </div>
             {choosing&&(
               <div style={{marginTop:10,display:"grid",gap:7}}>
@@ -6432,7 +6442,7 @@ function DemoSiteBox({prospect,onCreateClient}){
             <div style={{fontSize:12,color:C.textMuted,lineHeight:1.5,marginBottom:8}}>{demo&&demo.expired?"Their demo link has ended. Rebuild it for a fresh 30 days (same link).":"Build their full website before the meeting, then show it to them. Uses stock photos until they send their own."}</div>
             <button onClick={build} style={btn(true)}>{demo&&demo.expired?"Rebuild their demo":"Build their demo website"}</button>
           </>}
-      {st.msg&&<div style={{fontSize:11.5,color:C.amber,marginTop:8,lineHeight:1.5}}>{st.msg}</div>}
+      {st.msg&&<div style={{fontSize:11.5,color:/^Done/.test(st.msg)?C.green:C.amber,marginTop:8,lineHeight:1.5}}>{st.msg}</div>}
     </div>
   );
 }
@@ -11209,7 +11219,7 @@ function BlogCard({client}){
 
 // ─── Website deal (mirror of netlify/lib/website-deal.mjs; pinned by tests/verify-website-deal.mjs) ───
 // The OS only READS cl.websiteDeal; the server owns it (SERVER_OWNED_KEYS). WD-MIRROR-START
-const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut","siteAiJob","websiteIntake","payConnect","payLog","googleLinkRequest","metaAccess","gbp","gbpDrafts","gbpLog","addOnBilling","pitchSite"];   // emails: KB business-emails; siteAiJob: KB site-editor; websiteIntake: KB website-needs (the client writes it in the portal); pay*: KB payments-connect
+const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut","siteAiJob","websiteIntake","payConnect","payLog","googleLinkRequest","metaAccess","gbp","gbpDrafts","gbpLog","addOnBilling","pitchSite","siteBrand"];   // emails: KB business-emails; siteAiJob: KB site-editor; websiteIntake: KB website-needs (the client writes it in the portal); pay*: KB payments-connect
 // Mirror of WEBSITE_OFFER in netlify/lib/pricing-shared.mjs (pinned by tests/verify-website-deal.mjs).
 const WEBSITE_OFFER={build:1500,care:100,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:150,blogPostsPerMonth:4,emailSetup:99,hosting:25,buyout:2500};
 const WD_DEFAULTS={price:WEBSITE_OFFER.build,plan:"full",care:WEBSITE_OFFER.care};

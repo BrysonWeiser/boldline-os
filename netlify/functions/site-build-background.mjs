@@ -16,6 +16,8 @@ import { humanizeDeep } from "../lib/humanize.mjs";
 import { brandName } from "../lib/site-render.mjs";
 import { buildLock, termsOf, exempt, extraPageAllowance } from "../lib/website-deal.mjs";
 import { slugify, RESERVED_SLUGS } from "../lib/site-render.mjs";
+import { brandFromSite, currentSiteOf } from "../lib/brand-scrape.mjs";
+import { saveSiteBrand } from "./demo-site-background.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const MODEL = "claude-opus-5-5";
@@ -187,7 +189,10 @@ export default async (req) => {
   }
   await writeJob(supabase, clientId, { id, status: "running", startedAt: new Date().toISOString(), content: null, stock: null, error: null });
   try {
-    const [content, stock] = await Promise.all([writeCopy(row.data), stockPhotos(row.data.niche)]);
+    // Their colours, logo and fonts from the website they have now (KB brand-kit), unless read in the last 30 days.
+    const sb = row.data.siteBrand, fresh = sb && Date.now() - Date.parse(sb.at || 0) < 30 * 864e5, site = fresh ? "" : currentSiteOf(row.data);
+    const [content, stock, brand] = await Promise.all([writeCopy(row.data), stockPhotos(row.data.niche), site ? brandFromSite(site).catch(() => null) : null]);
+    if (brand) await saveSiteBrand(supabase, clientId, brand);
     await writeJob(supabase, clientId, { id, status: "done", startedAt: null, finishedAt: new Date().toISOString(), content, stock, error: null });
   } catch (e) {
     const msg = String((e && e.message) || e);

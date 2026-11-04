@@ -56,6 +56,8 @@ export function demoClientOf(prospect, demo = {}) {
     researchFacts: facts,
     leadToken: "demo",
     landingSlug: "demo",
+    // Their look, read off their current website when the demo was built (brand-scrape.mjs).
+    ...(demo.brand ? { siteBrand: demo.brand } : {}),
     website: { content: demo.content || null, stock: demo.stock || [], theme: demo.theme || DEMO_THEME_DEFAULT, published: false,
       // The star rating the research found, shown at the top of the Showcase design. Only a real one with a count.
       ...(Number(d.rating) > 0 && Number(d.reviewCount) > 0 ? { rating: { stars: Number(d.rating), count: Number(d.reviewCount), source: s(d.reviewSource, 20) } } : {}) },
@@ -87,7 +89,14 @@ export function pitchClientOf(row, pitch = {}) {
     businessPhone: s(c.businessPhone || c.phone, 30), businessAddress: s(c.businessAddress, 160),
     campaignSetup: { serviceArea: s(cs.serviceArea || cs.targetLocations, 160) },
     leadToken: "demo", landingSlug: "demo", ...(c.gbpStats ? { gbpStats: c.gbpStats } : {}),
-    website: { content: pitch.content || null, stock: pitch.stock || [], theme: pitch.theme || DEMO_THEME_DEFAULT, published: false, ...((c.website || {}).rating ? { rating: c.website.rating } : {}) },
+    // 🔴 THEIR BRAND, which the first version dropped: the Brand kit, any colour set by hand, their logo, and what
+    // was read off their current website. A pitch in BoldLine's colours sells the wrong thing.
+    ...(c.brandKit ? { brandKit: c.brandKit } : {}), ...(c.brandColor ? { brandColor: c.brandColor } : {}),
+    ...(c.landingPage && c.landingPage.brandColor ? { landingPage: { brandColor: c.landingPage.brandColor } } : {}),
+    mediaLibrary: (c.mediaLibrary || []).filter((m) => m && m.category === "logo"),
+    ...(pitch.brand || c.siteBrand ? { siteBrand: pitch.brand || c.siteBrand } : {}),
+    website: { content: pitch.content || null, stock: pitch.stock || [], theme: pitch.theme || DEMO_THEME_DEFAULT, published: false, ...((c.website || {}).rating ? { rating: c.website.rating } : {}),
+      ...(c.website && typeof c.website === "object" && c.website.brandColor ? { brandColor: c.website.brandColor } : {}) },
   };
 }
 
