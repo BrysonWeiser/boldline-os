@@ -29,8 +29,15 @@ export async function runWatch(db, rows, { anthropic, tok, now = Date.now(), ale
   for (const r of rows) {
     const cl = r.data || {};
     if (!cl.gbp || !cl.gbp.location) continue;
-    let reviews;
-    try { reviews = (await listReviews(tok, cl.gbp)).reviews; } catch (e) { lines.push(`${cl.name}: could not read reviews (${e.message})`); continue; }
+    let reviews, rv;
+    try { rv = await listReviews(tok, cl.gbp); reviews = rv.reviews; } catch (e) { lines.push(`${cl.name}: could not read reviews (${e.message})`); continue; }
+    // The profile's real rating and count, for the star chip at the top of their website (site-render ratingOf).
+    const prevStats = cl.gbpStats || {};
+    if (Number(rv.average) > 0 && Number(rv.total) > 0 && (prevStats.average !== rv.average || prevStats.total !== rv.total)) {
+      try { const { data: f } = await db.from("clients").select("data").eq("id", r.id).maybeSingle();
+        const d0 = (f && f.data) || cl; await db.from("clients").update({ data: { ...d0, gbpStats: { average: rv.average, total: rv.total, at: new Date(now).toISOString() } }, updated_at: new Date(now).toISOString() }).eq("id", r.id);
+        cl.gbpStats = { average: rv.average, total: rv.total }; } catch (e) { console.error("gbp-watch stats:", e.message); }
+    }
     const p = plan(cl, reviews, now);
     if (!p.replies.length && !p.post) continue;
     const replies = {}; let post = null;

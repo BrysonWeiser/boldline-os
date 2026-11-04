@@ -12,7 +12,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { writeCopy, stockPhotos } from "./site-build-background.mjs";
 import { demoClientOf, newDemoToken, validToken, DEMO_THEME_DEFAULT, pitchWriterOf } from "../lib/demo-site.mjs";
-import { THEME_IDS } from "../lib/site-render.mjs";
+import { PICK_THEMES } from "../lib/site-render.mjs";
 import { isBlocked } from "../lib/outreach.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -48,7 +48,8 @@ export async function savePitch(supabase, id, patch) {
 }
 
 // A design that suits the trade, unless Bryson already picked one for this business.
-export const demoThemeFor = (niche, current) => (THEME_IDS.includes(current) ? current
+// A demo already on the retired Aurora moves to Showcase when it is rebuilt.
+export const demoThemeFor = (niche, current) => (PICK_THEMES.includes(current) ? current
   : /pool|roof|epoxy|floor|concrete|construct|remodel/i.test(String(niche || "")) ? "cinematic"
   : /law|account|clinic|chiro|dental|wellness|therap|salon|spa/i.test(String(niche || "")) ? "editorial"
   : DEMO_THEME_DEFAULT);

@@ -9,7 +9,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
-import { renderSite, THEME_IDS, SITE_THEMES, SITE_PAGES as SAMPLE_PAGES } from "../netlify/lib/site-render.mjs";
+import { renderSite, THEME_IDS, PICK_THEMES, SITE_THEMES, SITE_PAGES as SAMPLE_PAGES } from "../netlify/lib/site-render.mjs";
 import { DEMO, DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT, LANDING_DEMOS } from "./site-showcase-demo.mjs";
 import { renderLandingPage } from "../netlify/functions/landing.mjs";
 import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE, GOOGLE_PROFILE } from "../netlify/lib/pricing-shared.mjs";
@@ -346,7 +346,7 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
     </a>
     <a class="b-card b-web" style="--k:1" href="/websites/">
       <h3>Websites</h3><p>Three modern designs with real motion, still fast on a phone. From $1,500 to build.</p>
-      <div class="b-thumbs" aria-hidden="true"><img src="/img/design-editorial.jpg" width="1440" height="900" alt="" loading="lazy" decoding="async"><img src="/img/design-cinematic.jpg" width="1440" height="900" alt="" loading="lazy" decoding="async"><img src="/img/design-aurora.jpg" width="1440" height="900" alt="" loading="lazy" decoding="async"></div>
+      <div class="b-thumbs" aria-hidden="true"><img src="/img/design-editorial.jpg" width="1440" height="900" alt="" loading="lazy" decoding="async"><img src="/img/design-cinematic.jpg" width="1440" height="900" alt="" loading="lazy" decoding="async"><img src="/img/design-showcase.jpg" width="1440" height="900" alt="" loading="lazy" decoding="async"></div>
       <span class="b-go">See the designs <i>&rarr;</i></span>
     </a>
     <a class="b-card b-price" style="--k:2" href="/pricing/">
@@ -542,10 +542,10 @@ const SAMPLE_ORIGIN = "https://boldlinemedia.com";
 // trade page, each in the design that suits it (no switcher; "back" returns to its trade page).
 const SAMPLES = [
   ...THEME_IDS.map((t) => ({ slug: t, demo: DEMO, theme: t, switcher: true, back: "/websites/" })),
-  { slug: "car-detailing", demo: DEMO_DETAIL, theme: "aurora", switcher: false, back: "/industries/car-detailing/" },
+  { slug: "car-detailing", demo: DEMO_DETAIL, theme: "showcase", switcher: false, back: "/industries/car-detailing/" },
   { slug: "handyman", demo: DEMO_HANDY, theme: "editorial", switcher: false, back: "/industries/handyman/" },
   { slug: "epoxy-floors", demo: DEMO_EPOXY, theme: "cinematic", switcher: false, back: "/industries/epoxy-floors/" },
-  { slug: "window-tint", demo: DEMO_TINT, theme: "aurora", switcher: false, back: "/industries/window-tint/" },
+  { slug: "window-tint", demo: DEMO_TINT, theme: "showcase", switcher: false, back: "/industries/window-tint/" },
 ];
 const samplePath = (slug, page) => `examples/${slug}/${page.path ? page.path + "/" : ""}index.html`;
 const SAMPLE_PHOTOS = existsSync(join(OUT, "img", "sample")) ? readdirSync(join(OUT, "img", "sample")) : [];
@@ -563,7 +563,7 @@ function samplePage(sm, page) {
     return `/img/sample/${f}`;
   });
   const hasLanding = LANDING_DEMOS.some((l) => l.slug === sm.slug);
-  const designs = sm.switcher ? THEME_IDS.map((t) => `<a href="/examples/${t}/${page.path ? page.path + "/" : ""}"${t === sm.theme ? ' aria-current="page"' : ""}>${SITE_THEMES[t].label}</a>`).join("")
+  const designs = sm.switcher ? PICK_THEMES.map((t) => `<a href="/examples/${t}/${page.path ? page.path + "/" : ""}"${t === sm.theme ? ' aria-current="page"' : ""}>${SITE_THEMES[t].label}</a>`).join("")
     : hasLanding ? `<a aria-current="page" href="/examples/${sm.slug}/">Website</a><a href="/examples/${sm.slug}/landing/">Landing page</a>` : "";
   const bar = part("sample-bar.html").replace("{{DESIGNS}}", designs).replace("{{NAME}}", sm.demo.name).replace('href="/websites/"', `href="${sm.back}"`).replace(`href="${CAL}"`, `href="${CAL_WEB}"`)
     .replace('<nav class="bl-designs" aria-label="Designs"></nav>', '<span class="bl-spacer"></span>');

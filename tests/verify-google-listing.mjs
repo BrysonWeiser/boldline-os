@@ -194,7 +194,9 @@ S.rows.c2 = { name: "Another", internal: true, owned: true, commLog: [] };
   const before = { puts: S.puts.length, posts: S.posts.length };
   const res = await W.runWatch(db, rows, { anthropic: { messages: { create: async () => ({ content: [{ type: "text", text: S.anthropicText }] }) } }, tok: "at", alert: async (a) => alerts.push(a), now: Date.now() });
   ok("🔴 the job drafted replies and published nothing", res.drafted >= 2 && S.puts.length === before.puts && S.posts.length === before.posts);
-  ok("the drafts are saved for the card", writes.length === 1 && writes[0].gbpDrafts.replies.r1 && writes[0].gbpDrafts.replies.r2);
+  const dw = writes.filter((w) => w.gbpDrafts && w.gbpDrafts.replies);
+  ok("the drafts are saved for the card", dw.length === 1 && dw[0].gbpDrafts.replies.r1 && dw[0].gbpDrafts.replies.r2);
+  ok("the profile's real rating is kept for the website's star chip", writes.some((w) => w.gbpStats && w.gbpStats.total > 0 && w.gbpStats.average > 0));
   ok("🔴 a low rating makes the message amber and says read it first", alerts.length === 1 && alerts[0].severity === "amber" && /low rating/.test(alerts[0].body));
 }
 

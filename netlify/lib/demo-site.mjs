@@ -24,7 +24,7 @@
 import { randomBytes } from "node:crypto";
 
 export const DEMO_DAYS = 30;
-export const DEMO_THEME_DEFAULT = "aurora";
+export const DEMO_THEME_DEFAULT = "showcase";   // Aurora retired 2026-11-03 (KB website-builder)
 
 export const newDemoToken = () => randomBytes(18).toString("base64url");
 export const validToken = (t) => /^[A-Za-z0-9_-]{20,40}$/.test(String(t || ""));
@@ -56,7 +56,9 @@ export function demoClientOf(prospect, demo = {}) {
     researchFacts: facts,
     leadToken: "demo",
     landingSlug: "demo",
-    website: { content: demo.content || null, stock: demo.stock || [], theme: demo.theme || DEMO_THEME_DEFAULT, published: false },
+    website: { content: demo.content || null, stock: demo.stock || [], theme: demo.theme || DEMO_THEME_DEFAULT, published: false,
+      // The star rating the research found, shown at the top of the Showcase design. Only a real one with a count.
+      ...(Number(d.rating) > 0 && Number(d.reviewCount) > 0 ? { rating: { stars: Number(d.rating), count: Number(d.reviewCount), source: s(d.reviewSource, 20) } } : {}) },
   };
 }
 
@@ -84,8 +86,8 @@ export function pitchClientOf(row, pitch = {}) {
     name: s((c.website || {}).brandName, 80) || s(c.reviewSenderName, 80) || s(c.dba, 80) || s(c.name, 80), niche: s(c.niche, 60), services: s(c.services, 400),
     businessPhone: s(c.businessPhone || c.phone, 30), businessAddress: s(c.businessAddress, 160),
     campaignSetup: { serviceArea: s(cs.serviceArea || cs.targetLocations, 160) },
-    leadToken: "demo", landingSlug: "demo",
-    website: { content: pitch.content || null, stock: pitch.stock || [], theme: pitch.theme || DEMO_THEME_DEFAULT, published: false },
+    leadToken: "demo", landingSlug: "demo", ...(c.gbpStats ? { gbpStats: c.gbpStats } : {}),
+    website: { content: pitch.content || null, stock: pitch.stock || [], theme: pitch.theme || DEMO_THEME_DEFAULT, published: false, ...((c.website || {}).rating ? { rating: c.website.rating } : {}) },
   };
 }
 
