@@ -275,8 +275,13 @@ html.mo [data-tilt]{transition:transform .8s var(--ease)}
 .hero .ed{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(24px,5vw,70px);align-items:end;padding:150px 0 80px}
 .hero .ed .ph{aspect-ratio:4/5;border-radius:2px}
 @media(max-width:880px){.hero .ed{grid-template-columns:1fr;padding-top:120px}}
-.card{box-shadow:0 1px 0 var(--line)}
-.ctab{border-radius:2px}
+.card{background:none;border:0;border-top:1px solid var(--ink);border-radius:0;box-shadow:none;padding:20px 0 0}
+.card .tick{display:none}
+.card h3{font-family:'Fraunces',Georgia,serif;font-weight:420;font-size:24px;letter-spacing:-.01em}
+.sec-h{border-top:1px solid var(--line);padding-top:26px}
+.ctab{border-radius:0;background:var(--bg2);color:var(--ink);border-top:3px solid var(--ink);border-bottom:1px solid var(--line);box-shadow:none}
+.ctab .glow{display:none}
+.ctab p{opacity:1;color:var(--mute)}
 .rule{height:1px;background:var(--line);transform-origin:left}
 .fill{font-family:'Fraunces',Georgia,serif;font-variation-settings:'opsz' 144;letter-spacing:-.02em}
 html.mo .rule{transform:scaleX(0);transition:transform 1.4s var(--ease)}

@@ -76,9 +76,9 @@ export const pageInSite = (cl, id) => pagesFor(cl).find((p) => p.id === id) || n
 export const pageByPath = (cl, seg) => pagesFor(cl).find((p) => p.path === String(seg || "")) || null;
 
 export const SITE_THEMES = {
-  cinematic: { label: "Cinematic", blurb: "Light and airy, huge type, their best photo in a frame that tilts toward the cursor." },
+  cinematic: { label: "Cinematic", blurb: "Dark like a cinema screen, huge type, their best photo in a frame that tilts toward the cursor." },
   aurora: { label: "Aurora", blurb: "Dark and bold, with a moving 3D backdrop matched to the trade." },
-  editorial: { label: "Editorial", blurb: "Bright and refined, elegant serif headlines, photo-led." },
+  editorial: { label: "Editorial", blurb: "Paper white like a magazine, elegant serif headlines, thin rules instead of boxes." },
   // Bryson, 2026-11-03, on Aurora: "might be out of date or just there might be a better style". Photo-first, the way
   // the best service-business sites look now: their work fills the screen, the real star rating sits at the top, and
   // services are photo tiles. Appended last on purpose: motionRecipe indexes by position, so existing sites keep their
@@ -263,7 +263,9 @@ function paletteBase(theme, cl, scene) {
   const brand = brandColorOf(cl);
   if (theme === "cinematic") {
     const a = brand || "#2F6FED";
-    return { bg: "#F3F1EC", bg2: "#FFFFFF", ink: "#16130F", mute: "#6C655C", line: "rgba(22,19,15,.10)", accent: a, onAccent: onColor(a), card: "rgba(255,255,255,.72)", dark: false, gl: null };
+    // Dark, like a cinema screen (Bryson, 2026-11-04: the three designs must not look alike, and with the orb gone a
+    // light Cinematic read as Editorial with a different font). Showcase is the bright photo one, Editorial the paper one.
+    return { bg: "#0C0C0E", bg2: "#151518", ink: "#F2F0EB", mute: "#A19D95", line: "rgba(255,255,255,.10)", accent: a, onAccent: onColor(a), card: "rgba(255,255,255,.04)", dark: true, gl: null };
   }
   if (theme === "editorial") {
     const a = brand || "#2F5D50";
@@ -599,8 +601,11 @@ html.mo .hero .cfr.in img{transform:translate3d(0,calc(var(--y,0) * .08%),0) sca
 .hero .lower{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:26px;margin-top:28px}
 .hero .lower p{max-width:340px;font-size:15px;color:var(--mute)}
 .hero .scroll{font-size:13px;border-top:1px solid var(--line);padding-top:14px;min-width:240px;display:flex;justify-content:space-between;color:var(--mute)}
-.card{background:rgba(255,255,255,.6);backdrop-filter:blur(10px);box-shadow:0 30px 60px -40px rgba(22,19,15,.35)}
-.ctab{background:linear-gradient(160deg,#1B1916,#2B2621)}
+.card{background:rgba(255,255,255,.035);border:1px solid var(--line);box-shadow:none}
+.card:hover{border-color:color-mix(in srgb,var(--ac) 55%,transparent)}
+.hero .cfr{box-shadow:0 40px 90px -40px color-mix(in srgb,var(--ac) 45%,#000),0 0 0 1px rgba(255,255,255,.08)}
+.ctab{background:radial-gradient(70% 120% at 90% 0%,color-mix(in srgb,var(--ac) 38%,transparent),transparent),var(--bg2);color:var(--ink);border:1px solid var(--line)}
+.ctab .glow{display:none}
 `;
   if (theme === "showcase") return `
 .hero.sc{min-height:max(640px,100svh);color:#fff}
@@ -646,8 +651,13 @@ body[data-page="home"] .hd:not(.solid) .burger{border-color:rgba(255,255,255,.35
 .hero .ed{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(24px,5vw,70px);align-items:end;padding:150px 0 80px}
 .hero .ed .ph{aspect-ratio:4/5;border-radius:2px}
 @media(max-width:880px){.hero .ed{grid-template-columns:1fr;padding-top:120px}}
-.card{box-shadow:0 1px 0 var(--line)}
-.ctab{border-radius:2px}
+.card{background:none;border:0;border-top:1px solid var(--ink);border-radius:0;box-shadow:none;padding:20px 0 0}
+.card .tick{display:none}
+.card h3{font-family:'Fraunces',Georgia,serif;font-weight:420;font-size:24px;letter-spacing:-.01em}
+.sec-h{border-top:1px solid var(--line);padding-top:26px}
+.ctab{border-radius:0;background:var(--bg2);color:var(--ink);border-top:3px solid var(--ink);border-bottom:1px solid var(--line);box-shadow:none}
+.ctab .glow{display:none}
+.ctab p{opacity:1;color:var(--mute)}
 .rule{height:1px;background:var(--line);transform-origin:left}
 .fill{font-family:'Fraunces',Georgia,serif;font-variation-settings:'opsz' 144;letter-spacing:-.02em}
 html.mo .rule{transform:scaleX(0);transition:transform 1.4s var(--ease)}
@@ -902,7 +912,7 @@ function heroHome(theme, C, base, photos) {
     // scrolls and tilts toward the cursor. It has its own column (its own row on a phone), so it is never behind a word.
     const ph = photos[0];
     const frame = ph ? `<div class="cdr"><div class="ph rv d1 cfr" data-tilt><img src="${esc(ph.url)}" alt="${esc(ph.alt)}" fetchpriority="high"></div></div>` : "";
-    return `<section class="hero"><div class="fx" style="background:radial-gradient(60% 60% at 50% 40%,color-mix(in srgb,var(--ac) 14%,#fff),var(--bg))"></div>
+    return `<section class="hero"><div class="fx" style="background:radial-gradient(55% 60% at 78% 30%,color-mix(in srgb,var(--ac) 30%,transparent),transparent),radial-gradient(40% 50% at 10% 90%,color-mix(in srgb,var(--ac) 12%,transparent),transparent),var(--bg)"></div>
 <div class="wrap copy"><div class="ctop${ph ? "" : " solo"}"><h1 class="disp lA hl"><span class="ln"><span>${esc(a)}</span></span></h1>${frame}</div>
 <div class="cbot"><h2 class="disp lB hl" aria-hidden="true"><span class="ln"><span>${esc(b)}</span></span></h2>
 <div class="lower"><div class="rv d1"><span class="eyebrow"><i></i>${esc(C.hero.eyebrow)}</span><p style="margin-top:12px">${esc(C.hero.sub)}</p>${acts}</div>

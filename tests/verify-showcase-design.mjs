@@ -68,5 +68,20 @@ ok("the OS offers Showcase first, starts new sites on it, and keeps Aurora only 
   ok("the design is described by what it shows", SITE_THEMES.cinematic.blurb.includes("photo") && !/orb/.test(SITE_THEMES.cinematic.blurb) && /\["cinematic","Cinematic","[^"]*photo[^"]*"\]/.test(UI));
 }
 
+// ── 5. The three designs offered never look alike ───────────────────────────────
+// Bryson, 2026-11-04: "there is basically no difference between editorial and cinematic we need to make sure the 3
+// template options are unique". Showcase: bright, a full-screen photo. Cinematic: dark. Editorial: paper, rules, no boxes.
+{
+  const pal = (t) => renderSite({ ...DEMO_DETAIL, brandColor: undefined, website: { ...DEMO_DETAIL.website, theme: t } }, "home", { base: BASE });
+  const bgOf = (h) => (h.match(/--bg:(#[0-9A-Fa-f]{6})/) || [])[1];
+  const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) / 255; };
+  const [S, Ci, E] = PICK_THEMES.map(pal);
+  ok("🔴 Cinematic is the dark one; Showcase and Editorial are light", lum(bgOf(Ci)) < 0.15 && lum(bgOf(S)) > 0.85 && lum(bgOf(E)) > 0.85, [S, Ci, E].map(bgOf).join());
+  ok("🔴 each has its own hero: a full-screen photo, a framed photo beside giant type, a magazine split", /class="hero sc"/.test(S) && /class="cdr"/.test(Ci) && /class="wrap ed"/.test(E) && !/class="cdr"|class="wrap ed"/.test(S) && !/class="hero sc"|class="wrap ed"/.test(Ci) && !/class="hero sc"|class="cdr"/.test(E));
+  ok("each has its own typeface", /Plus\+Jakarta/.test(S) && /Archivo/.test(Ci) && /Fraunces/.test(E));
+  ok("Editorial uses thin rules where the others use boxes, and a paper closing panel", /\.card\{background:none;border:0;border-top:1px solid var\(--ink\)/.test(E) && /\.ctab\{border-radius:0;background:var\(--bg2\)/.test(E) && !/\.card\{background:none;border:0/.test(S + Ci));
+  ok("the descriptions say what each one looks like", /Dark/.test(SITE_THEMES.cinematic.blurb) && /magazine/.test(SITE_THEMES.editorial.blurb));
+}
+
 console.log(`verify-showcase-design: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

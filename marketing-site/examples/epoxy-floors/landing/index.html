@@ -20,7 +20,7 @@
 *{box-sizing:border-box;margin:0;padding:0}img{max-width:100%;display:block}
 :root{--r:18px}
 html{scroll-behavior:smooth}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#F3F1EC;color:#16130F;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;--rv:20px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#0C0C0E;color:#F2F0EB;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;--rv:20px}
 .sh-soft{--r:12px}.sh-sharp{--r:6px}
 /* EVERYTHING MOVES UP OR DOWN. Bryson, 2026-09-02: "make sure the animations are for up
    and down". The old vocabulary had a sideways slide and a zoom in it; both are gone. The
@@ -34,25 +34,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 a{color:inherit}
 .wrap{max-width:1140px;margin:0 auto;padding:0 20px}
 /* header */
-.hdr{position:sticky;top:0;z-index:40;background:rgba(243,241,236,0.82);backdrop-filter:saturate(1.2) blur(10px);-webkit-backdrop-filter:saturate(1.2) blur(10px);border-bottom:1px solid rgba(22,19,15,.10)}
+.hdr{position:sticky;top:0;z-index:40;background:rgba(12,12,14,0.82);backdrop-filter:saturate(1.2) blur(10px);-webkit-backdrop-filter:saturate(1.2) blur(10px);border-bottom:1px solid rgba(255,255,255,.10)}
 .hdr .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px}
-.brandmark{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15.5px;color:#16130F}
+.brandmark{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15.5px;color:#F2F0EB}
 .dot{width:10px;height:10px;border-radius:3px;background:#3B6EA8;box-shadow:0 0 0 4px rgba(59,110,168,.16)}
 .blogo{height:30px;width:auto;max-width:180px;object-fit:contain;display:block}
 /* reviews */
 .revs{display:grid;gap:14px;grid-template-columns:1fr}
-.rev{background:#FFFFFF;border:1px solid rgba(22,19,15,.10);border-radius:var(--r);padding:22px 20px}
+.rev{background:#151518;border:1px solid rgba(255,255,255,.10);border-radius:var(--r);padding:22px 20px}
 .rev .stars{color:#3B6EA8;font-size:13px;letter-spacing:2px;margin-bottom:9px}
-.rev p{font-size:14.5px;color:#16130F;margin-bottom:12px;line-height:1.6}
-.rev .who{font-size:13px;font-weight:700;color:#6C655C}
+.rev p{font-size:14.5px;color:#F2F0EB;margin-bottom:12px;line-height:1.6}
+.rev .who{font-size:13px;font-weight:700;color:#A19D95}
 /* faq */
 .faqwrap{max-width:760px;margin:0 auto;display:grid;gap:10px}
-.faq{background:#FFFFFF;border:1px solid rgba(22,19,15,.10);border-radius:var(--r);padding:0 18px}
-.faq summary{cursor:pointer;list-style:none;padding:16px 0;font-weight:700;font-size:15px;color:#16130F;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.faq{background:#151518;border:1px solid rgba(255,255,255,.10);border-radius:var(--r);padding:0 18px}
+.faq summary{cursor:pointer;list-style:none;padding:16px 0;font-weight:700;font-size:15px;color:#F2F0EB;display:flex;justify-content:space-between;gap:12px;align-items:center}
 .faq summary::-webkit-details-marker{display:none}
 .faq summary::after{content:"+";color:#3B6EA8;font-size:22px;font-weight:800;line-height:1}
 .faq[open] summary::after{content:"+"}
-.faq p{padding:0 0 16px;font-size:14px;color:#6C655C;line-height:1.6}
+.faq p{padding:0 0 16px;font-size:14px;color:#A19D95;line-height:1.6}
 .hdr-cta{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;color:#3B6EA8;text-decoration:none;border:1px solid rgba(59,110,168,.16);border-radius:999px;padding:7px 14px;background:rgba(59,110,168,.16)}
 .ann{background:#0d1825;color:#fff;text-align:center;font-size:13px;font-weight:600;padding:9px 16px}
 .ann b{font-weight:800}
@@ -66,27 +66,27 @@ a{color:inherit}
 .heroband{margin-top:30px;border-radius:var(--r);overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.28)}
 .heroband img{width:100%;max-height:460px;object-fit:cover}
 .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#3B6EA8;background:rgba(59,110,168,.16);border:1px solid rgba(59,110,168,.16);padding:6px 12px;border-radius:999px;margin-bottom:16px}
-.headline{font-size:clamp(30px,5.4vw,50px);font-weight:850;color:#16130F;line-height:1.08;letter-spacing:-.02em;margin-bottom:14px}
-.subhead{font-size:clamp(15.5px,2vw,19px);color:#6C655C;margin-bottom:24px;max-width:54ch}
+.headline{font-size:clamp(30px,5.4vw,50px);font-weight:850;color:#F2F0EB;line-height:1.08;letter-spacing:-.02em;margin-bottom:14px}
+.subhead{font-size:clamp(15.5px,2vw,19px);color:#A19D95;margin-bottom:24px;max-width:54ch}
 .ctarow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .cta{position:relative;display:inline-flex;align-items:center;gap:9px;padding:15px 28px;font-size:16px;font-weight:800;border-radius:var(--r);border:none;background:#3B6EA8;color:#FFFFFF;cursor:pointer;text-decoration:none;box-shadow:0 10px 26px rgba(59,110,168,.12);transition:transform .18s ease,box-shadow .18s ease}
 .cta:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(59,110,168,.26)}
-.cta.ghost{background:transparent;color:#16130F;border:1px solid rgba(22,19,15,.10);box-shadow:none}
+.cta.ghost{background:transparent;color:#F2F0EB;border:1px solid rgba(255,255,255,.10);box-shadow:none}
 .cta.ghost:hover{border-color:#3B6EA8;color:#3B6EA8}
-.trust{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:20px;font-size:13px;color:#6C655C}
-.trust b{color:#16130F}
+.trust{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:20px;font-size:13px;color:#A19D95}
+.trust b{color:#F2F0EB}
 .hero-media{position:relative}
 .heroimg{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--r);box-shadow:0 30px 60px rgba(0,0,0,.30)}
-.hero-media .badge{position:absolute;left:16px;bottom:16px;background:#FFFFFF;color:#16130F;border:1px solid rgba(22,19,15,.10);border-radius:14px;padding:11px 14px;box-shadow:0 12px 30px rgba(0,0,0,.22);font-size:13px;font-weight:700;display:flex;align-items:center;gap:9px}
+.hero-media .badge{position:absolute;left:16px;bottom:16px;background:#151518;color:#F2F0EB;border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:11px 14px;box-shadow:0 12px 30px rgba(0,0,0,.22);font-size:13px;font-weight:700;display:flex;align-items:center;gap:9px}
 .badge .bdot{width:8px;height:8px;border-radius:50%;background:#3B6EA8;flex-shrink:0}
 .hero-form{position:relative;z-index:2}.hero-form .fcard{box-shadow:0 24px 60px rgba(0,0,0,.22)}
 /* hero background treatments */
 .hero::before,.hero::after{content:"";position:absolute;pointer-events:none}
 .bg-glowgrid .hero::before{inset:-30% -10% auto -10%;height:120%;background:radial-gradient(60% 60% at 20% 20%,rgba(59,110,168,.26),transparent 60%),radial-gradient(50% 50% at 92% 8%,rgba(59,110,168,.12),transparent 55%)}
-.bg-glowgrid .hero::after{inset:0;background-image:linear-gradient(rgba(15,23,42,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(15,23,42,.05) 1px,transparent 1px);background-size:34px 34px;-webkit-mask-image:radial-gradient(80% 70% at 50% 30%,#000,transparent 75%);mask-image:radial-gradient(80% 70% at 50% 30%,#000,transparent 75%)}
+.bg-glowgrid .hero::after{inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:34px 34px;-webkit-mask-image:radial-gradient(80% 70% at 50% 30%,#000,transparent 75%);mask-image:radial-gradient(80% 70% at 50% 30%,#000,transparent 75%)}
 .bg-mesh .hero::before{inset:-40% -20%;height:150%;background:radial-gradient(40% 40% at 15% 25%,rgba(59,110,168,.26),transparent 60%),radial-gradient(35% 35% at 85% 15%,rgba(59,110,168,.12),transparent 60%),radial-gradient(45% 45% at 70% 90%,rgba(59,110,168,.12),transparent 60%)}
 .bg-dots .hero::before{inset:0;background:radial-gradient(60% 60% at 80% 10%,rgba(59,110,168,.12),transparent 60%)}
-.bg-dots .hero::after{inset:0;background-image:radial-gradient(rgba(15,23,42,.05) 1.4px,transparent 1.4px);background-size:22px 22px;-webkit-mask-image:radial-gradient(90% 80% at 50% 25%,#000,transparent 78%);mask-image:radial-gradient(90% 80% at 50% 25%,#000,transparent 78%)}
+.bg-dots .hero::after{inset:0;background-image:radial-gradient(rgba(255,255,255,.05) 1.4px,transparent 1.4px);background-size:22px 22px;-webkit-mask-image:radial-gradient(90% 80% at 50% 25%,#000,transparent 78%);mask-image:radial-gradient(90% 80% at 50% 25%,#000,transparent 78%)}
 .bg-clean .hero::before{inset:0;background:linear-gradient(180deg,rgba(59,110,168,.16),transparent 55%)}
 /* overlay hero */
 .hero-ov{padding:0;min-height:520px;display:flex;align-items:flex-end;background-image:var(--heroimg);background-size:cover;background-position:center}
@@ -100,23 +100,23 @@ a{color:inherit}
 /* chips */
 .chips{display:flex;flex-wrap:wrap;gap:10px;padding:20px 0}
 .lay-centered .chips{justify-content:center}
-.chip{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:#16130F;background:#FFFFFF;border:1px solid rgba(22,19,15,.10);border-radius:999px;padding:9px 15px}
+.chip{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:#F2F0EB;background:#151518;border:1px solid rgba(255,255,255,.10);border-radius:999px;padding:9px 15px}
 /* sections */
 .sec{padding:52px 0}
-.sec.alt{background:#FFFFFF}
+.sec.alt{background:#151518}
 .sec-head{max-width:640px;margin:0 auto 30px;text-align:center}
 .sec-k{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#3B6EA8;margin-bottom:8px}
-.sec-t{font-size:clamp(23px,3.2vw,32px);font-weight:850;letter-spacing:-.01em;color:#16130F}
+.sec-t{font-size:clamp(23px,3.2vw,32px);font-weight:850;letter-spacing:-.01em;color:#F2F0EB}
 /* benefits: cards */
 .bene{display:grid;gap:14px;grid-template-columns:1fr}
-.bcard{background:#FFFFFF;border:1px solid rgba(22,19,15,.10);border-radius:var(--r);padding:22px 20px;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.bcard{background:#151518;border:1px solid rgba(255,255,255,.10);border-radius:var(--r);padding:22px 20px;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
 .bcard:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(0,0,0,.14);border-color:rgba(59,110,168,.16)}
 .bico{width:28px;height:3px;border-radius:2px;background:#3B6EA8;margin-bottom:16px;transform-origin:0 50%}
-.bcard h3,.brow h3,.bnum h3{font-size:16px;font-weight:750;color:#16130F;margin-bottom:5px}
-.bcard p,.brow p,.bnum p{font-size:13.5px;color:#6C655C}
+.bcard h3,.brow h3,.bnum h3{font-size:16px;font-weight:750;color:#F2F0EB;margin-bottom:5px}
+.bcard p,.brow p,.bnum p{font-size:13.5px;color:#A19D95}
 /* benefits: list */
 .belist{max-width:760px;margin:0 auto;display:grid;gap:2px}
-.brow{display:flex;gap:16px;align-items:flex-start;padding:18px 6px;border-bottom:1px solid rgba(22,19,15,.10)}
+.brow{display:flex;gap:16px;align-items:flex-start;padding:18px 6px;border-bottom:1px solid rgba(255,255,255,.10)}
 .brow .bico{width:3px;height:22px;margin:2px 0 0;flex-shrink:0;transform-origin:50% 0}
 /* benefits: numbered */
 .benum{display:grid;gap:22px;grid-template-columns:1fr}
@@ -124,9 +124,9 @@ a{color:inherit}
 .bnum .bn{font-size:34px;font-weight:900;line-height:1;color:#3B6EA8;opacity:.5;flex-shrink:0;width:46px}
 /* steps */
 .steps{display:grid;gap:16px;grid-template-columns:1fr}
-.step{position:relative;background:#FFFFFF;border:1px solid rgba(22,19,15,.10);border-radius:var(--r);padding:22px 20px 20px}
+.step{position:relative;background:#151518;border:1px solid rgba(255,255,255,.10);border-radius:var(--r);padding:22px 20px 20px}
 .step .num{width:34px;height:34px;border-radius:10px;background:#3B6EA8;color:#FFFFFF;font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
-.step h3{font-size:15.5px;font-weight:750;color:#16130F}
+.step h3{font-size:15.5px;font-weight:750;color:#F2F0EB}
 /* gallery */
 /* The gallery follows its own count, same reason the benefits do: four photos
    gave three across and one stranded underneath. */
@@ -144,7 +144,7 @@ a{color:inherit}
    Centred at exactly one column wide, so it stays the same size as the two above it
    rather than stretching to fill the row, which would be a different kind of wrong. */
 .gal.g3>:last-child,.gal.g5>:last-child{grid-column:1/-1;justify-self:center;width:calc(50% - 6px)}
-.gitem{overflow:hidden;border-radius:var(--r);background:#FFFFFF}
+.gitem{overflow:hidden;border-radius:var(--r);background:#151518}
 .gal{align-items:start}.gitem img{width:100%;height:auto;display:block;transition:transform .5s ease}.gal.uni .gitem img{aspect-ratio:var(--galr);object-fit:cover}
 .gitem:hover img{transform:scale(1.06)}
 /* offer */
@@ -155,20 +155,20 @@ a{color:inherit}
 .offer h2{font-size:clamp(22px,3vw,30px);font-weight:850;margin-bottom:20px}
 .offer .cta{background:#fff;color:#111;box-shadow:0 12px 30px rgba(0,0,0,.25)}
 /* form */
-.formsec{background:#FFFFFF;padding:56px 0 64px}
+.formsec{background:#151518;padding:56px 0 64px}
 .form-g{display:grid;gap:28px;grid-template-columns:1fr;align-items:start}
-.form-copy h2{font-size:clamp(22px,3vw,30px);font-weight:850;color:#16130F;margin-bottom:12px;letter-spacing:-.01em}
-.form-copy p{font-size:15px;color:#6C655C;margin-bottom:18px}
+.form-copy h2{font-size:clamp(22px,3vw,30px);font-weight:850;color:#F2F0EB;margin-bottom:12px;letter-spacing:-.01em}
+.form-copy p{font-size:15px;color:#A19D95;margin-bottom:18px}
 .rlist{list-style:none;display:grid;gap:12px}
-.rlist li{display:flex;gap:11px;align-items:flex-start;font-size:14.5px;color:#16130F}
+.rlist li{display:flex;gap:11px;align-items:flex-start;font-size:14.5px;color:#F2F0EB}
 .rlist .rk{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:rgba(59,110,168,.16);color:#3B6EA8;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
-.fcard{background:#FFFFFF;border:1px solid rgba(22,19,15,.10);border-radius:var(--r);padding:28px 24px;box-shadow:0 20px 50px rgba(0,0,0,.12)}
-.formtitle{font-size:21px;font-weight:850;margin-bottom:4px;color:#16130F}
-.formsub{font-size:13.5px;color:#6C655C;margin-bottom:18px}
-.inp{width:100%;padding:14px 15px;border:1px solid rgba(22,19,15,.10);border-radius:calc(var(--r) - 4px);font-size:15px;margin-bottom:11px;font-family:inherit;background:#ffffff;color:#16130F;transition:border-color .15s ease,box-shadow .15s ease}
+.fcard{background:#151518;border:1px solid rgba(255,255,255,.10);border-radius:var(--r);padding:28px 24px;box-shadow:0 20px 50px rgba(0,0,0,.12)}
+.formtitle{font-size:21px;font-weight:850;margin-bottom:4px;color:#F2F0EB}
+.formsub{font-size:13.5px;color:#A19D95;margin-bottom:18px}
+.inp{width:100%;padding:14px 15px;border:1px solid rgba(255,255,255,.10);border-radius:calc(var(--r) - 4px);font-size:15px;margin-bottom:11px;font-family:inherit;background:#0C0C0E;color:#F2F0EB;transition:border-color .15s ease,box-shadow .15s ease}
 .inp:focus{outline:none;border-color:#3B6EA8;box-shadow:0 0 0 3px rgba(59,110,168,.16)}
-.inp::placeholder{color:#6C655C}
-.fine{font-size:12px;color:#6C655C;text-align:center;margin-top:10px}
+.inp::placeholder{color:#A19D95}
+.fine{font-size:12px;color:#A19D95;text-align:center;margin-top:10px}
 /* Consent. Left aligned and full width on purpose: a centred wall of small print reads as
    decoration, and this is the text that has to be legible if anyone ever asks what the
    visitor agreed to. Generous tap target on the box itself for phones. */
@@ -184,25 +184,25 @@ a{color:inherit}
 .cons{display:flex;align-items:flex-start;gap:9px;margin-top:11px;text-align:left}
 .cons:first-child{margin-top:0}
 .cons input{width:18px;height:18px;min-width:18px;margin:1px 0 0;accent-color:#3B6EA8;cursor:pointer}
-.cons label{font-size:12px;line-height:1.5;color:#6C655C;cursor:pointer}
-.cons label b{color:#16130F;font-weight:600}
+.cons label{font-size:12px;line-height:1.5;color:#A19D95;cursor:pointer}
+.cons label b{color:#F2F0EB;font-weight:600}
 /* The texting box is the one that gates the instant reply, so it must not look like the
    optional one beside it. Registered consent wording runs long, so it gets real line height. */
-.cons-main label{font-size:13px;color:#16130F;line-height:1.55}
+.cons-main label{font-size:13px;color:#F2F0EB;line-height:1.55}
 .cons-main input{width:20px;height:20px;min-width:20px}
 /* The policy links have to be visibly links. A carrier or a reviewer looking for them should
    not have to hunt, and underlined-on-a-muted-line is the convention people already read. */
-.cons label a{color:#16130F;text-decoration:underline}
+.cons label a{color:#F2F0EB;text-decoration:underline}
 .err{display:none;font-size:12.5px;color:#F87171;margin-bottom:10px;text-align:center}
 .thanks{display:none;text-align:center;padding:22px 6px}
-.thanks h2{font-size:20px;margin-bottom:6px;color:#16130F}.thanks p{font-size:14px;color:#6C655C}
+.thanks h2{font-size:20px;margin-bottom:6px;color:#F2F0EB}.thanks p{font-size:14px;color:#A19D95}
 /* sticky mobile cta */
-.mcta{position:fixed;left:0;right:0;bottom:0;z-index:50;display:none;gap:10px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:rgba(243,241,236,0.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(22,19,15,.10)}
+.mcta{position:fixed;left:0;right:0;bottom:0;z-index:50;display:none;gap:10px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:rgba(12,12,14,0.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,.10)}
 .mcta a{flex:1;text-align:center;padding:13px;border-radius:12px;font-weight:800;font-size:14.5px;text-decoration:none}
-.mcta .call{border:1px solid rgba(22,19,15,.10);color:#16130F}
+.mcta .call{border:1px solid rgba(255,255,255,.10);color:#F2F0EB}
 .mcta .quote{background:#3B6EA8;color:#FFFFFF}
-.foot{padding:30px 0 34px;text-align:center;font-size:13px;color:#6C655C;border-top:1px solid rgba(22,19,15,.10)}
-.foot a{color:#16130F;font-weight:700;text-decoration:none}
+.foot{padding:30px 0 34px;text-align:center;font-size:13px;color:#A19D95;border-top:1px solid rgba(255,255,255,.10)}
+.foot a{color:#F2F0EB;font-weight:700;text-decoration:none}
 /* typography moods */
 .font-elegant .headline,.font-elegant .sec-t,.font-elegant .formtitle,.font-elegant .offer h2,.font-elegant .form-copy h2,.font-elegant .bcard h3,.font-elegant .bnum h3,.font-elegant .brow h3{font-family:Georgia,'Times New Roman',serif;font-weight:700;letter-spacing:-.005em}
 .font-bold .headline,.font-bold .sec-t,.font-bold .offer h2,.font-bold .form-copy h2{font-weight:900;letter-spacing:-.03em}
@@ -298,7 +298,7 @@ a{color:inherit}
 .bcard:hover .bico{transform:scaleX(1.6)}.brow:hover .bico{transform:scaleY(1.4)}.step:hover .num{transform:translateY(-2px) scale(1.07)}
 .step .num{transition:transform .25s cubic-bezier(.2,.7,.2,1)}
 .brow{transition:background-color .2s ease}
-.brow:hover{background:#FFFFFF}
+.brow:hover{background:#151518}
 .bnum .bn{transition:opacity .25s ease,transform .25s ease}
 .bnum:hover .bn{opacity:.85;transform:translateY(-2px)}
 /* The FAQ marker TURNS instead of swapping glyph. It stays a plus and rotates 45
