@@ -78,7 +78,7 @@ export const pageByPath = (cl, seg) => pagesFor(cl).find((p) => p.path === Strin
 export const SITE_THEMES = {
   cinematic: { label: "Cinematic", blurb: "Split screen told like a film: their photos stay pinned and change scene by scene as visitors scroll the story." },
   aurora: { label: "Aurora", blurb: "Dark and bold, with a moving 3D backdrop matched to the trade." },
-  editorial: { label: "Editorial", blurb: "Magazine style: elegant serif headlines, thin rules instead of boxes, led by their photos." },
+  editorial: { label: "Editorial", blurb: "A magazine: a cover headline, services as a table of contents, their story as a feature spread." },
   // Bryson, 2026-11-03, on Aurora: "might be out of date or just there might be a better style". Photo-first, the way
   // the best service-business sites look now: their work fills the screen, the real star rating sits at the top, and
   // services are photo tiles. Appended last on purpose: motionRecipe indexes by position, so existing sites keep their
@@ -299,7 +299,7 @@ function paletteBase(theme, cl, scene, mode) {
 const FONTS = {
   cinematic: "https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap",
   aurora: "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Geist:wght@300..700&display=swap",
-  editorial: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Instrument+Sans:wght@400..700&display=swap",
+  editorial: "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:wght@400..700&display=swap",
   showcase: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..800&display=swap",
 };
 
@@ -733,11 +733,12 @@ body[data-page="home"] .hd:not(.solid) .burger{border-color:rgba(255,255,255,.35
 .card{box-shadow:0 1px 2px rgba(17,18,20,.04),0 18px 40px -30px rgba(17,18,20,.25)}
 .ctab{background:linear-gradient(150deg,#16171A,#24262B)}
 `;
+  // Editorial, rebuilt 2026-11-04 (Bryson: "I like cinematic now I want to make editorial look better"). A magazine: a
+  // cover (one huge serif headline across the page, a short intro, a wide photo with a caption), services as a table of
+  // contents whose photo follows the pointer, the story as a feature spread with a drop cap, "why us" in newspaper
+  // columns, the review as a pull quote. Its motion is quiet on purpose: rules draw themselves in, photos open like a
+  // page being turned. Showcase is the big-photo one, Cinematic the film; this one is read.
   if (theme === "editorial") return `
-.hero{align-items:center}
-.hero .ed{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(24px,5vw,70px);align-items:end;padding:150px 0 80px}
-.hero .ed .ph{aspect-ratio:4/5;border-radius:2px}
-@media(max-width:880px){.hero .ed{grid-template-columns:1fr;padding-top:120px}}
 .card{background:none;border:0;border-top:1px solid var(--ink);border-radius:0;box-shadow:none;padding:20px 0 0}
 .card .tick{display:none}
 .card h3{font-family:'Fraunces',Georgia,serif;font-weight:420;font-size:24px;letter-spacing:-.01em}
@@ -745,10 +746,80 @@ body[data-page="home"] .hd:not(.solid) .burger{border-color:rgba(255,255,255,.35
 .ctab{border-radius:0;background:var(--bg2);color:var(--ink);border-top:3px solid var(--ink);border-bottom:1px solid var(--line);box-shadow:none}
 .ctab .glow{display:none}
 .ctab p{opacity:1;color:var(--mute)}
-.rule{height:1px;background:var(--line);transform-origin:left}
+.rule{height:1px;background:var(--ink);transform-origin:left}
 .fill{font-family:'Fraunces',Georgia,serif;font-variation-settings:'opsz' 144;letter-spacing:-.02em}
 html.mo .rule{transform:scaleX(0);transition:transform 1.4s var(--ease)}
 html.mo .rule.in{transform:scaleX(1)}
+/* the cover */
+.edh{padding:118px 0 0}
+.edh-meta{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 16px;padding-bottom:14px;font-size:14px;color:var(--mute)}
+.edh-rt{color:var(--ink);font-weight:600}.edh-rt b{color:#E0A100;letter-spacing:1px;margin-right:6px}
+.edh h1{font-size:clamp(48px,8vw,138px);line-height:.95;margin-top:30px;max-width:1200px}
+.edh-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:end;margin-top:34px}
+.edh-lead{font-size:clamp(17px,1.45vw,21px);color:var(--mute);max-width:560px;line-height:1.55}
+.edh .acts{display:flex;flex-wrap:wrap;gap:12px}
+.edh-fig{margin-top:clamp(36px,5vw,64px)}
+.edh-fig .ph{aspect-ratio:21/9;border-radius:2px}
+.edh-fig figcaption,.ed-fig figcaption{margin-top:12px;font-size:13px;color:var(--mute);display:flex;gap:10px;align-items:center}
+.edh-fig figcaption::before,.ed-fig figcaption::before{content:"";width:22px;height:1px;background:var(--ink)}
+/* photos open top to bottom, like a page being turned (starting 22% open: a fully shut photo never counts as seen) */
+html.mo .edh-fig .ph,html.mo .ed-fig .ph{clip-path:inset(0 0 78% 0);transition:clip-path 1.6s var(--io) .15s}
+html.mo .edh-fig .ph.in,html.mo .ed-fig .ph.in{clip-path:inset(0 0 0 0)}
+/* section heads: a title on a drawn rule */
+.ed-sec{padding:clamp(70px,9vw,130px) 0 0}
+.ed-sh{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px 20px;padding-bottom:16px}
+.ed-sh h2{font-size:clamp(32px,4.4vw,64px)}
+.ed-sh span{color:var(--mute);font-size:14px}
+/* services: a table of contents */
+.ed-idx{position:relative}
+.ed-row{position:relative;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) 48px;gap:28px;align-items:center;padding:30px 0;border-bottom:1px solid var(--line)}
+.ed-row h3{font-size:clamp(28px,3.4vw,52px);font-weight:360;line-height:1.02;letter-spacing:-.02em;transition:transform .55s var(--ease)}
+.ed-row p{color:var(--mute);font-size:16px}
+.ed-go{justify-self:end;width:46px;height:46px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;transition:transform .5s var(--ease),background .3s,border-color .3s,color .3s}
+.ed-go svg{width:18px;height:18px}
+.ed-th{display:none}
+@media(hover:hover){.ed-row:hover h3{transform:translateX(14px);font-style:italic}.ed-row:hover .ed-go{background:var(--ac);border-color:var(--ac);color:var(--on);transform:rotate(-45deg)}}
+/* the story: a feature spread */
+.ed-feat{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(28px,5vw,80px);align-items:start;margin-top:clamp(28px,4vw,48px)}
+.ed-fig .ph{aspect-ratio:4/5;border-radius:2px}
+.ed-big{font-size:clamp(28px,3.3vw,50px);line-height:1.14;font-weight:340}
+.ed-cols{display:grid;grid-template-columns:repeat(var(--c,1),minmax(0,1fr));gap:0 44px;max-width:var(--mw,560px);margin-top:34px;color:var(--mute);font-size:16.5px;line-height:1.7}
+.ed-cols p+p{border-left:1px solid var(--line);padding-left:44px;margin-left:-22px}
+/* a drop cap only on a paragraph long enough to wrap around it */
+.ed-cols p.dc::first-letter{float:left;font-family:'Fraunces',Georgia,serif;font-size:4.3em;line-height:.8;padding:7px 10px 0 0;color:var(--ink)}
+.ed-feat .go{margin-top:30px}
+/* why us: newspaper columns */
+.ed-why{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));margin-top:clamp(28px,4vw,44px)}
+.ed-why>div{padding:4px 28px 0;border-left:1px solid var(--line)}
+.ed-why>div:first-child{padding-left:0;border-left:0}
+.ed-why h3{font-family:'Fraunces',Georgia,serif;font-size:clamp(22px,2vw,28px);font-style:italic;font-weight:380;line-height:1.15;margin-bottom:10px}
+.ed-why p{color:var(--mute);font-size:16px}
+/* the review: a pull quote */
+.rvt p.disp{font-style:italic;font-weight:340}
+.rvt .wrap::before{content:"\\201C";display:block;font-family:'Fraunces',Georgia,serif;font-size:150px;line-height:.62;color:var(--ac3);margin-bottom:4px}
+/* the strip: an italic ticker */
+.marq span{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:340}
+/* inside pages */
+.page-hero{min-height:0}
+.page-hero .copy{padding:150px 0 44px;border-bottom:1px solid var(--ink)}
+@media(max-width:880px){
+  .edh{padding-top:104px}
+  .edh h1{font-size:clamp(40px,11vw,64px);margin-top:22px}
+  .edh-row{grid-template-columns:minmax(0,1fr);gap:22px;margin-top:22px}
+  .edh-fig .ph{aspect-ratio:4/3}
+  .ed-row{grid-template-columns:64px minmax(0,1fr) 36px;gap:4px 16px;padding:18px 0}
+  .ed-row.np{grid-template-columns:minmax(0,1fr) 36px}
+  .ed-th{display:block;width:64px;height:64px;object-fit:cover;border-radius:2px;grid-row:1 / span 2}
+  .ed-row h3{font-size:clamp(22px,6.4vw,28px);align-self:end}
+  .ed-row p{grid-column:-3 / -2;font-size:14.5px;line-height:1.45}
+  .ed-go{grid-column:-2 / -1;grid-row:1 / span 2;width:36px;height:36px}
+  .ed-feat{grid-template-columns:minmax(0,1fr)}
+  .ed-cols{grid-template-columns:minmax(0,1fr)}.ed-cols p+p{border-left:0;padding-left:0;margin:14px 0 0}
+  .ed-why{grid-template-columns:minmax(0,1fr)}
+  .ed-why>div{border-left:0;padding:20px 0 0;border-top:1px solid var(--line);margin-top:20px}
+  .ed-why>div:first-child{border-top:0;margin-top:0;padding-top:0}
+  .page-hero .copy{padding:120px 0 32px}
+}
 `;
   return `
 .hero{align-items:center;text-align:center}
@@ -871,7 +942,7 @@ if(fine&&!rm){h.classList.add('fine');
 q('.btn').forEach(function(b){b.addEventListener('pointermove',function(e){var r=b.getBoundingClientRect();b.style.transform='translate('+((e.clientX-r.left-r.width/2)*.16)+'px,'+((e.clientY-r.top-r.height/2)*.26)+'px)';});b.addEventListener('pointerleave',function(){b.style.transform='';});});
 q('.card,[data-tilt]').forEach(function(c){c.addEventListener('pointermove',function(e){var r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;c.style.transform='perspective(1000px) rotateX('+(-y*5)+'deg) rotateY('+(x*7)+'deg)';});c.addEventListener('pointerleave',function(){c.style.transform='';});});
 var hv=d.querySelector('.hov');if(hv){var hi=q('img',hv),hx=0,hy=0,px=0,py=0,run=false;var hl=function(){px+=(hx-px)*.14;py+=(hy-py)*.14;hv.style.left=px+'px';hv.style.top=py+'px';if(Math.abs(hx-px)+Math.abs(hy-py)>.5)requestAnimationFrame(hl);else run=false;};
-q('.svc').forEach(function(s,i){s.addEventListener('pointerenter',function(e){hi.forEach(function(m,j){m.classList.toggle('on',j===i%hi.length);});if(!hv.classList.contains('on')){px=hx=e.clientX;py=hy=e.clientY;}hv.classList.add('on');});s.addEventListener('pointerleave',function(){hv.classList.remove('on');});});
+q('.svc,.ed-row').forEach(function(s,i){s.addEventListener('pointerenter',function(e){hi.forEach(function(m,j){m.classList.toggle('on',j===i%hi.length);});if(!hv.classList.contains('on')){px=hx=e.clientX;py=hy=e.clientY;}hv.classList.add('on');});s.addEventListener('pointerleave',function(){hv.classList.remove('on');});});
 addEventListener('pointermove',function(e){hx=e.clientX;hy=e.clientY;if(!run){run=true;requestAnimationFrame(hl);}},{passive:true});}
 if(M.c){var cu=d.createElement('div');cu.className='cur';cu.setAttribute('aria-hidden','true');d.body.appendChild(cu);var cx=0,cy=0,ux=0,uy=0,cr=false;
 var cm=function(){ux+=(cx-ux)*.2;uy+=(cy-uy)*.2;cu.style.transform='translate3d('+ux+'px,'+uy+'px,0)';if(Math.abs(cx-ux)+Math.abs(cy-uy)>.3)requestAnimationFrame(cm);else cr=false;};
@@ -999,12 +1070,6 @@ function heroHome(theme, C, base, photos) {
     return `<section class="hero sc"><div class="scbg">${ph ? `<img src="${esc(ph.url)}" alt="${esc(ph.alt)}" fetchpriority="high">` : ""}</div>
 <div class="copy"><div class="top rv"><span class="eyebrow"><i></i>${esc(C.hero.eyebrow)}</span>${rateChip(C.rating)}</div>
 <h1 class="disp hl" style="margin-top:22px">${lines(C.hero.headline, theme)}</h1><p class="sub rv d1">${esc(C.hero.sub)}</p>${acts}</div></section>`;
-  }
-  if (theme === "editorial") {
-    const ph = photos[0];
-    return `<section class="hero"><div class="wrap ed"><div><span class="eyebrow rv"><i></i>${esc(C.hero.eyebrow)}</span>
-<h1 class="disp hl" style="margin-top:22px">${lines(C.hero.headline, theme)}</h1><p class="sub rv d1">${esc(C.hero.sub)}</p>${acts}</div>
-<div class="ph rv d2" data-tilt>${ph ? `<img src="${esc(ph.url)}" alt="${esc(ph.alt)}" fetchpriority="high">` : `<div style="width:100%;height:100%;background:linear-gradient(160deg,color-mix(in srgb,var(--ac) 30%,var(--bg)),var(--bg2))"></div>`}</div></div></section>`;
   }
   return `<section class="hero"><div class="fx" style="background:radial-gradient(50% 55% at 70% 65%,color-mix(in srgb,var(--ac) 26%,transparent),transparent),radial-gradient(40% 45% at 20% 30%,color-mix(in srgb,var(--ac) 12%,transparent),transparent),var(--bg)"><canvas aria-hidden="true"></canvas></div>
 <div class="wrap copy"><span class="eyebrow rv"><i></i>${esc(C.hero.eyebrow)}</span><h1 class="disp hl" style="margin-top:26px">${lines(C.hero.headline, theme)}</h1>
@@ -1206,6 +1271,7 @@ ${C.faqs.slice(0, 5).map((f) => `<details class="faq rv"><summary>${esc(f.q)}<i 
     reviews: () => reviewsTeaser(cl, C, base), cta: () => ctaBand(C, base),
   };
   if (theme === "cinematic") return cinemaHome(cl, C, base, photos, pk, story, built, theme, photos0);
+  if (theme === "editorial") return editorialHome(cl, C, base, photos, storyPh, story, built, theme, photos0);
   // The order, and which parts are switched off, are his (website.layout.home); added sections live in website.blocks.
   return homeLayout(cl).filter((x) => !x.hidden).map((x) => x.key.startsWith("b:") ? renderBlock(theme, blockOf(cl, x.key.slice(2)), C, base, photos0) : (built[x.key] ? built[x.key]() : ""))
     .filter(Boolean).join("\n");
@@ -1235,11 +1301,38 @@ function cinemaHome(cl, C, base, photos, pk, story, built, theme, photos0) {
   return [...pre, cinemaScenes(scenes, !pre.length && homeLayout(cl).some((y) => y.key === "hero" && !y.hidden)), ...post].filter(Boolean).join("\n");
 }
 
+// Editorial's home: the cover, the contents, the feature and the columns in his order; the other parts (strip, before
+// and after, steps, questions, review, closing panel, his added sections) as they are, restyled by the design.
+const ARROW_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+function editorialHome(cl, C, base, photos, storyPh, story, built, theme, photos0) {
+  const R = C.rating, phone = (cl && (cl.businessPhone || cl.callTrackingNumber)) || "";
+  const pick = (i) => (photos.length ? photos[i % photos.length] : null);
+  const ed = {
+    hero: () => { const ph = photos[0];
+      return `<section class="edh"><div class="wrap"><div class="edh-meta"><span class="eyebrow rv"><i></i>${esc(C.hero.eyebrow)}</span>${R ? `<span class="edh-rt rv d1"><b aria-hidden="true">${"&#9733;".repeat(Math.max(1, Math.min(5, Math.round(R.stars))))}</b>${R.stars.toFixed(1)} from ${R.count} ${R.source ? esc(R.source) + " " : ""}review${R.count === 1 ? "" : "s"}</span>` : phone ? `<a class="edh-rt rv d1" href="tel:${esc(digits(phone))}">Call ${esc(phone)}</a>` : ""}</div>
+<div class="rule"></div><h1 class="disp hl">${lines(C.hero.headline, theme)}</h1>
+<div class="edh-row"><p class="edh-lead rv d1">${esc(C.hero.sub)}</p><div class="acts rv d2">${ctaBtn(C, base)}${linkTo(base, "services", bt(C.cta.explore), "btn ghost")}</div></div></div>
+${ph ? `<figure class="edh-fig wrap"><div class="ph"><img src="${esc(ph.url)}" alt="${esc(ph.alt)}" fetchpriority="high"></div><figcaption>${esc(C.name)}${C.area ? `, ${esc(C.area)}` : ""}</figcaption></figure>` : ""}</section>`; },
+    services: () => { const list = C.services.slice(0, 8); if (!list.length) return "";
+      const hov = photos.length ? `<figure class="hov" aria-hidden="true">${list.map((sv, i) => `<img src="${esc(pick(i + 1).url)}" alt="" loading="lazy" decoding="async">`).join("")}</figure>` : "";
+      return `<section class="ed-sec"><div class="wrap"><div class="ed-sh"><h2 class="disp rv">What we do</h2><span class="rv d1">${list.length > 1 ? `${list.length} ways we can help` : "How we can help"}</span></div><div class="rule"></div>
+<div class="ed-idx">${list.map((sv, i) => `<a class="ed-row rv${photos.length ? "" : " np"}" href="${esc(href(base, "services"))}#s${i + 1}" data-page="services" aria-label="${esc(sv.name)}">${photos.length ? `<img class="ed-th" src="${esc(pick(i + 1).url)}" alt="" loading="lazy" decoding="async">` : ""}<h3 class="disp">${esc(sv.name)}</h3><p>${esc(sv.blurb || sv.detail)}</p><span class="ed-go">${ARROW_SVG}</span></a>`).join("")}${hov}</div></div></section>`; },
+    story: () => { const more = C.about.story.slice(1, 3).filter((x) => x && x !== story);
+      return `<section class="ed-sec"><div class="wrap"><div class="ed-sh"><h2 class="disp rv">Our story</h2></div><div class="rule"></div>
+<div class="ed-feat">${storyPh ? `<figure class="ed-fig"><div class="ph"><img src="${esc(storyPh.url)}" alt="${esc(storyPh.alt)}" loading="lazy" decoding="async"></div><figcaption>${esc(C.name)}</figcaption></figure>` : ""}
+<div><p class="ed-big disp rv">${esc(story)}</p>${more.length ? `<div class="ed-cols rv d1" style="--c:${more.length};--mw:${more.length > 1 ? "none" : "560px"}">${more.map((x, i) => `<p${!i && x.length > 160 ? ' class="dc"' : ""}>${esc(x)}</p>`).join("")}</div>` : ""}<div class="go rv d2">${linkTo(base, "about", bt("Read our story"), "btn ghost")}</div></div></div></div></section>`; },
+    why: () => !C.why.length ? "" : `<section class="ed-sec"><div class="wrap"><div class="ed-sh"><h2 class="disp rv">Why people choose ${esc(C.name)}</h2></div><div class="rule"></div>
+<div class="ed-why" style="--n:${Math.min(4, C.why.length)}">${C.why.map((w, i) => `<div class="rv d${i % 3}"><h3>${esc(w.title)}</h3><p>${esc(w.text)}</p></div>`).join("")}</div></div></section>`,
+  };
+  return homeLayout(cl).filter((x) => !x.hidden).map((x) => x.key.startsWith("b:") ? renderBlock(theme, blockOf(cl, x.key.slice(2)), C, base, photos0) : ed[x.key] ? ed[x.key]() : (built[x.key] ? built[x.key]() : ""))
+    .filter(Boolean).join("\n");
+}
+
 function reviewsTeaser(cl, C, base) {
   const revs = realReviews(cl);
   if (!revs.length) return "";
   const r = revs[0];
-  return `<section class="sec"><div class="wrap" style="max-width:980px;text-align:center"><div class="stars rv">${"&#9733;".repeat(r.stars)}</div>
+  return `<section class="sec rvt"><div class="wrap" style="max-width:980px;text-align:center"><div class="stars rv">${"&#9733;".repeat(r.stars)}</div>
 <p class="disp rv" style="font-size:clamp(26px,3.6vw,46px);line-height:1.2">"${esc(r.text)}"</p><p class="rv d1" style="margin-top:20px;color:var(--mute)">${esc(r.name)}</p>
 <div class="rv d2" style="margin-top:26px">${linkTo(base, "reviews", bt(revs.length > 1 ? `Read all ${revs.length} reviews` : "See the review"), "btn ghost")}</div></div></section>`;
 }

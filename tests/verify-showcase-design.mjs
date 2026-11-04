@@ -85,7 +85,7 @@ ok("the OS offers Showcase first, starts new sites on it, and keeps Aurora only 
   const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) / 255; };
   const [S, Ci, E] = PICK_THEMES.map(pal);
   ok("left alone, Cinematic shows dark and the other two light", lum(bgOf(Ci)) < 0.15 && lum(bgOf(S)) > 0.85 && lum(bgOf(E)) > 0.85, [S, Ci, E].map(bgOf).join());
-  ok("🔴 each has its own hero: a full-screen photo, a framed photo beside giant type, a magazine split", /class="hero sc"/.test(S) && /class="cn cn-top"/.test(Ci) && /class="wrap ed"/.test(E) && !/class="cn |class="wrap ed"/.test(S) && !/class="hero sc"|class="wrap ed"/.test(Ci) && !/class="hero sc"|class="cn /.test(E));
+  ok("🔴 each has its own hero: a full-screen photo, a split screen told in scenes, a magazine cover", /class="hero sc"/.test(S) && /class="cn cn-top"/.test(Ci) && /<section class="edh">/.test(E) && !/class="cn |class="edh"/.test(S) && !/class="hero sc"|class="edh"/.test(Ci) && !/class="hero sc"|class="cn /.test(E));
   ok("each has its own typeface", /Plus\+Jakarta/.test(S) && /Archivo/.test(Ci) && /Fraunces/.test(E));
   ok("Editorial uses thin rules where the others use boxes, and a paper closing panel", /\.card\{background:none;border:0;border-top:1px solid var\(--ink\)/.test(E) && /\.ctab\{border-radius:0;background:var\(--bg2\)/.test(E) && !/\.card\{background:none;border:0/.test(S + Ci));
   ok("the descriptions say what each one looks like", /[Ss]plit/.test(SITE_THEMES.cinematic.blurb) && /[Mm]agazine/.test(SITE_THEMES.editorial.blurb));
@@ -111,6 +111,24 @@ ok("the OS offers Showcase first, starts new sites on it, and keeps Aurora only 
   const bar = demoBarHTML("X", [], "bl-mode:t");
   ok("🔴 the preview strip flips light and dark on the spot, saves nothing, and does nothing on a page without modes", /class="bl-mode"/.test(bar) && /if\(!h\.getAttribute\('data-mode'\)\)return;/.test(bar) && !/fetch|XMLHttpRequest|sendBeacon|localStorage/.test(bar));
   ok("the landing page follows the website's mode", siteBrandKit({ website: { theme: "editorial", mode: "dark" } }).dark === true && siteBrandKit({ website: { theme: "editorial" } }).dark === false);
+}
+
+// ── 7. Editorial, rebuilt as a magazine ─────────────────────────────────────────
+// Bryson, 2026-11-04: "I like cinematic now I want to make editorial look better".
+{
+  const ed = (extra = {}, page = "home") => renderSite({ ...DEMO_DETAIL, ...extra, website: { ...DEMO_DETAIL.website, theme: "editorial", ...(extra.website || {}) } }, page, { base: BASE });
+  const E = ed();
+  const n = DEMO_DETAIL.website.content.services.length;
+  ok("the cover: a rule, one huge headline, the intro and both buttons, then a wide photo with a caption", /<section class="edh"><div class="wrap"><div class="edh-meta">[\s\S]*?<div class="rule"><\/div><h1 class="disp hl">[\s\S]*?<div class="edh-row"><p class="edh-lead[^"]*">[\s\S]*?class="btn"[\s\S]*?<figure class="edh-fig wrap"><div class="ph"><img [^>]*fetchpriority="high"><\/div><figcaption>/.test(E));
+  ok("🔴 the cover never repeats the town: it shows their real rating, else their phone number to tap", /class="edh-rt rv d1" href="tel:/.test(E) && /4\.9 from 61 Google reviews/.test(ed({ gbpStats: { average: 4.9, total: 61 } })));
+  ok("services are a table of contents: one row per service, each opening its part of the Services page, with the photo that follows the pointer", (E.match(/<a class="ed-row rv" href="https:\/\/example\.com\/site\/x\/services\/#s\d"/g) || []).length === n && /<figure class="hov" aria-hidden="true">/.test(E) && /q\('\.svc,\.ed-row'\)/.test(E));
+  ok("on a phone each row carries a small photo; with no photos the rows still line up", /\.ed-th\{display:block;width:64px/.test(E) && /class="ed-row rv np"/.test(ed({ website: { stock: [], photos: [] } })));
+  ok("the story is a feature spread, the big first letter only on a paragraph long enough for it", /<div class="ed-feat"><figure class="ed-fig">/.test(E) && /<p class="ed-big disp rv">/.test(E) && /\.ed-cols p\.dc::first-letter/.test(E) && !/<p class="dc">.{0,160}<\/p>/.test(E));
+  ok("'why us' is set in newspaper columns, the review as a pull quote, the strip in italics", /<div class="ed-why" style="--n:\d">/.test(E) && /<section class="sec rvt">/.test(E) && /\.rvt \.wrap::before\{content:"\\201C"/.test(E) && /\.marq span\{font-family:'Fraunces'[^}]*font-style:italic/.test(E));
+  ok("the italic of the serif is actually loaded", /Fraunces:ital,opsz,wght@0,9\.\.144,300\.\.700;1,9\.\.144,300\.\.700/.test(E));
+  ok("🔴 quiet motion that never hides a word: rules draw in and photos open only under the motion class, and a photo starts part open so it always counts as seen", /html\.mo \.rule\{transform:scaleX\(0\)/.test(E) && /html\.mo \.edh-fig \.ph,html\.mo \.ed-fig \.ph\{clip-path:inset\(0 0 78% 0\)/.test(E) && !/(^|\n)\.edh-fig \.ph\{[^}]*clip-path/.test(E));
+  ok("🔴 his order and his hidden parts still rule", !/class="ed-why"/.test(ed({ website: { layout: { home: [{ key: "why", hidden: true }] } } })) && E.indexOf('class="ed-idx"') < E.indexOf('class="ed-feat"'));
+  ok("works in dark too", /<html lang="en" data-mode="dark">/.test(ed({ website: { mode: "dark" } })) && /<section class="edh">/.test(ed({ website: { mode: "dark" } })));
 }
 
 console.log(`verify-showcase-design: ${pass} passed, ${fail} failed`);

@@ -135,8 +135,9 @@ ok("🔴 and only when there is real distance to travel", /if\(dx<innerWidth\*\.
   ok("🔴 the moving strip never runs out on a wide screen (each half repeats to at least twelve items)", n >= 24 && n % 2 === 0, `${n} items`);
   ok("and its two halves are identical, so the loop is seamless", strip.slice(0, strip.length / 2) === strip.slice(strip.length / 2));
 }
-// (Editorial: Cinematic's home is its own split screen since 2026-11-04, and Showcase uses photo tiles.)
-ok("🔴 the right amount: the home page has exactly one big scroll moment", MOTION.scene.every((sc) => { const h = sceneHome(sc, "editorial"); return (h.match(/class="portal"|class="sec rail"|class="stk"/g) || []).length === 1; }));
+// (Aurora: since 2026-11-04 the three offered designs each have their own home layout: Showcase photo tiles, Cinematic
+// a split screen, Editorial a magazine. The per-client scroll moment lives on for sites still on Aurora.)
+ok("🔴 the right amount: the home page has exactly one big scroll moment", MOTION.scene.every((sc) => { const h = sceneHome(sc, "aurora"); return (h.match(/class="portal"|class="sec rail"|class="stk"/g) || []).length === 1; }));
 ok("no AI tells: no all-caps labels, no [01] numbering, no monospace font", all.every((x) => !/text-transform:uppercase/.test(x.html) && !/\[\d\d\]/.test(shown(x.html)) && !/JetBrains|monospace/.test(x.html)));
 ok("button labels roll on hover, and the copy is silent to screen readers", /content:attr\(data-t\) \/ ""/.test(home) && /<span class="bt"><span data-t="Book a visit">Book a visit<\/span><\/span>/.test(home));
 ok("3D backdrops match the trade", glSceneFor({ niche: "Pool Construction" }) === "water" && glSceneFor({ niche: "Auto Detailing" }) === "chrome" && glSceneFor({ niche: "Chiropractic" }) === "silk"
