@@ -438,8 +438,9 @@ Headlines use `oneLine` (natural wrapping; fixed thirds left "in" alone on a pho
 "It's still tight I think we need to change up the design a bit when scrolling"):** a photo band pinned on a phone ate a
 third of the screen whatever its size (a `cnTop` script that slid it under the menu was tried and REMOVED). Now on a phone
 nothing is pinned: `.cn-media` is hidden and each scene carries its own full-width photo (`figure.cn-ph`, 16:9 for the top,
-4:3 for the rest; hidden on computers) that opens from a letterbox slit as it scrolls in (clip-path 34% then 0, observed with
-the other reveals; 34% because IntersectionObserver counts a clip-path), words underneath, 64px between scenes; the
+4:3 for the rest; hidden on computers) that opens from a letterbox slit as it scrolls in AND closes again on the way back up (Bryson: "make sure when I scroll
+up the pictures close as well"): `phUpd()` in `frame()` sets `--o` 0 to 1 from the photo's top entering the bottom of the
+screen to the middle; CSS clip-path/scale read it; not an IntersectionObserver one-off any more), words underneath, 64px between scenes; the
 "more on" buttons are underlined text links with an arrow. Computers keep the pinned split screen unchanged. The menu sits in a frosted pill on
 desktop because it can reach over the photo half. Pinned in `verify-showcase-design` sections 4 and 6.
 
