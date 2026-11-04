@@ -9,8 +9,8 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { renderSite, ratingOf, PICK_THEMES, THEME_IDS, SITE_THEMES, pickThemesFor, THEME_DEFAULT, motionRecipe } from "../netlify/lib/site-render.mjs";
-import { demoClientOf, DEMO_THEME_DEFAULT } from "../netlify/lib/demo-site.mjs";
+import { renderSite, ratingOf, PICK_THEMES, THEME_IDS, SITE_THEMES, pickThemesFor, THEME_DEFAULT, motionRecipe, MODES, NATURAL_MODE, modeOf, siteBrandKit } from "../netlify/lib/site-render.mjs";
+import { demoClientOf, pitchClientOf, demoBarHTML, DEMO_THEME_DEFAULT } from "../netlify/lib/demo-site.mjs";
 import { demoThemeFor } from "../netlify/functions/demo-site-background.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -50,6 +50,86 @@ ok("Showcase gets its own scene and entrance among the three offered", (() => { 
 ok("new demos start on Showcase, and a rebuilt Aurora demo moves to it", DEMO_THEME_DEFAULT === "showcase" && THEME_DEFAULT === "showcase" && demoThemeFor("Car Detailing") === "showcase" && demoThemeFor("x", "aurora") === "showcase" && demoThemeFor("Chiropractic") === "editorial");
 ok("the OS offers Showcase first, starts new sites on it, and keeps Aurora only for a site already on it",
   /const SITE_THEME_LIST=\[\["showcase","Showcase"/.test(UI) && !/const SITE_THEME_LIST=\[[^\n]*"aurora"/.test(UI) && /theme:w\.theme\|\|"showcase",previewKey/.test(UI) && /siteThemeListFor\(theme\)\.map/.test(UI));
+
+// ── 4. Cinematic, rebuilt: a split screen told scene by scene ───────────────────
+// Bryson, 2026-11-04: first "cinematic still has the bubble", then "redo one of them the whole layout and animations
+// that way the three templates give three completely different options for clients".
+{
+  const cin = (extra = {}, page = "home") => renderSite({ ...DEMO_DETAIL, ...extra, website: { ...DEMO_DETAIL.website, theme: "cinematic", ...(extra.website || {}) } }, page, { base: BASE });
+  const C = cin();
+  const scenes = [...C.matchAll(/<div class="cn-sc[^"]*" data-l="([^"]*)"/g)].map((m) => m[1]);
+  const imgs = (C.match(/<img class="cn-img/g) || []).length;
+  ok("🔴 no 3D orb and no bubble, anywhere", !/getContext\('webgl'/.test(C) && !/<canvas/.test(C) && ["services", "about"].every((p) => !/<canvas/.test(cin({}, p))) && motionRecipe({ id: "a" }, "cinematic").gl === null);
+  ok("the home page is one split screen: the top, each service, the story and 'why us' as scenes", /<section class="cn cn-top" data-cn>/.test(C) && scenes.length === 2 + DEMO_DETAIL.website.content.services.length + 1 && /<h1 class="disp hl">/.test(C), scenes.join(" | "));
+  ok("🔴 one photo per scene on the pinned half, the first loaded first; the others wait their turn", imgs === scenes.length && /<img class="cn-img on" src="[^"]+" alt="" fetchpriority="high">/.test(C) && (C.match(/class="cn-img on"/g) || []).length === 1);
+  ok("the scenes don't repeat one photo back to back", (() => { const u = [...C.matchAll(/<img class="cn-img[^"]*" src="([^"]+)"/g)].map((m) => m[1]); return u.every((x, i) => !i || x !== u[i - 1]); })());
+  ok("🔴 every word is readable without the script: only the motion class dims a waiting scene", /html\.mo \.cn-sc>\*:not\(\.cn-ph\)\{opacity:\.16/.test(C) && !/(^|\n)\.cn-sc>\*\{opacity/.test(C));
+  ok("the script lights the scene being read, swaps the photo and fills the progress line", /function cnUpd\(\)/.test(C) && /c\.im\[j\]\.classList\.toggle\('on',j===k\)/.test(C) && /c\.bar\.style\.transform='scaleX\('/.test(C) && /function frame\(\)\{tk=false;var y=scrollY;cnUpd\(\);/.test(C));
+  ok("🔴 on a phone nothing is pinned: each scene carries its own full-width photo above its words, and booking is in the first scene (Bryson: 'still tight')", /\.cn-media\{display:none\}/.test(C) && /\.cn-ph\{display:none\}/.test(C) && (C.match(/<figure class="cn-ph" aria-hidden="true">/g) || []).length === scenes.length && /class="cn-sc act" data-l="Scroll to explore"><figure class="cn-ph"[\s\S]{0,1200}class="btn"/.test(C));
+  ok("🔴 the phone photos open like a film frame as they scroll in AND close again on the way back up (Bryson), tied to the scroll; the first is already open", /html\.mo \.cn-ph\{--k:calc\(1 - var\(--o,0\)\);clip-path:inset\(calc\(var\(--k\) \* 34%\) 0 calc\(var\(--k\) \* 34%\) 0\)\}/.test(C) && /function phUpd\(\)\{if\(rm\|\|!cph\.length\|\|innerWidth>=900\)return;[^}]*cph\[i\]\.style\.setProperty\('--o',cl\(\(vh-r\.top\)\/\(vh\*\.5\),0,1\)/.test(C) && /function frame\(\)\{tk=false;var y=scrollY;cnUpd\(\);phUpd\(\);/.test(C) && !/\.cn-ph\.in/.test(C) && /html\.mo \.cn-top \.cn-sc:first-child \.cn-ph\{clip-path:none\}/.test(C));
+  ok("on a phone the 'more on' links are light text links, not big outlined buttons", /\.cn-sc \.go \.btn\.ghost\{min-height:44px;padding:0;border:0;background:none/.test(C) && !/function cnTop/.test(C));
+  ok("each service scene opens its own part of the Services page, which tells them the same way", C.includes(`href="${BASE}/services/#s1" data-page="services"`) && /<div class="cn-sc[^"]*" data-l="[^"]+" id="s1">/.test(cin({}, "services")));
+  ok("the inside pages open on the same split, and the site closes on a photo end card", /<section class="cnh">/.test(cin({}, "about")) && /<section class="cn-end" data-scene="pass">/.test(C) && !/class="ctab/.test(C));
+  ok("🔴 his order and his hidden parts still rule: a hidden story is no scene", !/data-l="Our story"/.test(cin({ website: { layout: { home: [{ key: "story", hidden: true }] } } })));
+  ok("no photos: the split still works, with a colour panel", /<div class="cn-img cn-none on"><\/div>/.test(cin({ website: { stock: [], photos: [] } })));
+  ok("the design is described by what it does", /[Ss]plit/.test(SITE_THEMES.cinematic.blurb) && /\["cinematic","Cinematic","[^"]*[Ss]plit[^"]*"\]/.test(UI));
+  ok("aurora (retired) keeps its 3D for a site already on it", /getContext\('webgl'/.test(renderSite({ ...DEMO_DETAIL, website: { ...DEMO_DETAIL.website, theme: "aurora" } }, "home", { base: BASE })));
+}
+
+// ── 5. The three designs offered never look alike ───────────────────────────────
+// Bryson, 2026-11-04: "there is basically no difference between editorial and cinematic we need to make sure the 3
+// template options are unique". Showcase: bright, a full-screen photo. Cinematic: dark. Editorial: paper, rules, no boxes.
+{
+  const pal = (t) => renderSite({ ...DEMO_DETAIL, brandColor: undefined, website: { ...DEMO_DETAIL.website, theme: t } }, "home", { base: BASE });
+  const bgOf = (h) => (h.match(/--bg:(#[0-9A-Fa-f]{6})/) || [])[1];
+  const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) / 255; };
+  const [S, Ci, E] = PICK_THEMES.map(pal);
+  ok("left alone, Cinematic shows dark and the other two light", lum(bgOf(Ci)) < 0.15 && lum(bgOf(S)) > 0.85 && lum(bgOf(E)) > 0.85, [S, Ci, E].map(bgOf).join());
+  ok("🔴 each has its own hero: a full-screen photo, a split screen told in scenes, a magazine cover", /class="hero sc"/.test(S) && /class="cn cn-top"/.test(Ci) && /<section class="edh">/.test(E) && !/class="cn |class="edh"/.test(S) && !/class="hero sc"|class="edh"/.test(Ci) && !/class="hero sc"|class="cn /.test(E));
+  ok("each has its own typeface", /Plus\+Jakarta/.test(S) && /Archivo/.test(Ci) && /Fraunces/.test(E));
+  ok("Editorial uses thin rules where the others use boxes, and a paper closing panel", /\.card\{background:none;border:0;border-top:1px solid var\(--ink\)/.test(E) && /\.ctab\{border-radius:0;background:var\(--bg2\)/.test(E) && !/\.card\{background:none;border:0/.test(S + Ci));
+  ok("the descriptions say what each one looks like", /[Ss]plit/.test(SITE_THEMES.cinematic.blurb) && /[Mm]agazine/.test(SITE_THEMES.editorial.blurb));
+}
+
+// ── 6. Light or dark, on every design ───────────────────────────────────────────
+// Bryson, 2026-11-04: "some businesses would want a style but have it either light or dark and that should be an
+// option for all templates".
+{
+  const r = (theme, mode, extra = {}) => renderSite({ ...DEMO_DETAIL, brandColor: undefined, ...extra, website: { ...DEMO_DETAIL.website, theme, mode } }, "home", { base: BASE });
+  const bg = (h) => (h.match(/:root\{--bg:(#[0-9A-Fa-f]{6})/) || [])[1];
+  const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) / 255; };
+  ok("🔴 every offered design comes in light and in dark", PICK_THEMES.every((t) => lum(bg(r(t, "light"))) > 0.85 && lum(bg(r(t, "dark"))) < 0.15), PICK_THEMES.map((t) => bg(r(t, "light")) + "/" + bg(r(t, "dark"))).join(" "));
+  ok("🔴 the mode changes colours only: the same layout either way", PICK_THEMES.every((t) => { const strip = (h) => h.replace(/<style>[\s\S]*?<\/style>/g, "").replace(/data-mode="\w+"/, "").replace(/<meta name="theme-color" content="#\w+">/, ""); const a = strip(r(t, "light")), b = strip(r(t, "dark")); return a === b; }));
+  ok("the page says which mode it is in, and carries the other one so a preview can flip instantly", /<html lang="en" data-mode="dark">/.test(r("showcase", "dark")) && /html\[data-mode=light\]\{--bg:#F8F7F4/.test(r("showcase", "dark")));
+  ok("unset, each design keeps its natural mode; a nonsense value is ignored", MODES.every((m) => NATURAL_MODE.showcase && modeOf({ website: {} }, "showcase") === "light" && modeOf({ website: {} }, "cinematic") === "dark") && modeOf({ website: { mode: "<x>" } }, "editorial") === "light");
+  ok("🔴 Aurora (retired) stays exactly as it was: dark, with no switch", modeOf({ website: { mode: "light" } }, "aurora") === "dark" && !/html\[data-mode=/.test(renderSite({ ...DEMO_DETAIL, website: { ...DEMO_DETAIL.website, theme: "aurora", mode: "light" } }, "home", { base: BASE }).replace(/html\[data-mode=dark\] \.map/, "")));
+  ok("a navy brand stays visible on a dark page: the small touches lift, the buttons keep the true colour", (() => { const h = renderSite({ id: "n1", name: "Navy Co", website: { theme: "editorial", mode: "dark", brandColor: "#0A1F44" } }, "home", { base: BASE }); const root = h.match(/:root\{[^}]*\}/)[0]; return /--ac:#0A1F44/.test(root) && !/--ac3:#0A1F44/.test(root) && /html\[data-mode=light\]\{[^}]*--ac3:#0A1F44/.test(h); })());
+  ok("a demo and a pitch preview carry the mode Bryson picked, and only a real one", demoClientOf({ id: "p", name: "X", data: {} }, { mode: "dark", theme: "showcase" }).website.mode === "dark" && !("mode" in demoClientOf({ id: "p", name: "X", data: {} }, { mode: "<x>" }).website) && pitchClientOf({ id: "c", data: { name: "Y" } }, { mode: "light" }).website.mode === "light");
+  const GET = readFileSync(join(ROOT, "netlify/functions/demo-site.mjs"), "utf8");
+  ok("🔴 the server only stores light, dark or 'the design's own', for demos and pitches alike", (GET.match(/if \(!\["", \.\.\.MODES\]\.includes\(body\.mode\)\) return json\(\{ ok: false, error: "Unknown mode" \}, 400\);/g) || []).length === 2);
+  ok("the OS offers Light / Dark on the Website tab and on both preview cards, and keeps it when a preview becomes their site", (UI.match(/<ModePills /g) || []).length === 3 && /onPick=\{m=>save\(\{mode:m\}\)\}/.test(UI) && /\.\.\.\(full\.mode\?\{mode:full\.mode\}:\{\}\)/.test(UI) && /\.\.\.\(demo\.mode\?\{mode:demo\.mode\}:\{\}\)/.test(UI));
+  const bar = demoBarHTML("X", [], "bl-mode:t");
+  ok("🔴 the preview strip flips light and dark on the spot, saves nothing, and does nothing on a page without modes", /class="bl-mode"/.test(bar) && /if\(!h\.getAttribute\('data-mode'\)\)return;/.test(bar) && !/fetch|XMLHttpRequest|sendBeacon|localStorage/.test(bar));
+  ok("the landing page follows the website's mode", siteBrandKit({ website: { theme: "editorial", mode: "dark" } }).dark === true && siteBrandKit({ website: { theme: "editorial" } }).dark === false);
+}
+
+// ── 7. Editorial, rebuilt as a magazine ─────────────────────────────────────────
+// Bryson, 2026-11-04: "I like cinematic now I want to make editorial look better".
+{
+  const ed = (extra = {}, page = "home") => renderSite({ ...DEMO_DETAIL, ...extra, website: { ...DEMO_DETAIL.website, theme: "editorial", ...(extra.website || {}) } }, page, { base: BASE });
+  const E = ed();
+  const n = DEMO_DETAIL.website.content.services.length;
+  ok("the cover: a rule, one huge headline, the intro and both buttons, then a wide photo with a caption", /<section class="edh"><div class="wrap"><div class="edh-meta">[\s\S]*?<div class="rule"><\/div><h1 class="disp hl">[\s\S]*?<div class="edh-row"><p class="edh-lead[^"]*">[\s\S]*?class="btn"[\s\S]*?<figure class="edh-fig wrap"><div class="ph"><img [^>]*fetchpriority="high"><\/div><figcaption>/.test(E));
+  ok("🔴 the cover never repeats the town: it shows their real rating, else their phone number to tap", /class="edh-rt rv d1" href="tel:/.test(E) && /4\.9 from 61 Google reviews/.test(ed({ gbpStats: { average: 4.9, total: 61 } })));
+  ok("services are a table of contents: one row per service, each opening its part of the Services page, with the photo that follows the pointer", (E.match(/<a class="ed-row rv" href="https:\/\/example\.com\/site\/x\/services\/#s\d"/g) || []).length === n && /<figure class="hov" aria-hidden="true">/.test(E) && /q\('\.svc,\.ed-row'\)/.test(E));
+  ok("on a phone each row carries a small photo; with no photos the rows still line up", /\.ed-th\{display:block;width:64px/.test(E) && /class="ed-row rv np"/.test(ed({ website: { stock: [], photos: [] } })));
+  ok("the story is a feature spread, the big first letter only on a paragraph long enough for it", /<div class="ed-feat"><figure class="ed-fig">/.test(E) && /<p class="ed-big disp rv">/.test(E) && /\.ed-cols p\.dc::first-letter/.test(E) && !/<p class="dc">.{0,160}<\/p>/.test(E));
+  ok("'why us' is set in newspaper columns, the review as a pull quote, the strip in the serif", /<div class="ed-why" style="--n:\d">/.test(E) && /<section class="sec rvt">/.test(E) && /\.rvt \.wrap::before\{content:"\\201C"/.test(E) && /\.marq span\{font-family:'Fraunces'/.test(E));
+  ok("🔴 no slanted serif anywhere (Bryson: 'too hard to read'), and mid-size serif text uses the reading cut", !/font-style:italic/.test(E) && !/Fraunces:ital/.test(E) && /\.rvt p\.disp,\.ed-big,\.ed-row h3,\.ed-why h3,\.marq span,\.ed-sh h2\{font-variation-settings:normal;font-optical-sizing:auto\}/.test(E));
+  ok("🔴 quiet motion that never hides a word: rules draw in and photos open only under the motion class, and a photo starts part open so it always counts as seen", /html\.mo \.rule\{transform:scaleX\(0\)/.test(E) && /html\.mo \.edh-fig \.ph,html\.mo \.ed-fig \.ph\{clip-path:inset\(0 0 78% 0\)/.test(E) && !/(^|\n)\.edh-fig \.ph\{[^}]*clip-path/.test(E));
+  ok("🔴 his order and his hidden parts still rule", !/class="ed-why"/.test(ed({ website: { layout: { home: [{ key: "why", hidden: true }] } } })) && E.indexOf('class="ed-idx"') < E.indexOf('class="ed-feat"'));
+  ok("works in dark too", /<html lang="en" data-mode="dark">/.test(ed({ website: { mode: "dark" } })) && /<section class="edh">/.test(ed({ website: { mode: "dark" } })));
+}
 
 console.log(`verify-showcase-design: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { renderSite, THEME_IDS, PICK_THEMES, SITE_THEMES, SITE_PAGES as SAMPLE_PAGES } from "../netlify/lib/site-render.mjs";
+import { MODE_TOGGLE_CSS, MODE_TOGGLE_HTML, modeToggleJS } from "../netlify/lib/demo-site.mjs";
 import { DEMO, DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT, LANDING_DEMOS } from "./site-showcase-demo.mjs";
 import { renderLandingPage } from "../netlify/functions/landing.mjs";
 import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE, GOOGLE_PROFILE } from "../netlify/lib/pricing-shared.mjs";
@@ -565,8 +566,10 @@ function samplePage(sm, page) {
   const hasLanding = LANDING_DEMOS.some((l) => l.slug === sm.slug);
   const designs = sm.switcher ? PICK_THEMES.map((t) => `<a href="/examples/${t}/${page.path ? page.path + "/" : ""}"${t === sm.theme ? ' aria-current="page"' : ""}>${SITE_THEMES[t].label}</a>`).join("")
     : hasLanding ? `<a aria-current="page" href="/examples/${sm.slug}/">Website</a><a href="/examples/${sm.slug}/landing/">Landing page</a>` : "";
+  // Every sample site can be flipped between light and dark right there (Bryson, 2026-11-04).
   const bar = part("sample-bar.html").replace("{{DESIGNS}}", designs).replace("{{NAME}}", sm.demo.name).replace('href="/websites/"', `href="${sm.back}"`).replace(`href="${CAL}"`, `href="${CAL_WEB}"`)
-    .replace('<nav class="bl-designs" aria-label="Designs"></nav>', '<span class="bl-spacer"></span>');
+    .replace('<nav class="bl-designs" aria-label="Designs"></nav>', '<span class="bl-spacer"></span>')
+    .replace("</style>", `${MODE_TOGGLE_CSS}\n</style>`).replace('<a class="bl-back"', `${MODE_TOGGLE_HTML}<a class="bl-back"`) + `<script>${modeToggleJS("bl-mode-sample")}</script>`;
   html = html.replace(/<meta charset="utf-8">/i, (m) => `${m}<script>\n${part("sample-guard.js")}</script>`);
   html = html.replace(/<body([^>]*)>/i, (m) => `${m}\n${bar}`);
   return html;

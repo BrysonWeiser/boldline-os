@@ -6260,6 +6260,15 @@ const demoPoll=async(id)=>{
   }catch(e){ demoSet(id,{polling:false,msg:e.message}); }
 };
 const DEMO_THEMES=[["showcase","Showcase"],["cinematic","Cinematic"],["editorial","Editorial"]];   // Aurora retired 2026-11-03
+// Light or dark is its own choice on every design (Bryson, 2026-11-04). Unset = the design's own (site-render NATURAL_MODE).
+const SITE_NATURAL_MODE={showcase:"light",cinematic:"dark",editorial:"light",aurora:"dark"};
+const siteModeOf=(theme,mode)=>theme==="aurora"?"dark":(mode==="light"||mode==="dark")?mode:(SITE_NATURAL_MODE[theme]||"light");
+function ModePills({theme,mode,onPick,size}){
+  if(theme==="aurora") return null;
+  const cur=siteModeOf(theme,mode), sm=size==="sm";
+  return <span style={{display:"inline-flex",gap:4,alignItems:"center"}}>{sm&&<span aria-hidden="true" style={{width:1,height:14,background:C.border,margin:"0 5px"}}/>}{[["light","Light"],["dark","Dark"]].map(([m,l])=>{ const on=cur===m; return <button key={m} onClick={()=>!on&&onPick(m)} aria-pressed={on}
+    style={{padding:sm?"3px 10px":"6px 14px",fontSize:sm?11:12,fontWeight:700,borderRadius:999,border:`1px solid ${on?C.gold:C.border}`,background:on?C.goldDim:"transparent",color:on?C.gold:C.textDim,cursor:on?"default":"pointer",fontFamily:"inherit"}}>{l}</button>; })}</span>;
+}
 const demoThemesFor=(cur)=>DEMO_THEMES.some(x=>x[0]===cur)?DEMO_THEMES:cur==="aurora"?DEMO_THEMES.concat([["aurora","Aurora"]]):DEMO_THEMES;
 // The two ways to buy, as Bryson priced them (2026-10-20): $1,500 + $100/mo with BoldLine hosting and looking after
 // it, or $2,500 once to own it outright and host it themselves.
@@ -6273,7 +6282,7 @@ function clientFromDemo(p,demo,plan){
     businessPhone:d.phone||"", businessAddress:d.address||"", email:d.email||"", contactName:d.ownerName||"",
     campaignSetup:{...cl.campaignSetup, serviceArea:area, targetLocations:area},
     // The demo becomes their website: same words, same photos, same design. Not live, and not until they pay.
-    website:{content:demo.content, stock:demo.stock||[], theme:demo.theme||"showcase", published:false, fromDemo:{prospectId:p.id, builtAt:demo.builtAt||null}},
+    website:{content:demo.content, stock:demo.stock||[], theme:demo.theme||"showcase", ...(demo.mode?{mode:demo.mode}:{}), published:false, fromDemo:{prospectId:p.id, builtAt:demo.builtAt||null}},
     websitePlanChoice:plan==="own"?"own":"care",
     salesNotes:{...(cl.salesNotes||{}), demoSite:`Came from a demo website shown on the meeting (${plan==="own"?"buying it outright":"monthly plan"}).`},
   };
@@ -6329,6 +6338,7 @@ function PitchPreviewCard({client,onUpdate}){
     }catch(e){ pitchSet(id,{demo:demo||null,msg:e.message}); }
   };
   const setTheme=async(t)=>{ try{ const d=await demoCall({action:"theme",clientId:id,theme:t}); pitchSet(id,{demo:d.demo}); }catch(e){ pitchSet(id,{msg:e.message}); } };
+  const setMode=async(m)=>{ try{ const d=await demoCall({action:"mode",clientId:id,mode:m}); pitchSet(id,{demo:d.demo}); }catch(e){ pitchSet(id,{msg:e.message}); } };
   const copy=()=>{ try{ navigator.clipboard.writeText(demo.url); setCopied(true); setTimeout(()=>setCopied(false),1800); }catch(e){} };
   // 🔴 Only once they've signed AND paid: the same lock the website builder has (wdBuildLock).
   const adopt=async()=>{
@@ -6336,7 +6346,7 @@ function PitchPreviewCard({client,onUpdate}){
     if(hasSite&&!window.confirm(`${client.name} already has website words. Replace them with the preview?`)) return;
     try{
       const full=await demoCall({action:"content",clientId:id});
-      onUpdate&&onUpdate({...client,website:{...(client.website||{}),content:full.content,stock:full.stock||[],theme:full.theme||"showcase",published:false,fromPitch:{builtAt:full.builtAt||null}}});
+      onUpdate&&onUpdate({...client,website:{...(client.website||{}),content:full.content,stock:full.stock||[],theme:full.theme||"showcase",...(full.mode?{mode:full.mode}:{}),published:false,fromPitch:{builtAt:full.builtAt||null}}});
       pitchSet(id,{msg:"Done. The preview is now their website (not live yet). Finish and publish it below."});
     }catch(e){ pitchSet(id,{msg:e.message}); }
   };
@@ -6363,6 +6373,7 @@ function PitchPreviewCard({client,onUpdate}){
               <span style={{fontSize:10.5,color:C.textMuted}}>Opens in</span>
               {demoThemesFor(demo.theme).map(([t,l])=>{ const on=demo.theme===t; return <button key={t} onClick={()=>!on&&setTheme(t)} aria-pressed={on}
                 style={{padding:"3px 10px",fontSize:11,fontWeight:700,borderRadius:999,border:`1px solid ${on?C.gold:C.border}`,background:on?C.goldDim:"transparent",color:on?C.gold:C.textDim,cursor:on?"default":"pointer"}}>{l}</button>; })}
+              <ModePills theme={demo.theme} mode={demo.mode} onPick={setMode} size="sm"/>
               <button onClick={()=>useSiteColours({clientId:id},m=>pitchSet(id,{msg:m}))} style={{marginLeft:"auto",background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Use their website's colours</button>
               <button onClick={build} style={{background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Rebuild</button>
             </div>
@@ -6394,6 +6405,7 @@ function DemoSiteBox({prospect,onCreateClient}){
     }catch(e){ demoSet(id,{demo:demo||null,msg:e.message}); }
   };
   const setTheme=async(t)=>{ try{ const d=await demoCall({action:"theme",id,theme:t}); demoSet(id,{demo:d.demo}); }catch(e){ demoSet(id,{msg:e.message}); } };
+  const setMode=async(m)=>{ try{ const d=await demoCall({action:"mode",id,mode:m}); demoSet(id,{demo:d.demo}); }catch(e){ demoSet(id,{msg:e.message}); } };
   const copy=()=>{ try{ navigator.clipboard.writeText(demo.url); setCopied(true); setTimeout(()=>setCopied(false),1800); }catch(e){} };
   const convert=async(plan)=>{
     if(!onCreateClient) return;
@@ -6427,6 +6439,7 @@ function DemoSiteBox({prospect,onCreateClient}){
               <span style={{fontSize:10.5,color:C.textMuted}}>Opens in</span>
               {demoThemesFor(demo.theme).map(([t,l])=>{ const on=demo.theme===t; return <button key={t} onClick={()=>!on&&setTheme(t)} aria-pressed={on}
                 style={{padding:"3px 10px",fontSize:11,fontWeight:700,borderRadius:999,border:`1px solid ${on?C.gold:C.border}`,background:on?C.goldDim:"transparent",color:on?C.gold:C.textDim,cursor:on?"default":"pointer"}}>{l}</button>; })}
+              <ModePills theme={demo.theme} mode={demo.mode} onPick={setMode} size="sm"/>
               <button onClick={()=>useSiteColours({id},m=>demoSet(id,{msg:m}))} style={{marginLeft:"auto",background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Use their website's colours</button>
               <button onClick={build} style={{background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Rebuild</button>
             </div>
@@ -11708,7 +11721,7 @@ function SiteFilesHandover({client,paid}){
 // The designs offered, best first (mirror of site-render PICK_THEMES). Aurora was retired 2026-11-03 for the photo-first
 // Showcase (Bryson: "the aurora one might be out of date"); a site already on Aurora still renders it, and still sees it
 // in its own picker so nothing changes under it (siteThemeListFor). KB website-builder.
-const SITE_THEME_LIST=[["showcase","Showcase","Photo-first: their work fills the screen, the star rating up top, services as photo tiles."],["cinematic","Cinematic","Light and airy, huge type, a glass orb that reacts to the cursor."],["editorial","Editorial","Bright and refined, elegant serif headlines, photo-led."]];
+const SITE_THEME_LIST=[["showcase","Showcase","Photo-first: their work fills the screen, the star rating up top, services as photo tiles."],["cinematic","Cinematic","Split screen told like a film: their photos stay pinned and change scene by scene as visitors scroll the story."],["editorial","Editorial","A magazine: a cover headline, services as a table of contents, their story as a feature spread."]];
 const SITE_THEME_RETIRED=[["aurora","Aurora","Dark and bold, with a moving 3D backdrop matched to the trade. Retired: no longer offered to new sites."]];
 const siteThemeListFor=(cur)=>SITE_THEME_LIST.some(x=>x[0]===cur)?SITE_THEME_LIST:SITE_THEME_LIST.concat(SITE_THEME_RETIRED.filter(x=>x[0]===cur));
 // Hand-typed edits go through the same no-dash rule as everything else a visitor reads.
@@ -12118,6 +12131,12 @@ function WebsiteTab({client,onUpdate}){
               </div>
             </div>))}
         </div>
+        {/* Light or dark goes with any design (Bryson, 2026-11-04). The three previews above follow it. */}
+        {theme!=="aurora"&&<div style={{display:"flex",alignItems:"center",gap:10,marginTop:12,flexWrap:"wrap"}}>
+          <span style={{fontSize:12,fontWeight:700,color:C.text}}>Light or dark</span>
+          <ModePills theme={theme} mode={w.mode} onPick={m=>save({mode:m})}/>
+          <span style={{fontSize:11,color:C.textMuted}}>Works with every design. Their site uses the one picked here.</span>
+        </div>}
         {w.previewKey&&live&&<button onClick={copyDesigns} style={{...btn(true,false),width:"100%",marginTop:10}}>Copy the 3 designs to send the client</button>}
         {/* Each client gets its own mix of animations (KB website-builder). This re-rolls the mix; the words and photos stay. */}
         <div style={{display:"flex",alignItems:"center",gap:10,marginTop:10,flexWrap:"wrap"}}>

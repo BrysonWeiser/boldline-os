@@ -59,6 +59,8 @@ export function demoClientOf(prospect, demo = {}) {
     // Their look, read off their current website when the demo was built (brand-scrape.mjs).
     ...(demo.brand ? { siteBrand: demo.brand } : {}),
     website: { content: demo.content || null, stock: demo.stock || [], theme: demo.theme || DEMO_THEME_DEFAULT, published: false,
+      // Light or dark, when Bryson picked one for this demo (otherwise the design's own).
+      ...(demo.mode === "light" || demo.mode === "dark" ? { mode: demo.mode } : {}),
       // The star rating the research found, shown at the top of the Showcase design. Only a real one with a count.
       ...(Number(d.rating) > 0 && Number(d.reviewCount) > 0 ? { rating: { stars: Number(d.rating), count: Number(d.reviewCount), source: s(d.reviewSource, 20) } } : {}) },
   };
@@ -96,6 +98,7 @@ export function pitchClientOf(row, pitch = {}) {
     mediaLibrary: (c.mediaLibrary || []).filter((m) => m && m.category === "logo"),
     ...(pitch.brand || c.siteBrand ? { siteBrand: pitch.brand || c.siteBrand } : {}),
     website: { content: pitch.content || null, stock: pitch.stock || [], theme: pitch.theme || DEMO_THEME_DEFAULT, published: false, ...((c.website || {}).rating ? { rating: c.website.rating } : {}),
+      ...(pitch.mode === "light" || pitch.mode === "dark" ? { mode: pitch.mode } : {}),
       ...(c.website && typeof c.website === "object" && c.website.brandColor ? { brandColor: c.website.brandColor } : {}) },
   };
 }
@@ -113,7 +116,7 @@ export const demoExpired = (demo, now = Date.now()) => {
 export const demoSummary = (demo, origin = "") => {
   if (!demo || typeof demo !== "object") return null;
   return {
-    status: demo.status || "", token: demo.token || "", theme: demo.theme || DEMO_THEME_DEFAULT,
+    status: demo.status || "", token: demo.token || "", theme: demo.theme || DEMO_THEME_DEFAULT, mode: demo.mode === "light" || demo.mode === "dark" ? demo.mode : "",
     builtAt: demo.builtAt || null, startedAt: demo.startedAt || null, error: demo.error || null,
     expiresAt: demoExpiresAt(demo), expired: demo.status === "done" ? demoExpired(demo) : false,
     url: demo.token && origin ? `${origin.replace(/\/+$/, "")}/demo/${demo.token}/` : "",
@@ -131,8 +134,19 @@ document.addEventListener('submit',function(e){e.preventDefault();e.stopImmediat
 
 const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+// Light or dark, flipped right there on the preview (Bryson, 2026-11-04). The page carries both sets of colours
+// (site-render `css`), so this only turns html[data-mode] over; it is remembered for this preview while the tab is
+// open, so clicking to another page or design keeps it. Nothing is saved anywhere: the OS sets what the link opens in.
+export const MODE_TOGGLE_CSS = `.bl-mode{display:inline-flex;align-items:center;gap:7px;flex-shrink:0;height:30px;padding:0 11px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:#E9E6DF;font:inherit;cursor:pointer}
+.bl-mode svg{width:15px;height:15px}.bl-mode:hover{border-color:#C8A84B}
+@media (max-width:560px){.bl-mode{padding:0 8px}.bl-mode .bl-w{display:none}}`;
+export const MODE_TOGGLE_HTML = `<button class="bl-mode" type="button" aria-label="Switch between light and dark"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg><span class="bl-w">Light / dark</span></button>`;
+export const modeToggleJS = (key) => `(function(){var h=document.documentElement,k=${JSON.stringify(key)},s=null;if(!h.getAttribute('data-mode'))return;
+try{s=sessionStorage.getItem(k);}catch(e){}if(s==='light'||s==='dark')h.setAttribute('data-mode',s);
+var b=document.querySelector('.bl-mode');if(b)b.addEventListener('click',function(){var m=h.getAttribute('data-mode')==='dark'?'light':'dark';h.setAttribute('data-mode',m);try{sessionStorage.setItem(k,m);}catch(e){}});})();`;
+
 // The strip across the top. `designs` = [{ id, label, href, current }].
-export function demoBarHTML(name, designs = []) {
+export function demoBarHTML(name, designs = [], modeKey = "bl-mode") {
   const nav = designs.length > 1
     ? `<nav class="bl-designs" aria-label="Designs">${designs.map((d) => `<a href="${esc(d.href)}"${d.current ? ' aria-current="page"' : ""}>${esc(d.label)}</a>`).join("")}</nav>`
     : '<span class="bl-spacer"></span>';
@@ -148,13 +162,14 @@ export function demoBarHTML(name, designs = []) {
 @media (max-width:900px){.bl-demo .bl-long{display:none}}
 @media (max-width:560px){.bl-demo .bl-w{display:none}.bl-demo .bl-n{display:inline}.bl-demo{gap:8px;padding:0 10px;font-size:11.5px}.bl-demo .bl-designs a{padding:6px 8px}}
 @media (max-width:380px){.bl-demo{gap:6px;padding:0 8px;font-size:11px}.bl-demo .bl-designs a{padding:6px 6px}}
+${MODE_TOGGLE_CSS}
 </style>
-<div class="bl-demo" role="note" aria-label="Website preview"><span class="bl-tag"><i></i><b><span class="bl-w">Preview for ${esc(name)}</span><span class="bl-n">Preview</span></b><span class="bl-long">Made by BoldLine Media. Not live yet.</span></span>${nav}</div>`;
+<div class="bl-demo" role="note" aria-label="Website preview"><span class="bl-tag"><i></i><b><span class="bl-w">Preview for ${esc(name)}</span><span class="bl-n">Preview</span></b><span class="bl-long">Made by BoldLine Media. Not live yet.</span></span>${nav}${MODE_TOGGLE_HTML}</div><script>${modeToggleJS(modeKey)}</script>`;
 }
 
 // Turns a rendered page into the demo: guard first, the strip at the top of the body.
-export function decorateDemo(html, { name, designs }) {
+export function decorateDemo(html, { name, designs, modeKey }) {
   return String(html)
     .replace(/<meta charset="utf-8">/i, (m) => `${m}<script>${DEMO_GUARD_JS}</script>`)
-    .replace(/<body([^>]*)>/i, (m) => `${m}\n${demoBarHTML(name, designs)}`);
+    .replace(/<body([^>]*)>/i, (m) => `${m}\n${demoBarHTML(name, designs, modeKey)}`);
 }

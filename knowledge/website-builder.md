@@ -2,7 +2,7 @@
 name: website-builder
 topic: OS app
 task: build, preview, edit, publish or debug a client website made by the OS (the website service), or change its designs, pages, motion, 3D or copy writer
-keywords: [test copy, staging, branch deploy, not live version, preview site, homepage refresh, marketing site redesign, saguaro, site-showcase, sites site, separate netlify site, SITES_NETLIFY_SITE, lead-relay, lead-queue, lead-queue-sweep, site-uptime, uptime, __health, ignore.mjs, delegate access, domain access, web guy, access request, netlify-status, netlifyStatus, own domain, custom domain, web address, domain-set, domain-check, site-domain, NETLIFY_API_TOKEN, domain alias, sitemap.xml, robots.txt, x-site, serveWebsiteOnDomain, website emails, website_welcome, website_payment, website_review, website_live, website_past_due, blog_scheduled, website_monthly, website-monthly-run, enquiry wording, client blog editing, blogEdit, applyEdit, blog-save, portal website tab, site_visits, site-hit, visitor analytics, change request, websiteRequests, portal-website, extra pages, blog add-on, client blog, site-blog, blog articles, site-blog-run, site-blog-write-background, held article, website deal, websiteDeal, website agreement, WA-1, WA-2, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
+keywords: [test copy, staging, branch deploy, not live version, preview site, homepage refresh, marketing site redesign, saguaro, site-showcase, sites site, separate netlify site, SITES_NETLIFY_SITE, lead-relay, lead-queue, lead-queue-sweep, site-uptime, uptime, __health, ignore.mjs, delegate access, domain access, web guy, access request, netlify-status, netlifyStatus, own domain, custom domain, web address, domain-set, domain-check, site-domain, NETLIFY_API_TOKEN, domain alias, sitemap.xml, robots.txt, x-site, serveWebsiteOnDomain, website emails, website_welcome, website_payment, website_review, website_live, website_past_due, blog_scheduled, website_monthly, website-monthly-run, enquiry wording, client blog editing, blogEdit, applyEdit, blog-save, portal website tab, site_visits, site-hit, visitor analytics, change request, websiteRequests, portal-website, extra pages, blog add-on, client blog, site-blog, blog articles, site-blog-run, site-blog-write-background, held article, website deal, websiteDeal, website agreement, WA-1, WA-2, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, bubble, orb removed, cinematic photo frame, designs look alike, unique templates, dark cinematic, light or dark, light mode, dark mode, website.mode, split screen, cinematic scenes, editorial magazine, table of contents, drop cap, pull quote, cinemaScenes, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
 status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) + step 2b (Deal Prep, marketing site, cross-sell) + website-only clients + extra pages/blog add-ons + portal Website tab with visitor numbers + client blog editing + website emails live 2026-10-06; step 3 (own domain) not built (package/contract/billing) and 3 (custom domain) not built
 summary: Step 1 of the website service, built 2026-10-06, plus the same-day animation upgrade. The OS writes a client's 5-page site (Home, Services, About, Reviews, Contact) with Claude, picks Pexels background photos until the client sends real ones, and renders it in one of three designs (Cinematic, Aurora, Editorial) the client picks from preview links. Every client gets its own MIX of motion (headline entrance, one big scroll scene, reveal style, page transition, strip) from a library, and a 3D backdrop matched to their trade (water, chrome, silk, contour lines, liquid light); the three designs one client sees never share a scene. Served at /site/<landingSlug>/ once "Put it live" is pressed. All motion is layered on after the page is usable and drops out for reduce-motion, Data Saver, slow and small-memory phones. 83 checks, 12 mutations caught; driven at four widths.
 verified: 2026-10-06
@@ -396,8 +396,8 @@ integrity, mouse + not Data Saver only).
 **3D backdrop matched to the trade** (`glSceneFor`, plain WebGL1, no library): water caustics (pools,
 plumbing, cleaning), liquid chrome (auto, detailing, metal), silk (chiro, wellness, med/day spa, salons,
 dental), contour lines (roofing, landscaping, construction, real estate, trades), liquid light (anything
-else). Aurora shows it full screen (darkened behind the headline); Cinematic shows it through the glass orb
-(muted outside the orb); Editorial has none. Stops itself if a device can't keep up (more than half of the
+else). Aurora (retired) shows it full screen (darkened behind the headline); Cinematic and Editorial have none
+(Cinematic's glass orb was removed 2026-11-04, see below). Stops itself if a device can't keep up (more than half of the
 first 120 frames slow). Shader rule: never a reversed `smoothstep(a,b,x)` with a>b (undefined on some GPUs).
 **AI tells removed** (frontend-design skill review): no all-caps eyebrows, no `[01]` numbering on things that
 aren't a sequence, no monospace, no italic accent word. Aurora default accent amber `#E8A15B` (was acid
@@ -411,7 +411,83 @@ invisible (it did, once). (2) Headline lines must be joined with a space, or wit
 ## The three designs (from his two references, jeskojets.com and inthebrandlab.com)
 | | Look | Motion / 3D |
 |---|---|---|
-| **Cinematic** | light, Archivo Expanded at huge sizes, two-part hero (line A top left, line B bottom right) | WebGL **glass orb** that tilts toward the pointer, showing the trade's 3D backdrop inside it |
+| **Cinematic** | light, Archivo Expanded at huge sizes, two-part hero (line A top left, line B bottom right) | their best photo in a rounded frame beside line A (opens like a film frame, drifts on scroll, tilts toward the pointer). No WebGL since 2026-11-04 |
+
+### 🔴 Editorial REBUILT as a magazine (Bryson, 2026-11-04: "I like cinematic now I want to make editorial look better")
+Before: headline crammed into four lines beside a plain photo, services in shadowed white boxes, every section the same.
+Now `editorialHome` (his order and hidden parts respected; other sections are the shared ones restyled):
+- **Cover** (`.edh`): meta line (eyebrow left; right = their REAL rating if known, else "Call <phone>" as a tel link, never the
+  town again), a drawn rule, one huge Fraunces headline across the page (underline mark kept), intro + both buttons on one row,
+  then a 21:9 photo (4:3 on phones) with a caption (business name, area: never claims a stock photo is their job).
+- **Services = table of contents** (`.ed-row`): big serif name, short line, round arrow; hover (pointer devices) italicises and
+  shifts the name, fills the arrow, and the photo follows the pointer (`.hov`, JS selector now `.svc,.ed-row`). Phones: a 64px
+  thumbnail per row (`.ed-th`); `np` rows when there are no photos.
+- **Story = feature spread** (`.ed-feat`): 4:5 photo with caption, the first story line as a big serif statement, the next one
+  or two paragraphs in columns (`--c`), a drop cap ONLY when the first is over 160 characters (`p.dc`): on a one-line
+  paragraph it looked broken, and CSS `columns` put the floated cap in the wrong column, so it is a grid now.
+- **Why us = newspaper columns** (`.ed-why`, vertical rules, italic serif titles); **review = pull quote** (`.rvt`, a big
+  opening quote mark); **strip = italic ticker**; inside-page heroes get a heavy rule under the title.
+- Motion is quiet on purpose: rules draw in (`.rule`), photos open top to bottom (clip-path from 78%, not 100%, because an
+  IntersectionObserver never fires on a fully clipped element), the per-client headline entrance stays. 🔴 NO ITALICS in Editorial
+  (Bryson, same day, on the pull quote: "change this font because it's too hard to read"): Fraunces italic at the display
+  optical size, tightly spaced, crowded and its swash "v" read as "w". The italic font is no longer loaded; the pull quote,
+  why-us titles, ticker, row hover and the big story line are upright, and mid-size serif text uses the reading cut
+  (`font-variation-settings:normal;font-optical-sizing:auto`) with normal spacing. Only big headlines keep the display cut. The per-client "scroll moment" (portal/rail/stack) now only runs on Aurora.
+Pinned in `verify-showcase-design` section 7.
+
+### 🔴 Light or dark is its OWN choice, on every design (Bryson, 2026-11-04)
+"Don't just change the light or darkness because some businesses would want a style but have it either light or dark and
+that should be an option for all templates". `website.mode` = "light" | "dark" | unset (unset = the design's natural one:
+`NATURAL_MODE` showcase light, cinematic dark, editorial light; aurora is always dark and has no switch). `SURFACES` holds
+each design's light and dark colours; the layout never changes with the mode (pinned: identical HTML apart from styles).
+The page carries BOTH colour sets (`:root` = chosen mode, `html[data-mode=<other>]` = the other) and `<html data-mode>`, so
+the preview strips flip instantly: demo/pitch strip (`MODE_TOGGLE_HTML` + `modeToggleJS`, remembered per demo token in
+sessionStorage, saves nothing) and the marketing sample strip (key `bl-mode-sample`). OS: `ModePills` on the Website tab
+("Light or dark", saves website.mode) and on both preview cards (server action `mode` for demos and pitches, accepts only
+"", light, dark); a preview turned into a site keeps its mode. Dark pages lift a very dark brand colour for the small
+touches only (dots, ticks, stars); buttons keep the true colour. The landing page follows the mode via `siteBrandKit`.
+
+### 🔴 Cinematic REBUILT as a split screen (Bryson, 2026-11-04: "redo one of them the whole layout and animations")
+Replaces the photo-frame hero from earlier the same day. Home = `cinemaHome`: the top, each service (max 6), the story and
+"why us" become SCENES (`cinemaScenes`): photos pinned on the left half (sticky, one per scene, crossfade + slow zoom),
+words scrolling on the right; `cnUpd` (in motionScript, called from `frame()`) lights the scene crossing mid-screen, swaps
+the photo, sets the caption and fills a progress line. Waiting scenes are dimmed ONLY under html.mo (readable without
+JS). Everything else in his layout (strip, before/after, steps, FAQ, reviews, his blocks) follows at full width in his
+order; hidden parts stay hidden. Phone (<900px): the photos become a band (34svh) pinned under the header. Inside pages
+open on the same split (`.cnh`, `pageHero(..., C.pagePh)`); Services page is told as scenes too (ids s1..sN, so the
+home links land); the closing CTA is a full-bleed photo end card (`.cn-end`, `ctaBand` when `C.theme==="cinematic"`).
+Headlines use `oneLine` (natural wrapping; fixed thirds left "in" alone on a phone). **Phone, second pass (Bryson, same day: "at least on mobile it's a bit tight", then
+"It's still tight I think we need to change up the design a bit when scrolling"):** a photo band pinned on a phone ate a
+third of the screen whatever its size (a `cnTop` script that slid it under the menu was tried and REMOVED). Now on a phone
+nothing is pinned: `.cn-media` is hidden and each scene carries its own full-width photo (`figure.cn-ph`, 16:9 for the top,
+4:3 for the rest; hidden on computers) that opens from a letterbox slit as it scrolls in AND closes again on the way back up (Bryson: "make sure when I scroll
+up the pictures close as well"): `phUpd()` in `frame()` sets `--o` 0 to 1 from the photo's top entering the bottom of the
+screen to the middle; CSS clip-path/scale read it; not an IntersectionObserver one-off any more), words underneath, 64px between scenes; the
+"more on" buttons are underlined text links with an arrow. Computers keep the pinned split screen unchanged. The menu sits in a frosted pill on
+desktop because it can reach over the photo half. Pinned in `verify-showcase-design` sections 4 and 6.
+
+### 🔴 The three offered designs must never look alike (Bryson, 2026-11-04)
+"there is basically no difference between editorial and cinematic we need to make sure the 3 template options are unique".
+Below the hero all three shared the same light page, cards, closing box and footer. Now: **Showcase** = bright, full-screen
+photo hero, bento photo tiles. **Cinematic** = DARK (bg #0C0C0E, ink #F2F0EB, `dark: true`), brand-colour glow in the hero,
+outlined dark cards, closing panel with an accent glow. **Editorial** = paper, serif, cards become a black hairline on top
+with no box (`.tick` hidden), each section heading sits under a thin rule, closing panel is paper with a 3px ink top rule.
+Pinned in `verify-showcase-design` section 5 (Cinematic must stay dark, the others light; each keeps its own hero and font).
+### (Superseded the same day by the split-screen rebuild above) Cinematic: the orb is gone, their photo took its place
+Bryson, on the Springbok preview: "cinematic still has the bubble and I feel like that should change where we don't have a
+random bubble". `motionRecipe().gl` is now non-null for **aurora only**; cinematic's palette has `gl: null` and its home and
+page heroes carry no `<canvas>`. The hero is `.ctop` (grid: line A `minmax(min-content,2.4fr)` + frame `minmax(0,1fr)`), then
+`.cbot` (line B + sub + buttons). The frame (`.cdr > .ph.cfr[data-tilt]`) hides itself under 180px wide (container query)
+so a long first word never squeezes it into a sliver. **Phone (<900px): the photo moves BELOW the buttons** (flex `order`)
+so booking stays on the first screen and the photo peeks in under it. Type is 9.2vw / max 154px (was 10vw / 170px) so line A
+and the photo share a row. Scroll drift: `frame()` moves `.cdr` up `scrollY*.06` (computers only: on a phone it slid into the buttons) and the
+image inside by `--y * .08%` of its own height (max 4.8%, inside the 6% the 1.12 zoom leaves spare). 🔴 It was 60px once
+and Bryson's iPhone showed a grey strip across the top of the frame. Phones also drop "Scroll to explore" and use 112px
+top padding so the photo follows the buttons closely. Only without reduced motion. Entrance: `clip-path` opens from 34% top/bottom (not more: IntersectionObserver counts a
+clip-path, and at 47% only 6% showed so the 12% threshold never fired and the frame stayed shut). With 2+ photos the
+services section starts on photo 2 so the same picture never sits twice in a row. **A refresh opens at the top** (every design): `motionScript`
+sets `history.scrollRestoration='manual'` and scrolls to 0 unless the address has a #section. Bryson's iPhone reopened the
+Cinematic sample halfway down. Pinned in `verify-showcase-design` §4.
 | **Aurora** | dark, Bricolage Grotesque, eyebrow pill, centered hero, marquee strip | the trade's 3D backdrop full screen |
 | **Editorial** | paper white, Fraunces serif, drawn underline, photo-led hero | no WebGL (deliberate); tilt on the hero photo |
 Motion per client: see the table above. Header hides on scroll down, floating pill CTA (Book + Call).

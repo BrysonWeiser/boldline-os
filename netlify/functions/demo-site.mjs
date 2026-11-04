@@ -9,7 +9,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/supabase-url.mjs";
-import { renderSite, pageById, THEME_IDS, SITE_THEMES, siteReady, pickThemesFor, THEME_DEFAULT } from "../lib/site-render.mjs";
+import { renderSite, pageById, THEME_IDS, SITE_THEMES, siteReady, pickThemesFor, THEME_DEFAULT, MODES } from "../lib/site-render.mjs";
 import { demoClientOf, demoExpired, demoSummary, decorateDemo, validToken, pitchClientOf } from "../lib/demo-site.mjs";
 import { isBlocked } from "../lib/outreach.mjs";
 import { saveDemo, findProspect, savePitch, saveSiteBrand } from "./demo-site-background.mjs";
@@ -52,7 +52,7 @@ export function renderDemo(prospect, seg, { host, theme: asked, pitch = false } 
   const html = renderSite(cl, pageId, { base, theme, query, noindex: true });
   const designs = pickThemesFor(cl.website.theme).map((t) => ({ id: t, label: SITE_THEMES[t].label, current: t === theme,
     href: `${base}/${pageId === "home" ? "" : pageId + "/"}${t === cl.website.theme ? "" : `?theme=${t}`}` }));
-  return { status: 200, html: decorateDemo(html, { name: cl.name, designs }) };
+  return { status: 200, html: decorateDemo(html, { name: cl.name, designs, modeKey: `bl-mode:${demo.token}` }) };
 }
 
 export default async (req) => {
@@ -96,9 +96,13 @@ export default async (req) => {
       if (body.action === "theme") {
         if (!THEME_IDS.includes(body.theme)) return json({ ok: false, error: "Unknown design" }, 400);
         await savePitch(supabase, crow.id, { theme: body.theme }); pd = { ...(pd || {}), theme: body.theme };
+      } else if (body.action === "mode") {
+        // Light or dark (Bryson, 2026-11-04). "" goes back to the design's own.
+        if (!["", ...MODES].includes(body.mode)) return json({ ok: false, error: "Unknown mode" }, 400);
+        await savePitch(supabase, crow.id, { mode: body.mode }); pd = { ...(pd || {}), mode: body.mode };
       } else if (body.action === "content") {
         if (!pd || pd.status !== "done" || !pd.content) return json({ ok: false, error: "The preview isn't finished yet." }, 409);
-        return json({ ok: true, content: pd.content, stock: pd.stock || [], theme: pd.theme || THEME_DEFAULT, builtAt: pd.builtAt || null });
+        return json({ ok: true, content: pd.content, stock: pd.stock || [], theme: pd.theme || THEME_DEFAULT, mode: MODES.includes(pd.mode) ? pd.mode : "", builtAt: pd.builtAt || null });
       } else if (body.action !== "poll") return json({ ok: false, error: "unknown action" }, 400);
       return json({ ok: true, demo: demoSummary(pd, `https://${url.host}`) });
     }
@@ -109,12 +113,15 @@ export default async (req) => {
     if (body.action === "theme") {
       if (!THEME_IDS.includes(body.theme)) return json({ ok: false, error: "Unknown design" }, 400);
       await saveDemo(supabase, found.id, { theme: body.theme });
+    } else if (body.action === "mode") {
+      if (!["", ...MODES].includes(body.mode)) return json({ ok: false, error: "Unknown mode" }, 400);
+      await saveDemo(supabase, found.id, { mode: body.mode });
     } else if (body.action === "content") {
       // "They want it": the finished copy, photos and design, carried onto their new client record.
       const row = await findProspect(supabase, found.id, "data");
       const d = (row && row.data && row.data.demoSite) || {};
       if (d.status !== "done" || !d.content) return json({ ok: false, error: "Their demo isn't finished yet." }, 409);
-      return json({ ok: true, content: d.content, stock: d.stock || [], theme: d.theme || THEME_DEFAULT, builtAt: d.builtAt || null });
+      return json({ ok: true, content: d.content, stock: d.stock || [], theme: d.theme || THEME_DEFAULT, mode: MODES.includes(d.mode) ? d.mode : "", builtAt: d.builtAt || null });
     } else if (body.action !== "poll") return json({ ok: false, error: "unknown action" }, 400);
     const row = await findProspect(supabase, found.id, "data");
     return json({ ok: true, demo: demoSummary(row && row.data && row.data.demoSite, `https://${url.host}`) });
