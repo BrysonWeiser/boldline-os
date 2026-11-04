@@ -420,8 +420,10 @@ page heroes carry no `<canvas>`. The hero is `.ctop` (grid: line A `minmax(min-c
 `.cbot` (line B + sub + buttons). The frame (`.cdr > .ph.cfr[data-tilt]`) hides itself under 180px wide (container query)
 so a long first word never squeezes it into a sliver. **Phone (<900px): the photo moves BELOW the buttons** (flex `order`)
 so booking stays on the first screen and the photo peeks in under it. Type is 9.2vw / max 154px (was 10vw / 170px) so line A
-and the photo share a row. Scroll drift: `frame()` moves `.cdr` up `scrollY*.06` and the image inside by `--y` (max 60px),
-only without reduced motion. Entrance: `clip-path` opens from 34% top/bottom (not more: IntersectionObserver counts a
+and the photo share a row. Scroll drift: `frame()` moves `.cdr` up `scrollY*.06` (computers only: on a phone it slid into the buttons) and the
+image inside by `--y * .08%` of its own height (max 4.8%, inside the 6% the 1.12 zoom leaves spare). 🔴 It was 60px once
+and Bryson's iPhone showed a grey strip across the top of the frame. Phones also drop "Scroll to explore" and use 112px
+top padding so the photo follows the buttons closely. Only without reduced motion. Entrance: `clip-path` opens from 34% top/bottom (not more: IntersectionObserver counts a
 clip-path, and at 47% only 6% showed so the 12% threshold never fired and the frame stayed shut). With 2+ photos the
 services section starts on photo 2 so the same picture never sits twice in a row. Pinned in `verify-showcase-design` §4.
 | **Aurora** | dark, Bricolage Grotesque, eyebrow pill, centered hero, marquee strip | the trade's 3D backdrop full screen |

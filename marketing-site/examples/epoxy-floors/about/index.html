@@ -282,14 +282,16 @@ html.mo [data-tilt]{transition:transform .8s var(--ease)}
 html.mo body .hero .cfr.ph.rv{opacity:1;transform:none;clip-path:inset(34% 0 34% 0 round var(--r));transition:clip-path 1.5s var(--io) .25s,transform .8s var(--ease)}
 html.mo body .hero .cfr.ph.rv.in{clip-path:inset(0 0 0 0 round var(--r))}
 html.mo .hero .cfr img{transform:scale(1.22);transition:transform 1.8s var(--ease)}
-html.mo .hero .cfr.in img{transform:translate3d(0,calc(var(--y,0) * 1px),0) scale(1.12);transition:transform .7s cubic-bezier(.2,.7,.2,1)}
+/* The drift is a share of the photo's own height and stays inside the 6% the zoom leaves spare at each edge, so the frame never shows a gap (a 60px drift showed a grey strip on phones). */
+html.mo .hero .cfr.in img{transform:translate3d(0,calc(var(--y,0) * .08%),0) scale(1.12);transition:transform .7s cubic-bezier(.2,.7,.2,1)}
 .hero .copy{min-width:0}
 @media (max-width:899px){
   /* On a phone the photo follows the buttons, so booking stays on the first screen and the photo peeks in below it. */
-  .hero .copy:has(.cdr){display:flex;flex-direction:column;min-height:0;padding-bottom:28px}
+  .hero .copy:has(.cdr){display:flex;flex-direction:column;min-height:0;padding:112px 0 28px}
+  .hero .copy:has(.cdr) .scroll{display:none}
   .hero .ctop{display:contents}
   .hero .lA{order:1}.hero .cbot{order:2;margin-top:clamp(18px,4vw,36px)}
-  .hero .cdr{order:3;display:block;margin-top:28px}
+  .hero .cdr{order:3;display:block;margin-top:26px}
   .hero .cfr{max-width:none;height:auto;min-height:0;aspect-ratio:4/3;max-height:56svh;margin-top:0}
 }
 .hero .lB{font-size:clamp(52px,9.2vw,154px);text-align:right;align-self:end}
@@ -368,7 +370,7 @@ for(var i=0;i<sk.length-1;i++){var a=sk[i].getBoundingClientRect(),b=sk[i+1].get
 fl.forEach(function(p){var r=p.getBoundingClientRect(),ws=p.querySelectorAll('.w');var k=cl((vh*.85-r.top)/(r.height+vh*.35),0,1);var m=Math.round(k*ws.length);for(var j=0;j<ws.length;j++)ws[j].classList.toggle('lit',rm||j<m);});}
 var hd=d.querySelector('.hd'),pill=d.querySelector('.pill'),last=0,tk=false;
 var cdr=d.querySelector('.hero .cdr'),cfr=cdr&&cdr.querySelector('.cfr');
-function frame(){tk=false;var y=scrollY;if(cdr&&!rm&&y<innerHeight*1.5){cdr.style.transform='translate3d(0,'+(y*-.06).toFixed(1)+'px,0)';cfr.style.setProperty('--y',Math.min(y*.1,60).toFixed(1));}if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
+function frame(){tk=false;var y=scrollY;if(cdr&&!rm&&y<innerHeight*1.5){cdr.style.transform=innerWidth>=900?'translate3d(0,'+(y*-.06).toFixed(1)+'px,0)':'';cfr.style.setProperty('--y',Math.min(y*.1,60).toFixed(1));}if(hd){hd.classList.toggle('solid',y>30);hd.classList.toggle('hide',y>last&&y>420);}last=y;if(pill)pill.classList.toggle('show',y>innerHeight*.6);upd();}
 function onScroll(){if(!tk){tk=true;requestAnimationFrame(frame);}}
 measure();frame();addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',function(){measure();onScroll();});addEventListener('load',function(){measure();onScroll();});
 var mqe=d.querySelector('.marq');if(mqe&&!rm&&M.m==='velocity'){mqe.classList.add('vel');var tr=mqe.querySelector('.tr'),x=0,v=0,ly=scrollY,mv=true;
