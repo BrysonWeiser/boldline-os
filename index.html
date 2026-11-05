@@ -6343,7 +6343,7 @@ const DEMO_FILTERS=[["all","All"],["opened","Opened"],["waiting","Not opened yet
 function WebsiteDemosScreen({onBack,isDesktop,onCreateClient}){
   const [rows,setRows]=useState(null);
   const [err,setErr]=useState("");
-  const [form,setForm]=useState({name:"",niche:"",city:"",phone:"",email:"",website:""});
+  const [form,setForm]=useState({name:"",niche:"",city:"",phone:"",instagram:"",website:"",email:"",services:"",about:""});
   const [busy,setBusy]=useState(false);
   const [msg,setMsg]=useState("");
   const [filter,setFilter]=useState("all");
@@ -6376,7 +6376,7 @@ function WebsiteDemosScreen({onBack,isDesktop,onCreateClient}){
         // Already on the list for ads: now it's ads AND a website, so it shows under Websites in Outreach too.
         if(!have||have.pitch==="ads") await outreach("action=pitch&id="+encodeURIComponent(id),{method:"POST",body:JSON.stringify({pitch:"both"})}).catch(()=>{});
       }
-      setForm({name:"",niche:"",city:"",phone:"",email:"",website:""});
+      setForm({name:"",niche:"",city:"",phone:"",instagram:"",website:"",email:"",services:"",about:""});
       setMsg(`Building ${(d.prospect&&d.prospect.name)||d.name||"their site"} now. It takes about a minute, and it's in Outreach too.`);
       await load();
       setBusy(false);
@@ -6421,7 +6421,7 @@ function WebsiteDemosScreen({onBack,isDesktop,onCreateClient}){
   const lab={fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:5};
   const btn=(primary)=>({padding:"8px 12px",fontSize:12,fontWeight:700,borderRadius:9,border:primary?"none":`1px solid ${C.border}`,background:primary?C.gold:"transparent",color:primary?"#0a0800":C.textDim,cursor:"pointer",whiteSpace:"nowrap",textDecoration:"none",fontFamily:"inherit"});
   const pill=(on)=>({padding:"3px 10px",fontSize:11,fontWeight:700,borderRadius:999,border:`1px solid ${on?C.gold:C.border}`,background:on?C.goldDim:"transparent",color:on?C.gold:C.textDim,cursor:on?"default":"pointer",fontFamily:"inherit"});
-  const canBuild=!busy&&form.name.trim()&&(form.phone.trim()||form.email.trim()||form.website.trim());
+  const canBuild=!busy&&form.name.trim()&&(form.phone.trim()||form.email.trim()||form.website.trim()||form.instagram.trim());
   const F=(k,label,ph,wide)=>(<div key={k} style={{flex:wide?"1 1 100%":"1 1 200px",minWidth:0}}><div style={lab}>{label}</div>
     <input value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={inp}/></div>);
 
@@ -6434,18 +6434,22 @@ function WebsiteDemosScreen({onBack,isDesktop,onCreateClient}){
 
       <Card style={{marginBottom:16}}>
         <div style={{fontSize:15,fontWeight:800,color:C.text,marginBottom:4}}>Build a demo</div>
-        <div style={{fontSize:12,color:C.textMuted,lineHeight:1.55,marginBottom:12}}>Their name, trade and town, plus one way to reach them. The OS researches them and writes the whole five-page site. They're added to Outreach too, so the follow-up isn't lost.</div>
+        <div style={{fontSize:12,color:C.textMuted,lineHeight:1.55,marginBottom:12}}>Their name, trade and town, plus one way to reach them (a phone, their Instagram, an email or a website). No website? Leave it blank. The more you fill in from their Instagram, the more the site sounds like them. They're added to Outreach too, so the follow-up isn't lost.</div>
         <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
           {F("name","Company name *","e.g. Blackline Tint",true)}
           {F("niche","What they do","e.g. Window tint")}
           {F("city","Town","e.g. Mesa, AZ")}
           {F("phone","Phone","e.g. (480) 555-0123")}
-          {F("website","Their current website","e.g. blacklinetint.com")}
+          {F("instagram","Instagram","e.g. @blacklinetint")}
+          {F("website","Their current website","leave blank if they don't have one")}
           {F("email","Email","optional")}
+          {F("services","What they offer","e.g. Ceramic tint, windshield tint, tint removal",true)}
+          <div style={{flex:"1 1 100%",minWidth:0}}><div style={lab}>Anything true about them (goes on the site)</div>
+            <textarea value={form.about} onChange={e=>setForm(f=>({...f,about:e.target.value}))} rows={2} placeholder="e.g. Mobile, comes to your home or work. 5 years tinting. Lifetime warranty on film." style={{...inp,resize:"vertical"}}/></div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginTop:12}}>
           <button onClick={build} disabled={!canBuild} style={{...btn(true),padding:"11px 18px",fontSize:13,opacity:canBuild?1:.45,cursor:canBuild?"pointer":"default"}}>{busy?"Starting…":"Build their demo"}</button>
-          {!canBuild&&!busy&&form.name.trim()&&<span style={{fontSize:11.5,color:C.textMuted}}>Add a phone, an email or their website too.</span>}
+          {!canBuild&&!busy&&form.name.trim()&&<span style={{fontSize:11.5,color:C.textMuted}}>Add a phone, their Instagram, an email or a website too.</span>}
         </div>
         {msg&&<div style={{fontSize:12,color:C.gold,marginTop:10,lineHeight:1.55}}>{msg}</div>}
         {err&&<div style={{fontSize:12,color:C.red,marginTop:10,lineHeight:1.55}}>{err}</div>}
@@ -7912,7 +7916,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
   const [drafting,setDrafting]=useState(false);
   const [copied,setCopied]=useState("");
   const [addOpen,setAddOpen]=useState(false);
-  const [addForm,setAddForm]=useState({name:"",phone:"",email:"",website:"",city:"",niche:"",ownerName:"",notes:""});
+  const [addForm,setAddForm]=useState({name:"",phone:"",email:"",website:"",instagram:"",city:"",niche:"",ownerName:"",notes:""});
   const [adding,setAdding]=useState(false);
   const [addMsg,setAddMsg]=useState("");
   const [addErr,setAddErr]=useState("");
@@ -8154,7 +8158,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
       // 🔴 THE FORM STAYS OPEN AND EMPTIES ITSELF. Referrals arrive in threes, and closing it
       // would take the confirmation down with it, so the one thing he wants to see would be the
       // thing that vanishes.
-      setAddForm({name:"",phone:"",email:"",website:"",city:"",niche:"",ownerName:"",notes:""});
+      setAddForm({name:"",phone:"",email:"",website:"",instagram:"",city:"",niche:"",ownerName:"",notes:""});
       setAddMsg(d.duplicate?d.message:`${(d.prospect&&d.prospect.name)||"Added"} is on your list, at the top. Add another, or close this to start calling.`);
       if(!d.duplicate) await loadQueue();
     }catch(e){ setAddErr(setupMsg(e.message)||e.message); }
@@ -8262,6 +8266,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
                     ["phone","Phone","e.g. (602) 555-0123"],
                     ["email","Email","e.g. info@summitroofing.com"],
                     ["website","Website","e.g. summitroofing.com"],
+                    ["instagram","Instagram","e.g. @summitroofing"],
                     ["city","Town or city","e.g. Phoenix, AZ"],
                     ["niche","Industry","e.g. Roofing"],
                     ["ownerName","Owner's name","e.g. Dave Mills"]].map(([k,label,ph])=>(

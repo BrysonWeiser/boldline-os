@@ -43,14 +43,18 @@ export function demoClientOf(prospect, demo = {}) {
     d.rating && d.reviewCount ? `Rated ${Number(d.rating).toFixed(1)} stars from ${d.reviewCount} ${s(d.reviewSource, 20) || "online"} reviews.` : "",
     s(d.yearsInBusiness, 60) ? `In business ${s(d.yearsInBusiness, 60).replace(/^since/i, "since")}.` : "",
     s(d.ownerName, 60) ? `Owner: ${s(d.ownerName, 60).split(" ")[0]}.` : "",
+    // What Bryson typed as true about them when they have no website to research (Website demos screen).
+    s(d.about, 400),
   ].filter(Boolean).join(" ");
+  // A company added by hand keeps its number in `phones`, not `phone`; without this its demo showed no phone at all.
+  const phone = s(d.phone, 30) || s(Array.isArray(d.phones) && d.phones[0] && d.phones[0].number, 30);
   return {
     id: `demo-${s(p.id, 60)}`,
     demo: true,
     name: s(d.dba, 80) || s(p.name, 80),
     niche: s(p.niche, 60),
     services: services.join(", "),
-    businessPhone: s(d.phone, 30),
+    businessPhone: phone,
     businessAddress: s(d.address, 160),
     campaignSetup: { serviceArea: area },
     researchFacts: facts,

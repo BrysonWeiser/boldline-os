@@ -106,5 +106,21 @@ ok("the existing demo and pitch cards show it too", (UI.match(/<DemoOpened demo=
 ok("'They want it' still turns the demo into a client", /onCreateClient&&onCreateClient\(clientFromDemo\(/.test(SCR) && /DEMO_PLANS\.map/.test(SCR));
 ok("the list asks the server for the demos only (never their 15KB of words each)", /demoCall\(\{action:"list"\}\)/.test(SCR));
 
+// ── 4. A business with no website (Bryson, 2026-11-05: a mobile tint guy who "posts on instagram but he doesn't have
+//       a website") ─────────────────────────────────────────────────────────────────────────────────────────────────
+{
+  const { buildManualProspect } = await import("../netlify/lib/outreach.mjs");
+  const { demoClientOf } = await import("../netlify/lib/demo-site.mjs");
+  const r = buildManualProspect({ name: "Tint Ninja", niche: "Mobile window tint", city: "Gilbert, AZ", instagram: "https://www.instagram.com/tint.ninja.az/", services: "Ceramic tint, windshield strip, tint removal", about: "Mobile. Comes to your home or work.", pitch: "website" });
+  ok("🔴 a business with only an Instagram can be added (no phone, email or website)", !!r.row && r.row.data.instagram === "tint.ninja.az" && !r.row.domain);
+  ok("a bad Instagram is refused in plain words", /Instagram doesn't look right/.test(buildManualProspect({ name: "X", instagram: "https://www.instagram.com/p/abc123/" }).error || ""));
+  const cl = demoClientOf({ id: "p", name: r.row.name, niche: r.row.niche, area: r.row.area, data: r.row.data });
+  ok("what he typed reaches the demo writer: their services and the true facts", cl.services === "Ceramic tint, windshield strip, tint removal" && /Mobile\. Comes to your home or work\./.test(cl.researchFacts));
+  const withPhone = buildManualProspect({ name: "Y", phone: "480-555-0100" });
+  ok("🔴 a phone typed by hand shows on their demo site (it used to be lost)", demoClientOf({ id: "p", name: "Y", data: withPhone.row.data }).businessPhone === "(480) 555-0100");
+  ok("🔴 private notes still never reach the writer", !/secret/.test(JSON.stringify(demoClientOf({ id: "p", name: "Z", notes: "secret", data: buildManualProspect({ name: "Z", phone: "480-555-0101", notes: "secret" }).row.data }))));
+  ok("the screen asks for Instagram, what they offer and what's true, and says a blank website is fine", /F\("instagram","Instagram"/.test(SCR) && /F\("services","What they offer"/.test(SCR) && /Anything true about them \(goes on the site\)/.test(SCR) && /leave blank if they don't have one/.test(SCR) && /form\.instagram\.trim\(\)\)/.test(SCR));
+}
+
 console.log(`verify-demo-opened: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
