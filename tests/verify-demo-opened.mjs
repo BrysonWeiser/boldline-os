@@ -98,7 +98,7 @@ ok("the preview-robot list knows the usual texting and social apps", ["facebooke
 // ── 3. The OS ────────────────────────────────────────────────────────────────────
 const SCR = UI.slice(UI.indexOf("function WebsiteDemosScreen"), UI.indexOf("// ─── Pitch preview: the demo builder"));
 ok("a Website demos screen, in the menu on a computer, on a phone and in search", /function WebsiteDemosScreen\(/.test(UI) && /onClick=\{onDemos\}[^\n]*Website demos<\/button>/.test(UI) && /"Website demos","Build a site to pitch, see who opened it",onDemos/.test(UI) && /id:"g-demos"[^\n]*setScreen\("demos"\)/.test(UI) && /screen==="demos"&&<WebsiteDemosScreen /.test(UI));
-ok("🔴 building from it adds the company to Outreach labelled Website (never lost to follow-up), reusing one already there", /outreach\("action=add",\{method:"POST",body:JSON\.stringify\(\{\.\.\.form,pitch:"website"\}\)\}\)/.test(SCR) && /if\(d\.duplicate\)\{/.test(SCR) && /pitch:"both"/.test(SCR));
+ok("🔴 building from it adds the company to Outreach labelled Website (never lost to follow-up), reusing one already there", /outreach\("action=add",\{method:"POST",body:JSON\.stringify\(\{\.\.\.form,pitch:"website",demoOnly:true\}\)\}\)/.test(SCR) && /if\(d\.duplicate\)\{/.test(SCR) && /pitch:"both"/.test(SCR));
 ok("it never silently rebuilds a demo that is already live", /already has a demo\. It's in the list below\./.test(SCR) && /window\.confirm\(`Rebuild \$\{x\.name\}'s demo\?/.test(SCR));
 ok("🔴 Bryson's own taps carry ?me=1 everywhere he opens a demo", /href=\{demoOwnUrl\(d\.url\)\}/.test(SCR) && /href=\{demoOwnUrl\(demo\.url\)\}[^\n]*Open the preview/.test(UI) && /href=\{demoOwnUrl\(demo\.url\)\}[^\n]*Open their site/.test(UI) && !/href=\{demo\.url\}/.test(UI));
 ok("the list says who opened it and when, and the top line names who to call", /Opened \{demoAgo\(d\.lastOpenedAt\)\}/.test(SCR) && /opened their demo":recent\.length\+" companies opened their demos"\} this week\. Call while it's fresh\./.test(SCR));
@@ -106,20 +106,65 @@ ok("the existing demo and pitch cards show it too", (UI.match(/<DemoOpened demo=
 ok("'They want it' still turns the demo into a client", /onCreateClient&&onCreateClient\(clientFromDemo\(/.test(SCR) && /DEMO_PLANS\.map/.test(SCR));
 ok("the list asks the server for the demos only (never their 15KB of words each)", /demoCall\(\{action:"list"\}\)/.test(SCR));
 
-// ── 4. A business with no website (Bryson, 2026-11-05: a mobile tint guy who "posts on instagram but he doesn't have
-//       a website") ─────────────────────────────────────────────────────────────────────────────────────────────────
+// ── 4. A business with no website (Bryson, 2026-11-05: first a mobile tint guy who "posts on instagram but he doesn't
+//       have a website", then "for businesses without a website in general whether they are on instagram or another
+//       social media platform or they don't even have social media and they are just starting out") ─────────────────
 {
-  const { buildManualProspect } = await import("../netlify/lib/outreach.mjs");
+  const { buildManualProspect, isQueueable, dueQueue, waitingForContact, mergeContact } = await import("../netlify/lib/outreach.mjs");
   const { demoClientOf } = await import("../netlify/lib/demo-site.mjs");
+  const { normSocial } = await import("../netlify/lib/social.mjs");
+  const OUT = readFileSync(join(ROOT, "netlify/functions/outreach.mjs"), "utf8");
+  const DEMO_FN = readFileSync(join(ROOT, "netlify/functions/demo-site.mjs"), "utf8");
+
+  // Any platform, as a link or a handle.
+  const sv = (v, h) => JSON.stringify(normSocial(v, h));
+  ok("🔴 a social link on any platform is read and named", normSocial("https://www.facebook.com/tintninja").platform === "Facebook" && normSocial("https://www.tiktok.com/@tintninja").platform === "TikTok" && normSocial("https://www.yelp.com/biz/tint-ninja").platform === "Yelp" && normSocial("https://nextdoor.com/pages/tint-ninja").platform === "Nextdoor" && normSocial("facebook.com/tintninja").url === "https://facebook.com/tintninja", sv("facebook.com/tintninja"));
+  ok("a bare @handle goes on the platform he picks", normSocial("@tintninja", "TikTok").url === "https://www.tiktok.com/@tintninja" && normSocial("tintninja", "Facebook").url === "https://www.facebook.com/tintninja" && normSocial("tintninja").platform === "Instagram");
+  ok("🔴 an Instagram handle with dots is a handle, not a website", normSocial("tint.ninja.az").url === "https://www.instagram.com/tint.ninja.az/", sv("tint.ninja.az"));
+  ok("nonsense and a link to one post are refused; every saved link is https", normSocial("bad handle!") === null && normSocial("https://www.instagram.com/p/abc123/") === null && normSocial("http://facebook.com/x").url.startsWith("https://") && normSocial("javascript:alert(1)") === null);
+
+  // Instagram only, as before.
   const r = buildManualProspect({ name: "Tint Ninja", niche: "Mobile window tint", city: "Gilbert, AZ", instagram: "https://www.instagram.com/tint.ninja.az/", services: "Ceramic tint, windshield strip, tint removal", about: "Mobile. Comes to your home or work.", pitch: "website" });
-  ok("🔴 a business with only an Instagram can be added (no phone, email or website)", !!r.row && r.row.data.instagram === "tint.ninja.az" && !r.row.domain);
-  ok("a bad Instagram is refused in plain words", /Instagram doesn't look right/.test(buildManualProspect({ name: "X", instagram: "https://www.instagram.com/p/abc123/" }).error || ""));
+  ok("🔴 a business with only an Instagram can be added (no phone, email or website)", !!r.row && r.row.data.instagram === "tint.ninja.az" && !r.row.domain && isQueueable(r.row));
+  // Another platform only.
+  const fb = buildManualProspect({ name: "Shade Bros", social: "https://www.facebook.com/shadebros", pitch: "website" });
+  ok("🔴 a business with only a Facebook page (or any other platform) can be added and called on", !!fb.row && fb.row.data.socials[0].platform === "Facebook" && !fb.row.data.instagram && isQueueable(fb.row) && !waitingForContact(fb.row));
+  const inSite = buildManualProspect({ name: "Shade Bros 2", website: "https://www.facebook.com/shadebros2" });
+  ok("🔴 a Facebook page typed in the website box is kept as their social, never as a website that would match every business on Facebook", !!inSite.row && !inSite.row.domain && !inSite.row.data.website && inSite.row.data.socials[0].url === "https://www.facebook.com/shadebros2");
+  ok("a bad social link is refused in plain words", /social link doesn't look right/.test(buildManualProspect({ name: "X", social: "https://www.instagram.com/p/abc123/" }).error || ""));
+
+  // Nothing at all: only for a demo, and kept off the call list.
+  ok("🔴 Outreach's own add-by-hand still needs a way to reach them", /no way to reach them/.test(buildManualProspect({ name: "Fresh Start Detail", niche: "Detailing" }).error || ""));
+  const none = buildManualProspect({ name: "Fresh Start Detail", niche: "Mobile detailing", demoOnly: true, newBusiness: true });
+  ok("🔴 a business just starting out, with no phone, website or social, can still get a demo", !!none.row && none.row.data.noContactYet === true && none.row.data.newBusiness === true);
+  ok("🔴 and it stays OFF the call list until there is a way to reach them", waitingForContact(none.row) && !isQueueable(none.row) && dueQueue([{ ...none.row, id: "n1", step: 0 }]).length === 0);
+  const later = mergeContact(none.row, { phone: "480-555-0142" });
+  ok("🔴 adding a phone later puts them on the call list, without losing anything", !later.error && later.data.phones[0].number === "(480) 555-0142" && later.data.newBusiness === true && !later.data.noContactYet && isQueueable({ ...none.row, data: later.data }) && dueQueue([{ ...none.row, id: "n1", step: 0, data: later.data }]).length === 1);
+  const later2 = mergeContact({ data: later.data }, { social: "freshstartdetail", socialPlatform: "TikTok" });
+  ok("adding a social later keeps the number and never adds the same link twice", later2.data.phones.length === 1 && later2.data.socials[0].url === "https://www.tiktok.com/@freshstartdetail" && mergeContact({ data: later2.data }, { social: "https://www.tiktok.com/@freshstartdetail" }).data.socials.length === 1);
+  ok("adding nothing, or junk, is refused in plain words", /Add a phone number, an email or their social media/.test(mergeContact(none.row, {}).error || "") && /phone number doesn't look right/.test(mergeContact(none.row, { phone: "12" }).error || ""));
+  ok("🔴 the server saves it from the demo card (POST only, on the company named, nothing else touched)", /if \(action === "contact"\) \{\s*\n\s*if \(req\.method !== "POST"\)/.test(OUT) && /const merged = mergeContact\(row, body\);/.test(OUT) && /\.update\(\{ data: merged\.data, updated_at: new Date\(\)\.toISOString\(\) \}\)\.eq\("id", id\)/.test(OUT));
+
+  // What reaches the demo writer.
   const cl = demoClientOf({ id: "p", name: r.row.name, niche: r.row.niche, area: r.row.area, data: r.row.data });
   ok("what he typed reaches the demo writer: their services and the true facts", cl.services === "Ceramic tint, windshield strip, tint removal" && /Mobile\. Comes to your home or work\./.test(cl.researchFacts));
+  const nb = demoClientOf({ id: "p", name: none.row.name, niche: none.row.niche, data: none.row.data });
+  ok("🔴 'just starting out' tells the writer to claim no years, past customers, reviews or awards", /brand-new business that is just getting started: no years in business, past customers, reviews, ratings or awards to mention/.test(nb.researchFacts || ""), nb.researchFacts);
+  ok("and a business not ticked is not told that", !/brand-new business/.test(cl.researchFacts || ""));
   const withPhone = buildManualProspect({ name: "Y", phone: "480-555-0100" });
   ok("🔴 a phone typed by hand shows on their demo site (it used to be lost)", demoClientOf({ id: "p", name: "Y", data: withPhone.row.data }).businessPhone === "(480) 555-0100");
   ok("🔴 private notes still never reach the writer", !/secret/.test(JSON.stringify(demoClientOf({ id: "p", name: "Z", notes: "secret", data: buildManualProspect({ name: "Z", phone: "480-555-0101", notes: "secret" }).row.data }))));
-  ok("the screen asks for Instagram, what they offer and what's true, and says a blank website is fine", /F\("instagram","Instagram"/.test(SCR) && /F\("services","What they offer"/.test(SCR) && /Anything true about them \(goes on the site\)/.test(SCR) && /leave blank if they don't have one/.test(SCR) && /form\.instagram\.trim\(\)\)/.test(SCR));
+
+  // The screen.
+  ok("only name and what they do are required, and the screen says no website, social or contact is fine", /canBuild=!busy&&form\.name\.trim\(\)&&form\.niche\.trim\(\);/.test(SCR) && /F\("niche","What they do \*"/.test(SCR) && /no website, no social media and no contact details are all fine/.test(SCR) && /leave blank if they don't have one/.test(SCR));
+  ok("🔴 it builds as a demo (demoOnly), so a business with nothing yet is not refused", /outreach\("action=add",\{method:"POST",body:JSON\.stringify\(\{\.\.\.form,pitch:"website",demoOnly:true\}\)\}\)/.test(SCR));
+  ok("one social box for any platform, with a platform picker only for a bare handle", /Social media or online listing/.test(SCR) && /\{\/\^@\?\[A-Za-z0-9\._-\]\+\$\/\.test\(form\.social\.trim\(\)\)&&<select value=\{form\.socialPlatform\}/.test(SCR) && /\["Instagram","Facebook","TikTok","X"\]/.test(SCR));
+  ok("the 'just starting out' box says plainly what it does", /They're just starting out\.<\/b> The site won't mention years in business, past customers, reviews or awards they don't have yet\./.test(SCR) && /newBusiness:e\.target\.checked/.test(SCR));
+  ok("what they offer and what's true about them are still asked for", /F\("services","What they offer"/.test(SCR) && /Anything true about them \(goes on the site\)/.test(SCR));
+  ok("🔴 a card with no way to reach them says so and has a box to add one", /No way to reach them yet, so they're off your call list\. Add one when you have it\./.test(SCR) && /outreach\("action=contact&id="/.test(SCR) && /\{x\.noContact&&/.test(SCR));
+  ok("🔴 the server tells the list which companies are waiting, and where they are online (https links only on screen)", /noContact: waiting/.test(DEMO_FN) && /noContact:data->>noContactYet/.test(DEMO_FN) && /x\.social&&\/\^https:\\\/\\\/\/\.test\(x\.social\.url\|\|""\)&&/.test(SCR));
+  ok("the Outreach call card shows their social link too, whatever the platform (https only)", /\(Array\.isArray\(d\.socials\)\?d\.socials:\[\]\)\.filter\(x=>x&&\/\^https:\\\/\\\/\/\.test\(x\.url\|\|""\)\)/.test(UI) && /↗ \{x\.platform\|\|"social"\}/.test(UI));
+  ok("Outreach's add-by-hand asks for social media, not just Instagram", /\["social","Social media",/.test(UI));
 }
 
 console.log(`verify-demo-opened: ${pass} passed, ${fail} failed`);

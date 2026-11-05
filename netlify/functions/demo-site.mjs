@@ -13,7 +13,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { renderSite, pageById, THEME_IDS, SITE_THEMES, siteReady, pickThemesFor, THEME_DEFAULT, MODES } from "../lib/site-render.mjs";
 import { demoClientOf, demoExpired, demoSummary, decorateDemo, validToken, pitchClientOf, PREVIEW_BOT } from "../lib/demo-site.mjs";
-import { isBlocked } from "../lib/outreach.mjs";
+import { isBlocked, waitingForContact } from "../lib/outreach.mjs";
 import { saveDemo, findProspect, savePitch, saveSiteBrand } from "./demo-site-background.mjs";
 import { brandFromSite, currentSiteOf } from "../lib/brand-scrape.mjs";
 import { safePublicUrl } from "../lib/biz-email.mjs";
@@ -101,7 +101,7 @@ const notifyFirstOpen = async ({ name, pitch }) => {
 
 // Every demo and pitch preview, for the Website demos screen: who, the state of the build, and whether they opened it.
 // Picked field by field, never the whole record: a demo's words run to 15KB each and the list holds all of them.
-const DEMO_LIST_PROSPECT = "id, name, niche, area, status, blocked_at, pitch:data->>pitch, phones:data->phones, emails:data->emails, phone1:data->>phone, email1:data->>email, dba:data->>dba, city:data->>city, state:data->>state, address:data->>address, owner:data->>ownerName, d_status:data->demoSite->>status, d_token:data->demoSite->>token, d_theme:data->demoSite->>theme, d_mode:data->demoSite->>mode, d_builtAt:data->demoSite->>builtAt, d_startedAt:data->demoSite->>startedAt, d_error:data->demoSite->>error, d_opens:data->demoSite->>opens, d_first:data->demoSite->>firstOpenedAt, d_last:data->demoSite->>lastOpenedAt";
+const DEMO_LIST_PROSPECT = "id, name, niche, area, status, blocked_at, pitch:data->>pitch, phones:data->phones, emails:data->emails, phone1:data->>phone, email1:data->>email, dba:data->>dba, city:data->>city, state:data->>state, address:data->>address, owner:data->>ownerName, noContact:data->>noContactYet, socials:data->socials, ig:data->>instagram, domain, d_status:data->demoSite->>status, d_token:data->demoSite->>token, d_theme:data->demoSite->>theme, d_mode:data->demoSite->>mode, d_builtAt:data->demoSite->>builtAt, d_startedAt:data->demoSite->>startedAt, d_error:data->demoSite->>error, d_opens:data->demoSite->>opens, d_first:data->demoSite->>firstOpenedAt, d_last:data->demoSite->>lastOpenedAt";
 const DEMO_LIST_CLIENT = "id, c_name:data->>name, c_niche:data->>niche, d_status:data->pitchSite->>status, d_token:data->pitchSite->>token, d_theme:data->pitchSite->>theme, d_mode:data->pitchSite->>mode, d_builtAt:data->pitchSite->>builtAt, d_startedAt:data->pitchSite->>startedAt, d_error:data->pitchSite->>error, d_opens:data->pitchSite->>opens, d_first:data->pitchSite->>firstOpenedAt, d_last:data->pitchSite->>lastOpenedAt";
 const demoOfRow = (r) => ({ status: r.d_status, token: r.d_token, theme: r.d_theme, mode: r.d_mode, builtAt: r.d_builtAt, startedAt: r.d_startedAt, error: r.d_error, opens: r.d_opens, firstOpenedAt: r.d_first, lastOpenedAt: r.d_last });
 export async function listDemos(supabase, origin) {
@@ -117,7 +117,10 @@ export async function listDemos(supabase, origin) {
     const em = Array.isArray(r.emails) && r.emails[0] && r.emails[0].address;
     // What "They want it" needs to start their client record (index.html clientFromDemo), no more.
     const info = { name: r.name, dba: r.dba || "", city: r.city || "", state: r.state || "", address: r.address || "", ownerName: r.owner || "", phone: r.phone1 || ph || "", email: r.email1 || em || "" };
-    out.push({ kind: "prospect", id: r.id, name: r.name, niche: r.niche || "", area: r.area || "", phone: info.phone, pitch: r.pitch || "ads", stage: r.status || "", info, demo: demoSummary(demoOfRow(r), origin) });
+    // No way to reach them yet (built for a business just starting out): the card asks for one.
+    const waiting = waitingForContact({ domain: r.domain, data: { noContactYet: r.noContact === "true", phones: r.phones, emails: r.emails, socials: r.socials, instagram: r.ig } });
+    const social = Array.isArray(r.socials) && r.socials[0] ? { platform: r.socials[0].platform, url: r.socials[0].url } : null;
+    out.push({ kind: "prospect", id: r.id, name: r.name, niche: r.niche || "", area: r.area || "", phone: info.phone, pitch: r.pitch || "ads", stage: r.status || "", info, noContact: waiting, social, demo: demoSummary(demoOfRow(r), origin) });
   }
   for (const r of crows || []) out.push({ kind: "client", id: r.id, name: r.c_name || "", niche: r.c_niche || "", area: "", phone: "", pitch: "website", stage: "client", demo: demoSummary(demoOfRow(r), origin) });
   return out;

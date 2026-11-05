@@ -45,6 +45,8 @@ export function demoClientOf(prospect, demo = {}) {
     s(d.ownerName, 60) ? `Owner: ${s(d.ownerName, 60).split(" ")[0]}.` : "",
     // What Bryson typed as true about them when they have no website to research (Website demos screen).
     s(d.about, 400),
+    // Just starting out (Website demos tick box): said plainly so the writer claims no history they don't have.
+    d.newBusiness ? "A brand-new business that is just getting started: no years in business, past customers, reviews, ratings or awards to mention." : "",
   ].filter(Boolean).join(" ");
   // A company added by hand keeps its number in `phones`, not `phone`; without this its demo showed no phone at all.
   const phone = s(d.phone, 30) || s(Array.isArray(d.phones) && d.phones[0] && d.phones[0].number, 30);
