@@ -4,13 +4,15 @@
 //   POST { action:"poll", id }            owner only: the demo's status and link (never its copy)
 //   POST { action:"theme", id, theme }    owner only: which design the link opens on
 //   POST { action:"content", id }         owner only: the finished copy, for turning the demo into their website
+//   POST { action:"list" }                owner only: every demo and pitch preview, with whether they opened it
+//   GET  /demo/<token>/__seen             public: "they opened it" (recordOpen), sent by the page itself
 //
 // Built by demo-site-background; rendered by the real site renderer (../lib/site-render.mjs).
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { renderSite, pageById, THEME_IDS, SITE_THEMES, siteReady, pickThemesFor, THEME_DEFAULT, MODES } from "../lib/site-render.mjs";
-import { demoClientOf, demoExpired, demoSummary, decorateDemo, validToken, pitchClientOf } from "../lib/demo-site.mjs";
+import { demoClientOf, demoExpired, demoSummary, decorateDemo, validToken, pitchClientOf, PREVIEW_BOT } from "../lib/demo-site.mjs";
 import { isBlocked } from "../lib/outreach.mjs";
 import { saveDemo, findProspect, savePitch, saveSiteBrand } from "./demo-site-background.mjs";
 import { brandFromSite, currentSiteOf } from "../lib/brand-scrape.mjs";
@@ -52,7 +54,73 @@ export function renderDemo(prospect, seg, { host, theme: asked, pitch = false } 
   const html = renderSite(cl, pageId, { base, theme, query, noindex: true });
   const designs = pickThemesFor(cl.website.theme).map((t) => ({ id: t, label: SITE_THEMES[t].label, current: t === theme,
     href: `${base}/${pageId === "home" ? "" : pageId + "/"}${t === cl.website.theme ? "" : `?theme=${t}`}` }));
-  return { status: 200, html: decorateDemo(html, { name: cl.name, designs, modeKey: `bl-mode:${demo.token}` }) };
+  return { status: 200, html: decorateDemo(html, { name: cl.name, designs, modeKey: `bl-mode:${demo.token}`, seenUrl: `${base}/__seen`, seenKey: `bl-seen:${demo.token}` }) };
+}
+
+// ── "They opened it" (KB demo-sites, "opened signal") ─────────────────────────────────
+// Records an open sent by demoOpenJS: a count, the first and the last time. Repeats within 10 minutes are one visit.
+// The first open ever sends Bryson a push notification (push only: a quiet nudge, not an email and a text). Writes only
+// those three fields, and on a prospect without touching `updated_at`, so an open never reorders his call list.
+const OPEN_GAP_MS = 10 * 60 * 1000;
+export async function recordOpen(supabase, token, { ua = "", now = Date.now(), notify } = {}) {
+  if (!validToken(token) || PREVIEW_BOT.test(String(ua))) return { recorded: false };
+  const at = new Date(now).toISOString();
+  const bump = (d) => {
+    if (!d || d.status !== "done" || demoExpired(d, now)) return null;
+    const last = Date.parse(d.lastOpenedAt || "");
+    if (Number.isFinite(last) && now - last < OPEN_GAP_MS) return null;
+    return { opens: (Number(d.opens) || 0) + 1, firstOpenedAt: d.firstOpenedAt || at, lastOpenedAt: at };
+  };
+  const { data: rows } = await supabase.from("scout_prospects").select("id, name, blocked_at, data").eq("data->demoSite->>token", token).limit(1);
+  const p = rows && rows[0];
+  if (p) {
+    if (isBlocked(p)) return { recorded: false };
+    const patch = bump(p.data && p.data.demoSite);
+    if (!patch) return { recorded: false };
+    const data = { ...(p.data || {}), demoSite: { ...(p.data.demoSite || {}), ...patch } };
+    const { error } = await supabase.from("scout_prospects").update({ data }).eq("id", p.id);
+    if (error) { console.error("demo open not stored:", error.message); return { recorded: false }; }
+    if (patch.opens === 1 && notify) await notify({ name: (p.data && (p.data.dba || p.data.name)) || p.name, pitch: false });
+    return { recorded: true, opens: patch.opens };
+  }
+  const { data: crows } = await supabase.from("clients").select("id, data").eq("data->pitchSite->>token", token).limit(1);
+  const c = crows && crows[0];
+  if (!c) return { recorded: false };
+  const patch = bump(c.data && c.data.pitchSite);
+  if (!patch) return { recorded: false };
+  if (!(await savePitch(supabase, c.id, patch))) return { recorded: false };
+  if (patch.opens === 1 && notify) await notify({ name: (c.data && (c.data.reviewSenderName || c.data.name)) || "A client", pitch: true });
+  return { recorded: true, opens: patch.opens };
+}
+const notifyFirstOpen = async ({ name, pitch }) => {
+  try {
+    const { sendPushToAll } = await import("../lib/push-shared.mjs");
+    await sendPushToAll({ title: `${name} opened their ${pitch ? "website preview" : "demo website"}`, body: "Good time to call while it's fresh.", severity: "yellow", url: "/" });
+  } catch (e) { console.error("demo open push failed:", e.message); }
+};
+
+// Every demo and pitch preview, for the Website demos screen: who, the state of the build, and whether they opened it.
+// Picked field by field, never the whole record: a demo's words run to 15KB each and the list holds all of them.
+const DEMO_LIST_PROSPECT = "id, name, niche, area, status, blocked_at, pitch:data->>pitch, phones:data->phones, emails:data->emails, phone1:data->>phone, email1:data->>email, dba:data->>dba, city:data->>city, state:data->>state, address:data->>address, owner:data->>ownerName, d_status:data->demoSite->>status, d_token:data->demoSite->>token, d_theme:data->demoSite->>theme, d_mode:data->demoSite->>mode, d_builtAt:data->demoSite->>builtAt, d_startedAt:data->demoSite->>startedAt, d_error:data->demoSite->>error, d_opens:data->demoSite->>opens, d_first:data->demoSite->>firstOpenedAt, d_last:data->demoSite->>lastOpenedAt";
+const DEMO_LIST_CLIENT = "id, c_name:data->>name, c_niche:data->>niche, d_status:data->pitchSite->>status, d_token:data->pitchSite->>token, d_theme:data->pitchSite->>theme, d_mode:data->pitchSite->>mode, d_builtAt:data->pitchSite->>builtAt, d_startedAt:data->pitchSite->>startedAt, d_error:data->pitchSite->>error, d_opens:data->pitchSite->>opens, d_first:data->pitchSite->>firstOpenedAt, d_last:data->pitchSite->>lastOpenedAt";
+const demoOfRow = (r) => ({ status: r.d_status, token: r.d_token, theme: r.d_theme, mode: r.d_mode, builtAt: r.d_builtAt, startedAt: r.d_startedAt, error: r.d_error, opens: r.d_opens, firstOpenedAt: r.d_first, lastOpenedAt: r.d_last });
+export async function listDemos(supabase, origin) {
+  const [{ data: prows, error: e1 }, { data: crows, error: e2 }] = await Promise.all([
+    supabase.from("scout_prospects").select(DEMO_LIST_PROSPECT).not("data->demoSite->>status", "is", null).limit(500),
+    supabase.from("clients").select(DEMO_LIST_CLIENT).not("data->pitchSite->>status", "is", null).limit(200),
+  ]);
+  if (e1 || e2) throw new Error((e1 || e2).message);
+  const out = [];
+  for (const r of prows || []) {
+    if (isBlocked(r)) continue;
+    const ph = Array.isArray(r.phones) && r.phones[0] && r.phones[0].number;
+    const em = Array.isArray(r.emails) && r.emails[0] && r.emails[0].address;
+    // What "They want it" needs to start their client record (index.html clientFromDemo), no more.
+    const info = { name: r.name, dba: r.dba || "", city: r.city || "", state: r.state || "", address: r.address || "", ownerName: r.owner || "", phone: r.phone1 || ph || "", email: r.email1 || em || "" };
+    out.push({ kind: "prospect", id: r.id, name: r.name, niche: r.niche || "", area: r.area || "", phone: info.phone, pitch: r.pitch || "ads", stage: r.status || "", info, demo: demoSummary(demoOfRow(r), origin) });
+  }
+  for (const r of crows || []) out.push({ kind: "client", id: r.id, name: r.c_name || "", niche: r.c_niche || "", area: "", phone: "", pitch: "website", stage: "client", demo: demoSummary(demoOfRow(r), origin) });
+  return out;
 }
 
 export default async (req) => {
@@ -106,6 +174,10 @@ export default async (req) => {
       } else if (body.action !== "poll") return json({ ok: false, error: "unknown action" }, 400);
       return json({ ok: true, demo: demoSummary(pd, `https://${url.host}`) });
     }
+    if (body.action === "list") {
+      try { return json({ ok: true, demos: await listDemos(supabase, `https://${url.host}`) }); }
+      catch (e) { return json({ ok: false, error: e.message }, 500); }
+    }
     const id = String(body.id || "");
     if (!id) return json({ ok: false, error: "id required" }, 400);
     const found = await findProspect(supabase, id, "id");
@@ -129,6 +201,10 @@ export default async (req) => {
 
   if (req.method !== "GET") return json({ ok: false, error: "Method not allowed" }, 405);
   const { token, seg } = parseDemoPath(url);
+  if (seg === "__seen") {
+    try { await recordOpen(supabase, token, { ua: req.headers.get("user-agent") || "", notify: notifyFirstOpen }); } catch (e) { console.error("demo open failed:", e.message); }
+    return new Response(null, { status: 204, headers: { "cache-control": "no-store", "x-robots-tag": "noindex" } });
+  }
   if (!validToken(token)) return plain("Page not found", "This page doesn't exist.", 404);
   const { data: rows, error } = await supabase.from("scout_prospects").select("*").eq("data->demoSite->>token", token).limit(1);
   if (error) { console.error("demo lookup failed:", error.message); return plain("Something went wrong", "Please try again in a moment.", 500); }

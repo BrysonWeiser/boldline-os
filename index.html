@@ -6283,7 +6283,7 @@ const DEMO_DAYS_OS=30;
 const demoFromRecord=(p)=>{ const d=(p&&p.data&&p.data.demoSite)||null; if(!d||!d.status) return null;
   const exp=d.builtAt?new Date(Date.parse(d.builtAt)+DEMO_DAYS_OS*864e5).toISOString():null;
   return {status:d.status,token:d.token||"",theme:d.theme||"showcase",builtAt:d.builtAt||null,error:d.error||null,expiresAt:exp,expired:d.status==="done"&&(!exp||Date.parse(exp)<=Date.now()),
-    url:d.token?`${location.origin}/demo/${d.token}/`:""}; };
+    url:d.token?`${location.origin}/demo/${d.token}/`:"",mode:d.mode||"",opens:Math.max(0,Number(d.opens)||0),firstOpenedAt:d.firstOpenedAt||null,lastOpenedAt:d.lastOpenedAt||null}; };
 const demoPoll=async(id)=>{
   if(DEMO_STORE[id]&&DEMO_STORE[id].polling) return;
   demoSet(id,{polling:true}); const started=Date.now();
@@ -6324,6 +6324,196 @@ function clientFromDemo(p,demo,plan){
     salesNotes:{...(cl.salesNotes||{}), demoSite:`Came from a demo website shown on the meeting (${plan==="own"?"buying it outright":"monthly plan"}).`},
   };
 }
+// ─── WEBSITE DEMOS: build one for anybody, and see who opened theirs ─────────────────────────
+// Bryson, 2026-11-05: "build a way to just create a website for a company in its own section in the os that way if a
+// client isn't in outreach I can still build a website to pitch them", then "build it with the signal that they opened
+// it". One form builds a demo for any company. Behind the scenes the company is added to Outreach labelled Website
+// (a company already there is reused, never typed twice), so follow-ups, notes and "They want it" all keep working.
+// Below it, every demo and pitch preview: whether the build is done, when the link ends, and whether THEY opened it
+// (demo-site recordOpen; his own taps from here carry ?me=1 and never count).
+const demoAgo=(iso)=>{ const t=Date.parse(iso||""); if(!Number.isFinite(t)) return ""; const m=Math.round((Date.now()-t)/60000);
+  if(m<1) return "just now"; if(m<60) return `${m} min ago`; const h=Math.round(m/60); if(h<24) return `${h} hour${h===1?"":"s"} ago`;
+  const d=Math.round(h/24); return d===1?"yesterday":`${d} days ago`; };
+const demoOwnUrl=(u)=>u?(u+(u.indexOf("?")>=0?"&":"?")+"me=1"):"";
+function DemoOpened({demo}){
+  if(!demo||!(demo.opens>0)) return <span style={{fontSize:10.5,color:C.textMuted}}>· Not opened by them yet</span>;
+  return <span style={{fontSize:10.5,fontWeight:800,color:C.green}}>· They opened it {demoAgo(demo.lastOpenedAt)}{demo.opens>1?` (${demo.opens} visits)`:""}</span>;
+}
+const DEMO_FILTERS=[["all","All"],["opened","Opened"],["waiting","Not opened yet"],["ended","Link ended"]];
+function WebsiteDemosScreen({onBack,isDesktop,onCreateClient}){
+  const [rows,setRows]=useState(null);
+  const [err,setErr]=useState("");
+  const [form,setForm]=useState({name:"",niche:"",city:"",phone:"",email:"",website:""});
+  const [busy,setBusy]=useState(false);
+  const [msg,setMsg]=useState("");
+  const [filter,setFilter]=useState("all");
+  const [copied,setCopied]=useState("");
+  const [choosing,setChoosing]=useState("");
+  const [,force]=useState(0);
+  useEffect(()=>{ const f=()=>force(x=>x+1); DEMO_SUBS.add(f); return ()=>DEMO_SUBS.delete(f); },[]);
+  const load=async()=>{ try{ const d=await demoCall({action:"list"}); setRows(d.demos||[]); setErr(""); }catch(e){ setErr(e.message); setRows(r=>r||[]); } };
+  // Every minute while the screen is open, so an open shows up without a refresh.
+  useEffect(()=>{ load(); const t=setInterval(load,60000); return ()=>clearInterval(t); },[]);
+  const outreach=async(qs,opts)=>{ const token=await demoAuth(); const r=await fetch("/.netlify/functions/outreach?"+qs,{...(opts||{}),headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"}});
+    const d=await r.json().catch(()=>({})); if(!r.ok||!d.ok) throw new Error(d.error||"That didn't work. Try again."); return d; };
+  const startBuild=async(id)=>{
+    demoSet(id,{msg:"",demo:{status:"running"}});
+    const r=await fetch("/.netlify/functions/demo-site-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await demoAuth())},body:JSON.stringify({prospectId:id})});
+    if(r.status!==202&&!r.ok){ const d=await r.json().catch(()=>({})); demoSet(id,{demo:null}); throw new Error(d.error||"Could not start."); }
+    await demoPoll(id); load();
+  };
+  const build=async()=>{
+    if(busy) return;
+    setBusy(true); setMsg(""); setErr("");
+    try{
+      const d=await outreach("action=add",{method:"POST",body:JSON.stringify({...form,pitch:"website"})});
+      let id=d.prospect&&d.prospect.id;
+      if(d.duplicate){
+        if(!d.id) throw new Error(d.message||"They're already on your list. Open them in Outreach.");
+        id=d.id;
+        const have=(rows||[]).find(x=>x.kind==="prospect"&&x.id===id);
+        if(have&&have.demo&&have.demo.status==="done"&&!have.demo.expired){ setMsg(`${have.name} already has a demo. It's in the list below.`); setBusy(false); return; }
+        // Already on the list for ads: now it's ads AND a website, so it shows under Websites in Outreach too.
+        if(!have||have.pitch==="ads") await outreach("action=pitch&id="+encodeURIComponent(id),{method:"POST",body:JSON.stringify({pitch:"both"})}).catch(()=>{});
+      }
+      setForm({name:"",niche:"",city:"",phone:"",email:"",website:""});
+      setMsg(`Building ${(d.prospect&&d.prospect.name)||d.name||"their site"} now. It takes about a minute, and it's in Outreach too.`);
+      await load();
+      setBusy(false);
+      startBuild(id).catch(e=>setErr(e.message));
+      return;
+    }catch(e){ setErr(e.message); }
+    setBusy(false);
+  };
+  const idKey=(x)=>x.kind==="client"?{clientId:x.id}:{id:x.id};
+  const act=async(x,body)=>{ try{ const d=await demoCall({...body,...idKey(x)}); setRows(rs=>(rs||[]).map(r=>r===x||(r.kind===x.kind&&r.id===x.id)?{...r,demo:{...r.demo,...(d.demo||{})}}:r)); }catch(e){ setErr(e.message); } };
+  const rebuild=async(x)=>{
+    if(x.demo&&x.demo.status==="done"&&!x.demo.expired&&!window.confirm(`Rebuild ${x.name}'s demo? The words will be rewritten. The link stays the same.`)) return;
+    try{
+      if(x.kind==="client"){
+        const r=await fetch("/.netlify/functions/demo-site-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await demoAuth())},body:JSON.stringify({clientId:x.id})});
+        if(r.status!==202&&!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||"Could not start."); }
+        setMsg(`Rebuilding ${x.name}'s preview. Refresh in a minute.`); setTimeout(load,60000);
+      } else await startBuild(x.id);
+    }catch(e){ setErr(e.message); }
+  };
+  const copy=(x)=>{ try{ navigator.clipboard.writeText(x.demo.url); setCopied(x.kind+x.id); setTimeout(()=>setCopied(""),1800); }catch(e){} };
+  const convert=async(x,plan)=>{
+    try{
+      const full=await demoCall({action:"content",id:x.id});
+      if(!full.content) throw new Error("Their demo isn't finished yet.");
+      setChoosing("");
+      onCreateClient&&onCreateClient(clientFromDemo({id:x.id,name:x.name,niche:x.niche,area:x.area,data:x.info||{name:x.name}},full,plan));
+    }catch(e){ setErr(e.message); }
+  };
+
+  const live=(x)=>{ const st=x.kind==="prospect"?DEMO_STORE[x.id]:null; return (st&&st.demo&&st.demo.status==="running")?{...x.demo,status:"running"}:x.demo; };
+  const all=(rows||[]).map(x=>({...x,demo:live(x)||{}}));
+  const opened=all.filter(x=>x.demo.opens>0);
+  const recent=opened.filter(x=>Date.now()-Date.parse(x.demo.lastOpenedAt||0)<7*864e5);
+  const shown=all.filter(x=>filter==="all"?true:filter==="opened"?x.demo.opens>0:filter==="waiting"?(x.demo.status==="done"&&!x.demo.expired&&!(x.demo.opens>0)):x.demo.expired)
+    .sort((a,b)=>{ const k=(x)=>x.demo.status==="running"?4e13:x.demo.opens>0&&!x.demo.expired?3e13+Date.parse(x.demo.lastOpenedAt||0)/100:x.demo.expired?Date.parse(x.demo.builtAt||0)/1e3:2e13+Date.parse(x.demo.builtAt||0)/100; return k(b)-k(a); });
+  const focus=rows==null?null:recent.length
+    ? {tone:"gold",text:`${recent.length===1?recent[0].name+" opened their demo":recent.length+" companies opened their demos"} this week. Call while it's fresh.`,onClick:()=>setFilter("opened")}
+    : all.length?{tone:"info",text:"Nobody has opened a demo this week yet. They show here the moment they do."}:null;
+
+  const inp={width:"100%",boxSizing:"border-box",padding:"10px 12px",fontSize:13.5,borderRadius:10,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,fontFamily:"inherit"};
+  const lab={fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:5};
+  const btn=(primary)=>({padding:"8px 12px",fontSize:12,fontWeight:700,borderRadius:9,border:primary?"none":`1px solid ${C.border}`,background:primary?C.gold:"transparent",color:primary?"#0a0800":C.textDim,cursor:"pointer",whiteSpace:"nowrap",textDecoration:"none",fontFamily:"inherit"});
+  const pill=(on)=>({padding:"3px 10px",fontSize:11,fontWeight:700,borderRadius:999,border:`1px solid ${on?C.gold:C.border}`,background:on?C.goldDim:"transparent",color:on?C.gold:C.textDim,cursor:on?"default":"pointer",fontFamily:"inherit"});
+  const canBuild=!busy&&form.name.trim()&&(form.phone.trim()||form.email.trim()||form.website.trim());
+  const F=(k,label,ph,wide)=>(<div key={k} style={{flex:wide?"1 1 100%":"1 1 200px",minWidth:0}}><div style={lab}>{label}</div>
+    <input value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={inp}/></div>);
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
+      <ScreenHeader group="Get clients" title="Website demos" icon="website" isDesktop={isDesktop} onBack={!isDesktop?onBack:undefined}
+        sub="Build a full website for any company you're pitching, and see the moment they open it."
+        focus={focus}
+        stats={rows==null?null:[{v:all.filter(x=>x.demo.status==="done"&&!x.demo.expired).length,l:"live demo links",tone:"gold"},{v:opened.length,l:"opened by them",tone:"green"}]}/>
+
+      <Card style={{marginBottom:16}}>
+        <div style={{fontSize:15,fontWeight:800,color:C.text,marginBottom:4}}>Build a demo</div>
+        <div style={{fontSize:12,color:C.textMuted,lineHeight:1.55,marginBottom:12}}>Their name, trade and town, plus one way to reach them. The OS researches them and writes the whole five-page site. They're added to Outreach too, so the follow-up isn't lost.</div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          {F("name","Company name *","e.g. Blackline Tint",true)}
+          {F("niche","What they do","e.g. Window tint")}
+          {F("city","Town","e.g. Mesa, AZ")}
+          {F("phone","Phone","e.g. (480) 555-0123")}
+          {F("website","Their current website","e.g. blacklinetint.com")}
+          {F("email","Email","optional")}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginTop:12}}>
+          <button onClick={build} disabled={!canBuild} style={{...btn(true),padding:"11px 18px",fontSize:13,opacity:canBuild?1:.45,cursor:canBuild?"pointer":"default"}}>{busy?"Starting…":"Build their demo"}</button>
+          {!canBuild&&!busy&&form.name.trim()&&<span style={{fontSize:11.5,color:C.textMuted}}>Add a phone, an email or their website too.</span>}
+        </div>
+        {msg&&<div style={{fontSize:12,color:C.gold,marginTop:10,lineHeight:1.55}}>{msg}</div>}
+        {err&&<div style={{fontSize:12,color:C.red,marginTop:10,lineHeight:1.55}}>{err}</div>}
+      </Card>
+
+      <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>
+        {DEMO_FILTERS.map(([k,l])=>{ const n=k==="all"?all.length:k==="opened"?opened.length:k==="waiting"?all.filter(x=>x.demo.status==="done"&&!x.demo.expired&&!(x.demo.opens>0)).length:all.filter(x=>x.demo.expired).length;
+          return <button key={k} onClick={()=>setFilter(k)} aria-pressed={filter===k} style={{...pill(filter===k),padding:"6px 13px",fontSize:12,cursor:"pointer"}}>{l}{rows?` (${n})`:""}</button>; })}
+      </div>
+
+      {rows==null&&<div style={{fontSize:12.5,color:C.textMuted}}>Loading your demos…</div>}
+      {rows!=null&&!shown.length&&<EmptyState icon="website" text={filter==="all"?"No demos yet. Build the first one above.":"Nothing here right now."}/>}
+      <div style={{display:"grid",gap:10,gridTemplateColumns:isDesktop?"repeat(auto-fill,minmax(420px,1fr))":"1fr"}}>
+        {shown.map(x=>{ const d=x.demo, key=x.kind+x.id, ready=d.status==="done"&&!d.expired, running=d.status==="running";
+          const exp=d.expiresAt?new Date(d.expiresAt).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/Phoenix"}):"";
+          return (
+          <div key={key} style={{padding:"13px 14px",borderRadius:13,border:`1px solid ${d.opens>0&&!d.expired?C.green+"55":ready?C.gold+"44":C.border}`,background:C.bg2}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+              <div style={{minWidth:0,flex:1}}>
+                <div style={{fontSize:14.5,fontWeight:800,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{x.name}</div>
+                <div style={{fontSize:11.5,color:C.textMuted,marginTop:2}}>{[x.niche,x.area,x.kind==="client"?"already a client (pitch preview)":""].filter(Boolean).join(" · ")||" "}</div>
+              </div>
+              {d.opens>0
+                ? <span style={{flexShrink:0,fontSize:10.5,fontWeight:800,color:C.green,border:`1px solid ${C.green}55`,background:C.green+"14",borderRadius:7,padding:"3px 8px",whiteSpace:"nowrap"}}>Opened {demoAgo(d.lastOpenedAt)}</span>
+                : ready?<span style={{flexShrink:0,fontSize:10.5,fontWeight:700,color:C.textMuted,border:`1px solid ${C.border}`,borderRadius:7,padding:"3px 8px",whiteSpace:"nowrap"}}>Not opened yet</span>:null}
+            </div>
+            {d.opens>0&&<div style={{fontSize:11,color:C.textMuted,marginTop:6}}>First opened {demoAgo(d.firstOpenedAt)}{d.opens>1?`, ${d.opens} visits in all`:""}.</div>}
+            <div style={{marginTop:10}}>
+              {running
+                ? <div style={{fontSize:12.5,color:C.textDim}}>Writing their five pages now. About a minute.</div>
+                : d.status==="error"
+                ? <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}><span style={{fontSize:12,color:C.red}}>{d.error||"The build failed."}</span><button onClick={()=>rebuild(x)} style={btn(false)}>Try again</button></div>
+                : d.expired
+                ? <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}><span style={{fontSize:12,color:C.textMuted}}>This link has ended.</span><button onClick={()=>rebuild(x)} style={btn(true)}>Build a fresh one</button></div>
+                : ready
+                ? <>
+                    <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                      <a href={demoOwnUrl(d.url)} target="_blank" rel="noopener noreferrer" style={btn(true)}>Open</a>
+                      <button onClick={()=>copy(x)} style={btn(false)}>{copied===key?"Link copied":"Copy link to text them"}</button>
+                      {x.kind==="prospect"&&<button onClick={()=>setChoosing(c=>c===key?"":key)} style={{...btn(false),borderColor:C.green+"66",color:C.green}}>They want it</button>}
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginTop:9}}>
+                      <span style={{fontSize:10.5,color:C.textMuted}}>Opens in</span>
+                      {demoThemesFor(d.theme).map(([t,l])=><button key={t} onClick={()=>d.theme!==t&&act(x,{action:"theme",theme:t})} aria-pressed={d.theme===t} style={pill(d.theme===t)}>{l}</button>)}
+                      <ModePills theme={d.theme} mode={d.mode} onPick={m=>act(x,{action:"mode",mode:m})} size="sm"/>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",marginTop:8}}>
+                      <span style={{fontSize:10.5,color:C.textMuted}}>Link works until {exp}</span>
+                      <button onClick={()=>useSiteColours(x.kind==="client"?{clientId:x.id}:{id:x.id},m=>setMsg(m))} style={{background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Use their website's colours</button>
+                      <button onClick={()=>rebuild(x)} style={{background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Rebuild</button>
+                    </div>
+                    {choosing===key&&(
+                      <div style={{marginTop:10,display:"grid",gap:7}}>
+                        {DEMO_PLANS.map(pl=>(
+                          <button key={pl.id} onClick={()=>convert(x,pl.id)} style={{textAlign:"left",padding:"10px 12px",borderRadius:10,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,cursor:"pointer",fontFamily:"inherit"}}>
+                            <div style={{fontSize:13,fontWeight:800}}>{pl.label}</div><div style={{fontSize:11.5,color:C.textMuted,marginTop:2}}>{pl.sub}</div>
+                          </button>))}
+                      </div>)}
+                  </>
+                : <button onClick={()=>rebuild(x)} style={btn(true)}>Build their demo</button>}
+            </div>
+          </div>); })}
+      </div>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginTop:14}}>"Opened" counts only when they actually look: it waits for a scroll or a few seconds on the page, and ignores the preview a texting app draws. Opening a demo from this screen never counts as them.</div>
+    </div>
+  );
+}
+
 // ─── Pitch preview: the demo builder, for a business that is ALREADY a client (KB demo-sites, "pitch previews") ───
 // Bryson, 2026-11-03, on Springbok: "I don't want to make the website and him have access to download it or use it
 // until he pays but I want to be able to show him and pitch it". The preview lives on `pitchSite` (server-owned),
@@ -6394,6 +6584,7 @@ function PitchPreviewCard({client,onUpdate}){
       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
         <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.gold}}>Preview to pitch</div>
         {ready&&<span style={{fontSize:10.5,color:C.textMuted}}>Private link, works until {expTxt}</span>}
+        {ready&&<DemoOpened demo={demo}/>}
       </div>
       <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.55,marginBottom:9}}>Their full website, built to show {client.name} before they buy. Only people with the link can see it. It isn't in their portal, can't be downloaded or put live, and becomes their real site once they sign the website agreement and pay.</div>
       {running
@@ -6401,7 +6592,7 @@ function PitchPreviewCard({client,onUpdate}){
         : ready
         ? <>
             <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-              <a href={demo.url} target="_blank" rel="noopener noreferrer" style={btn(true)}>Open the preview</a>
+              <a href={demoOwnUrl(demo.url)} target="_blank" rel="noopener noreferrer" style={btn(true)}>Open the preview</a>
               <button onClick={copy} style={btn(false)}>{copied?"Link copied":"Copy link to text them"}</button>
               {unlocked&&<button onClick={adopt} style={{...btn(false),borderColor:C.green+"66",color:C.green}}>Make it their website</button>}
             </div>
@@ -6462,13 +6653,14 @@ function DemoSiteBox({prospect,onCreateClient}){
       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:7}}>
         <span style={{fontSize:9.5,fontWeight:800,color:C.gold,textTransform:"uppercase",letterSpacing:".05em"}}>Demo website</span>
         {ready&&<span style={{fontSize:10.5,color:C.textMuted}}>Private link, works until {expTxt}</span>}
+        {ready&&<DemoOpened demo={demo}/>}
       </div>
       {running
         ? <div style={{fontSize:12.5,color:C.textDim,lineHeight:1.5}}>Writing their five pages now. This takes about a minute, and you can keep calling.</div>
         : ready
         ? <>
             <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-              <a href={demo.url} target="_blank" rel="noopener noreferrer" style={btn(true)}>Open their site</a>
+              <a href={demoOwnUrl(demo.url)} target="_blank" rel="noopener noreferrer" style={btn(true)}>Open their site</a>
               <button onClick={copy} style={btn(false)}>{copied?"Link copied":"Copy link to text them"}</button>
               <button onClick={()=>setChoosing(v=>!v)} style={{...btn(false),borderColor:C.green+"66",color:C.green}}>They want it</button>
             </div>
@@ -22362,10 +22554,10 @@ function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,onMore,notifC
       </button>
 
       {/* More */}
-      <button onClick={onMore} style={btnStyle(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue"||screen==="campaigns"||screen==="content")}>
-        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue"||screen==="campaigns"||screen==="content")?"#C8A84B":C.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      <button onClick={onMore} style={btnStyle(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="demos"||screen==="revenue"||screen==="campaigns"||screen==="content")}>
+        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="demos"||screen==="revenue"||screen==="campaigns"||screen==="content")?"#C8A84B":C.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
         <span style={{fontSize:9,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
-          color:(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue"||screen==="campaigns"||screen==="content")?"#C8A84B":C.textMuted}}>More</span>
+          color:(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="demos"||screen==="revenue"||screen==="campaigns"||screen==="content")?"#C8A84B":C.textMuted}}>More</span>
       </button>
     </div>
   );
@@ -22384,7 +22576,7 @@ function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,onMore,notifC
 // 🔴 The comment above SideNav claimed "same destinations as BottomNav" while the two had
 // drifted apart, which is exactly how a missing entry survives a read of the code. Parity is
 // now asserted in tests/verify-nav-parity.mjs rather than described in a comment.
-function MoreSheet({ onClose, onMyAds, onBusinesses, onCalendar, onDealPrep, onLeadScout, onOutreach, onRevenue, onCampaigns, onContent, onSearch }) {
+function MoreSheet({ onClose, onMyAds, onBusinesses, onCalendar, onDealPrep, onLeadScout, onDemos, onOutreach, onRevenue, onCampaigns, onContent, onSearch }) {
   // Tiles, two to a row, grouped like the computer menu so the same thing lives in the same place.
   const row = (icon,label,desc,onClick) => (
     <button onClick={onClick} style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:8,minWidth:0,padding:"12px 12px 11px",borderRadius:13,border:`1px solid ${C.border}`,background:"linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))",cursor:"pointer",textAlign:"left"}}>
@@ -22409,6 +22601,7 @@ function MoreSheet({ onClose, onMyAds, onBusinesses, onCalendar, onDealPrep, onL
         <div style={grid}>
           {row(sv(<><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z"/></>),"Outreach","Work the list, one at a time",onOutreach)}
           {row(sv(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>),"Lead Scout","Find + rank businesses to cold call",onLeadScout)}
+          {row(sv(<><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 6.5h.01M10 6.5h.01"/></>),"Website demos","Build a site to pitch, see who opened it",onDemos)}
           {row(sv(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>),"Deal Prep","Research a prospect before the call",onDealPrep)}
           {row(sv(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>),"Calendar","Everything scheduled, in one view",onCalendar)}
         </div>
@@ -22750,7 +22943,7 @@ function useIsDesktop(bp=1024){
 // for exactly as long as that sentence made the split look accounted for. Parity is asserted
 // in tests/verify-nav-parity.mjs now, because a comment cannot fail.
 const BIZ = <><path d="M3 9.5 4.6 4h14.8L21 9.5"/><path d="M3 9.5a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M5 12v8h14v-8M10 20v-5h4v5"/></>;
-function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onBusinesses,businessesActive,onOutreach,onDealPrep,onLeadScout,onCalendar,onCampaigns,onContent,onSearch}){
+function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onBusinesses,businessesActive,onOutreach,onDealPrep,onLeadScout,onDemos,onCalendar,onCampaigns,onContent,onSearch}){
   const item = (active) => ({
     display:"flex",alignItems:"center",gap:12,width:"100%",padding:"9px 13px",
     borderRadius:11,border:"none",cursor:"pointer",textAlign:"left",position:"relative",
@@ -22803,6 +22996,7 @@ function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLog
         <div style={{display:"flex",flexDirection:"column",gap:2}}>
           <button onClick={onOutreach} style={item(screen==="outreach")}>{bar(screen==="outreach")}{svg(<><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z"/></>,col("outreach"))}Outreach</button>
           <button onClick={onLeadScout} style={item(screen==="leadscout")}>{bar(screen==="leadscout")}{svg(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>,col("leadscout"))}Lead Scout</button>
+          <button onClick={onDemos} style={item(screen==="demos")}>{bar(screen==="demos")}{svg(<><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 6.5h.01M10 6.5h.01"/></>,col("demos"))}Website demos</button>
           <button onClick={onDealPrep} style={item(screen==="dealprep")}>{bar(screen==="dealprep")}{svg(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>,col("dealprep"))}Deal Prep</button>
           <button onClick={onCalendar} style={item(screen==="calendar")}>{bar(screen==="calendar")}{svg(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>,col("calendar"))}Calendar</button>
         </div>
@@ -23484,12 +23678,13 @@ function App({onLogout}) {
           backed up, already live-refreshed. `save` is null when there is no house account
           yet, and every consumer disables its own editing rather than throwing. */}
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="grid"></div><div className="ob a"></div><div className="ob b"></div><div className="scan"></div><div className="vig"></div><div className="grain"></div></div>
-      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&isHouse(activeClient)} onBusinesses={()=>setScreen("businesses")} businessesActive={screen==="businesses"||(screen==="client"&&isOwned(activeClient))} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")} onOutreach={()=>setScreen("outreach")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")} onContent={()=>setScreen("content")} onSearch={()=>setShowCmd(true)}/>}
+      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&isHouse(activeClient)} onBusinesses={()=>setScreen("businesses")} businessesActive={screen==="businesses"||(screen==="client"&&isOwned(activeClient))} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onDemos={()=>setScreen("demos")} onCalendar={()=>setScreen("calendar")} onOutreach={()=>setScreen("outreach")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")} onContent={()=>setScreen("content")} onSearch={()=>setShowCmd(true)}/>}
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
         {screen==="home"&&<HomeScreen clients={realClients} onOpenBusinesses={()=>setScreen("businesses")} businessCount={myBusinesses.length} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onAddDemo={addDemoClient} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} onOutreach={()=>setScreen("outreach")} hasMyAccount={!!myAccount} isDesktop={isDesktop} leads={leads} onLeads={()=>setScreen("leads")} onARIA={()=>setShowARIA(true)} onCalendar={()=>setScreen("calendar")}/>}
         {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)} clients={clients} onCreateClient={addClient}/>}
         {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep} onCreateClient={addClient}/>}
+        {screen==="demos"&&<WebsiteDemosScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onCreateClient={addClient}/>}
         {/* Lead Scout finds them, Outreach works them. Two screens because they are two jobs:
             one is a search you run occasionally, the other is a thing you sit down and do. */}
         {screen==="outreach"&&<OutreachScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep} onCreateClient={addClient}/>}
@@ -23505,7 +23700,7 @@ function App({onLogout}) {
       </div>
       </div>
       {!isDesktop&&<BottomNav screen={screen} onHome={()=>setScreen("home")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onMore={()=>setShowMore(true)} notifCount={notifCount} newLeadsCount={newLeadsCount}/>}
-      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onMyAds={()=>{openMyAds();setShowMore(false);}} onBusinesses={()=>{setScreen("businesses");setShowMore(false);}} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onOutreach={()=>{setScreen("outreach");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}} onContent={()=>{setScreen("content");setShowMore(false);}} onSearch={()=>{setShowMore(false);setShowCmd(true);}}/>}
+      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onMyAds={()=>{openMyAds();setShowMore(false);}} onBusinesses={()=>{setScreen("businesses");setShowMore(false);}} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onDemos={()=>{setScreen("demos");setShowMore(false);}} onOutreach={()=>{setScreen("outreach");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}} onContent={()=>{setScreen("content");setShowMore(false);}} onSearch={()=>{setShowMore(false);setShowCmd(true);}}/>}
       {/* Sits OUTSIDE .os-content on purpose: that element animates its opacity, which
           makes it a permanent stacking context and would trap this behind the screen
           (the same trap that hid the bot chat bar). A refused save has to be seen. */}
@@ -23554,6 +23749,7 @@ function App({onLogout}) {
         {id:"g-home",k:"go",label:"Today",hint:"Your day, goals, and every client",kw:"home dashboard clients",run:()=>setScreen("home")},
         {id:"g-leads",k:"go",label:"Leads",hint:"Website leads and enquiries",kw:"inbox enquiries",run:()=>setScreen("leads")},
         {id:"g-scout",k:"go",label:"Lead Scout",hint:"Find and rank businesses to call",kw:"prospects search find",run:()=>setScreen("leadscout")},
+        {id:"g-demos",k:"go",label:"Website demos",hint:"Build a website to pitch, see who opened it",kw:"demo website pitch preview build site mockup",run:()=>setScreen("demos")},
         {id:"g-deal",k:"go",label:"Deal Prep",hint:"Research a prospect before the call",kw:"quote pitch research",run:()=>openDealPrep(null)},
         {id:"g-cal",k:"go",label:"Calendar",hint:"Everything scheduled",kw:"meetings schedule",run:()=>setScreen("calendar")},
         {id:"g-camp",k:"go",label:"Campaigns",hint:"Every ad campaign",kw:"google meta ads",run:()=>setScreen("campaigns")},

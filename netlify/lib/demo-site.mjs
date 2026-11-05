@@ -117,6 +117,8 @@ export const demoSummary = (demo, origin = "") => {
   if (!demo || typeof demo !== "object") return null;
   return {
     status: demo.status || "", token: demo.token || "", theme: demo.theme || DEMO_THEME_DEFAULT, mode: demo.mode === "light" || demo.mode === "dark" ? demo.mode : "",
+    // Whether THEY opened it (demoOpenJS below): how many times, and when first and last.
+    opens: Math.max(0, Number(demo.opens) || 0), firstOpenedAt: demo.firstOpenedAt || null, lastOpenedAt: demo.lastOpenedAt || null,
     builtAt: demo.builtAt || null, startedAt: demo.startedAt || null, error: demo.error || null,
     expiresAt: demoExpiresAt(demo), expired: demo.status === "done" ? demoExpired(demo) : false,
     url: demo.token && origin ? `${origin.replace(/\/+$/, "")}/demo/${demo.token}/` : "",
@@ -167,9 +169,29 @@ ${MODE_TOGGLE_CSS}
 <div class="bl-demo" role="note" aria-label="Website preview"><span class="bl-tag"><i></i><b><span class="bl-w">Preview for ${esc(name)}</span><span class="bl-n">Preview</span></b><span class="bl-long">Made by BoldLine Media. Not live yet.</span></span>${nav}${MODE_TOGGLE_HTML}</div><script>${modeToggleJS(modeKey)}</script>`;
 }
 
+// ── Did they open it? ─────────────────────────────────────────────────────────────────
+// Bryson, 2026-11-05: "build it with the signal that they opened it". One read request back to our own server
+// (`<demo>/__seen`), the only thing a demo page ever sends, and GET on purpose: the send-nothing guard above lets GETs
+// through untouched, so the guard itself is not weakened to allow it. It is only sent by a person actually looking:
+//  - after they interact (scroll, tap, key) or after 6 seconds with the page on screen, so a link preview fetched by a
+//    texting app (which neither scrolls nor waits) never reads as "opened";
+//  - never from an automated browser, and never in a tab Bryson opened from the OS (the OS adds ?me=1; remembered for
+//    the tab so clicking around the design switcher stays his);
+//  - once per tab. The server also ignores repeats within 10 minutes and known preview robots.
+export const demoOpenJS = (seenUrl, key) => `(function(){try{var K=${JSON.stringify(key)},U=${JSON.stringify(seenUrl)},ss=null;try{ss=window.sessionStorage;}catch(e){}
+if(/[?&]me=1(&|$)/.test(location.search)){try{ss&&ss.setItem('bl-me','1');}catch(e){}}
+var me=false;try{me=!!ss&&(ss.getItem('bl-me')==='1'||ss.getItem(K)==='1');}catch(e){}
+if(me||navigator.webdriver)return;
+var sent=false,t=null;var go=function(){if(sent||document.visibilityState!=='visible')return;sent=true;try{ss&&ss.setItem(K,'1');}catch(e){}try{fetch(U,{method:'GET',cache:'no-store',credentials:'omit',keepalive:true});}catch(e){}};
+var arm=function(){clearTimeout(t);if(document.visibilityState==='visible')t=setTimeout(go,6000);};
+['scroll','pointerdown','touchstart','keydown'].forEach(function(ev){addEventListener(ev,go,{passive:true,once:true});});
+document.addEventListener('visibilitychange',arm);arm();}catch(e){}})();`;
+// Known robots that fetch a link to draw a preview of it. Checked on the server too, in case one ever runs scripts.
+export const PREVIEW_BOT = /bot\b|crawl|spider|preview|facebookexternalhit|whatsapp|slack|discord|telegram|twitterbot|linkedin|googlebot|bingbot|headless|python|curl|wget|okhttp|go-http/i;
+
 // Turns a rendered page into the demo: guard first, the strip at the top of the body.
-export function decorateDemo(html, { name, designs, modeKey }) {
+export function decorateDemo(html, { name, designs, modeKey, seenUrl, seenKey }) {
   return String(html)
     .replace(/<meta charset="utf-8">/i, (m) => `${m}<script>${DEMO_GUARD_JS}</script>`)
-    .replace(/<body([^>]*)>/i, (m) => `${m}\n${demoBarHTML(name, designs, modeKey)}`);
+    .replace(/<body([^>]*)>/i, (m) => `${m}\n${demoBarHTML(name, designs, modeKey)}${seenUrl ? `<script>${demoOpenJS(seenUrl, seenKey || "bl-seen")}</script>` : ""}`);
 }
