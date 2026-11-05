@@ -2,7 +2,7 @@
 name: demo-sites
 topic: Websites
 task: build a demo website for a company before a sales meeting, show it, turn it into a client, or sell / hand over a website bought outright ($2,500, no monthly)
-keywords: [website demos screen, demos screen, opened signal, they opened it, recordOpen, __seen, demoOpenJS, me=1, listDemos, demo website, demo site, spec site, website before the meeting, show them their site, private link, they want it, buy it outright, bought outright, own it, buyout, $2500, handover, site files, download site files, zip, export site, mgmt own, WA-8, Purchase Agreement, demo-site.mjs, demo-site-background, DemoSiteBox, clientFromDemo, SiteFilesHandover, site-export.mjs, __mailto, researchFacts]
+keywords: [no website, no social media, just starting out, new business, social media link, facebook page, tiktok, normSocial, social.mjs, noContactYet, waitingForContact, mergeContact, action=contact, demoOnly, newBusiness, website demos screen, demos screen, opened signal, they opened it, recordOpen, __seen, demoOpenJS, me=1, listDemos, demo website, demo site, spec site, website before the meeting, show them their site, private link, they want it, buy it outright, bought outright, own it, buyout, $2500, handover, site files, download site files, zip, export site, mgmt own, WA-8, Purchase Agreement, demo-site.mjs, demo-site-background, DemoSiteBox, clientFromDemo, SiteFilesHandover, site-export.mjs, __mailto, researchFacts]
 status: LIVE 2026-10-20
 summary: Built 2026-10-20 (Bryson, "i want to build it for the full website for the company im cold calling when i hop on a meeting with them that way if they like it we just need to link their payment method"; pricing "$2500 ... if they want to include the $100/month for us to host it and do everything then itll be $1500 then the monthly"). On any Lead Scout or Outreach company labelled Website or Both, "Build their demo website" writes their full 5-page site with the real builder from public research facts (stock photos), served at os.boldlinemedia.com/demo/<random token>/ with a "Preview for <name>. Not live yet." strip, a guard that stops every send, noindex + no-store, no visit count, a 3-design switcher, and a 30-day expiry (rebuild keeps the same link). "They want it" picks Monthly plan ($1,500 + $100/mo) or Buy it outright ($2,500) and creates an unsigned website-only client with the demo as their website; the agreement and payment then go out from the Website tab as usual. Outright is a fifth agreement version (WA-8, "Website Design and Purchase Agreement": no monthly, handover of files, nothing after handover is ours); once fully paid the Website tab downloads the whole site as a zip made for THEIR domain (form opens the visitor's email app, booking off, photos copied in, read-me inside).
 verified: 2026-10-20
@@ -133,4 +133,28 @@ reached the demo (manual rows keep it in `data.phones[]`, the demo read `data.ph
 - Website demos form: Instagram, "What they offer", "Anything true about them (goes on the site)", and the website box says
   "leave blank if they don't have one". Outreach's add-by-hand form has Instagram too.
 - Photos are still stock: their Instagram photos are theirs (see the rule at the top of lib/demo-site.mjs).
+
+### Any platform, or nothing at all (2026-11-05, same evening)
+Bryson: "The instagram was just an example but I need a way to build it for businesses without a website in general whether
+they are on instagram or another social media platform or they don't even have social media and they are just starting out."
+- **One social box for any platform.** `netlify/lib/social.mjs` `normSocial(value, platformForHandle)` reads a pasted link from
+  any site (Instagram, Facebook, TikTok, X, YouTube, LinkedIn, Nextdoor, Yelp, Threads, Pinterest, Snapchat, Thumbtack, Angi,
+  Houzz, Linktree, Google maps links; anything else is named by its domain) or a bare @handle on Instagram/Facebook/TikTok/X
+  (the OS shows a platform picker only when a handle is typed). Every saved link is https. Stored as `data.socials[]`
+  `{platform,url,handle}`; an Instagram one also fills `data.instagram` so Outreach's DM mode keeps working.
+  - 🔴 GOTCHA fixed before ship: "tint.ninja.az" is an Instagram HANDLE (dots are common), not a domain. Without https:// a
+    value is read as a link only if it has a path or is a known platform host.
+  - A Facebook/Yelp/etc. link typed in the WEBSITE box is moved to socials and the website left blank, because a domain is
+    used to tell companies apart and every business on facebook.com would otherwise look like the same one.
+- **No contact at all is allowed, for a demo only.** The Website demos screen sends `demoOnly:true`; only the name and "What
+  they do" are required. A row with no phone, email, website or social gets `data.noContactYet` and `waitingForContact()`
+  keeps it OFF the call list (`isQueueable`), so an unreachable company never sits at the top of the queue being skipped.
+  Outreach's own add-by-hand still requires a way to reach them.
+- **Adding one later.** Such a card on Website demos shows an amber "No way to reach them yet, so they're off your call
+  list" box with Phone + Social + Save > outreach `action=contact` > `mergeContact()` (appends, never overwrites, never the
+  same link twice, clears `noContactYet`). It then joins the call list.
+- **"They're just starting out"** tick box > `data.newBusiness` > `demoClientOf` tells the writer: a brand-new business with no
+  years in business, past customers, reviews, ratings or awards to mention. Stops a demo inventing a track record.
+- The Outreach call card now shows each social link (↗ Facebook etc.) beside phone/email/site, https only.
+- Pinned by `tests/verify-demo-opened.mjs` section 4.
 

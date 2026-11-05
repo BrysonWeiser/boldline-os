@@ -280,7 +280,7 @@ const DAY = 864e5;
   // The floor: a name, and one way to reach them.
   ok("a company with a name and a phone builds a row", !!buildManualProspect(good).row);
   ok("🔴 a name with no phone, email or website is refused",
-    /phone number, an email, a website or their Instagram/.test(buildManualProspect({ name: "Summit Roofing" }).error || ""),
+    /phone number, an email, a website or their social media/.test(buildManualProspect({ name: "Summit Roofing" }).error || ""),
     "a row that cannot be actioned reaches the top of the queue and is skipped every morning");
   ok("an email alone is enough", !!buildManualProspect({ name: "A Co", email: "hi@aco.com" }).row);
   ok("a website alone is enough", !!buildManualProspect({ name: "A Co", website: "aco.com" }).row);
@@ -366,7 +366,7 @@ const DAY = 864e5;
   ok("and posts to the add action", /api\("action=add",\{method:"POST"/.test(UI));
   ok("it reloads the queue so the new company is actually there", /if\(!d\.duplicate\) await loadQueue\(\);/.test(UI));
   ok("🔴 and the form stays open and empties itself rather than closing",
-    /setAddForm\(\{name:"",phone:"",email:"",website:"",instagram:"",city:"",niche:"",ownerName:"",notes:""\}\);\s*setAddMsg\(/.test(UI)
+    /setAddForm\(\{name:"",phone:"",email:"",website:"",social:"",city:"",niche:"",ownerName:"",notes:""\}\);\s*setAddMsg\(/.test(UI)
     && !/setAddOpen\(false\); await loadQueue/.test(UI),
     "referrals arrive in threes, and closing it takes the confirmation down with it");
   // 🔴 Narrow on purpose: it looks for the LIB'S OWN SENTENCES appearing in the screen, not for

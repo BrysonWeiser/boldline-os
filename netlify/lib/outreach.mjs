@@ -15,6 +15,7 @@
 import { dedupeKeyFor, normDomain } from "./scout-shared.mjs";
 import { pitchOf, cleanPitch, matchesPitch, pitchCounts, PITCHES } from "./pitch.mjs";
 import { normInstagram } from "./instagram.mjs";
+import { normSocial, isSocialHost } from "./social.mjs";
 
 // Ads, a website, or both: what he is selling this company (KB `website-prospects`).
 export { pitchOf, cleanPitch, matchesPitch, pitchCounts, PITCHES };
@@ -175,17 +176,28 @@ export const buildManualProspect = (input = {}, { at = Date.now() } = {}) => {
   const email = cleanEmail(rawEmail);
   if (rawEmail && !email) return { error: "That email address doesn't look right." };
 
-  const website = normDomain(input.website);
+  let website = normDomain(input.website);
   if (String(input.website || "").trim() && !website) return { error: "That website doesn't look right. Something like example.com." };
+  // A Facebook page or a Yelp listing typed in the website box is their social link, not a website. Kept as a domain it
+  // would also be used to tell companies apart, and every business on facebook.com would look like the same one.
+  let socialFromWebsite = null;
+  if (website && isSocialHost(website)) { socialFromWebsite = normSocial(input.website); website = ""; }
 
-  // Their Instagram counts as a way to reach them (Bryson, 2026-11-05: a mobile tint guy "posts on instagram but he
-  // doesn't have a website"). DMs are how he talks to businesses like that.
-  const rawIg = String(input.instagram || "").trim();
-  const instagram = normInstagram(rawIg);
-  if (rawIg && !instagram) return { error: "That Instagram doesn't look right. Use their handle, like @blacklinetint, or the link to their profile." };
+  // Their social media or online listing, on any platform, counts as a way to reach them (Bryson, 2026-11-05: "for
+  // businesses without a website in general whether they are on instagram or another social media platform"). A link
+  // names its own platform; a bare @handle uses `socialPlatform`. The older `instagram` field still works.
+  const rawSocial = String(input.social || input.instagram || "").trim();
+  const social = rawSocial ? normSocial(rawSocial, input.instagram && !input.social ? "Instagram" : input.socialPlatform) : socialFromWebsite;
+  if (rawSocial && !social) return { error: "That social link doesn't look right. Paste the link to their page, or their @handle and pick the platform." };
+  const instagram = social && social.platform === "Instagram" ? social.handle : "";
 
-  if (!phone && !email && !website && !instagram) {
-    return { error: "Add a phone number, an email, a website or their Instagram, otherwise there is no way to reach them." };
+  // 🔴 NO WAY TO REACH THEM IS ALLOWED ONLY FOR A DEMO (`demoOnly`, the Website demos screen): a business just starting
+  // out may have nothing yet, and he can still build them a site. Such a row is marked `noContactYet` and kept OFF the
+  // daily call list (isQueueable) until a number or a link is added, because a row nobody can reach would otherwise sit
+  // at the top of the list and be skipped every morning.
+  const reachable = !!(phone || email || website || social);
+  if (!reachable && !input.demoOnly) {
+    return { error: "Add a phone number, an email, a website or their social media, otherwise there is no way to reach them." };
   }
   // What they offer and what is true about them, typed by Bryson from their Instagram or a call. PUBLIC by design: these
   // go to the demo writer and onto the site, unlike `notes`, which never does.
@@ -228,6 +240,10 @@ export const buildManualProspect = (input = {}, { at = Date.now() } = {}) => {
         phones: phone ? [{ number: prettyPhone(phone), whose: owner ? "owner" : "main", kind: "main" }] : [],
         emails: email ? [{ address: email, whose: owner ? "owner" : "main" }] : [],
         ...(instagram ? { instagram } : {}),
+        ...(social ? { socials: [social, ...(socialFromWebsite && socialFromWebsite.url !== social.url ? [socialFromWebsite] : [])] } : {}),
+        ...(!reachable ? { noContactYet: true } : {}),
+        // Brand new, nothing to point to yet: the demo writer is told so and claims no track record (lib/demo-site.mjs).
+        ...(input.newBusiness ? { newBusiness: true } : {}),
         ...(services.length ? { services } : {}),
         ...(about ? { about } : {}),
         addedAt: iso,
@@ -475,7 +491,34 @@ export const manualAddVerdict = (existing) => {
 // This is NOT the do-not-contact guard and does not replace it: a status is a dropdown somebody
 // can change back, `blocked_at` is not, which is why they are separate checks.
 export const QUEUE_SKIP_STATUS = ["dead", "client"];
-export const isQueueable = (p) => !!p && !isBlocked(p) && !QUEUE_SKIP_STATUS.includes(String((p && p.status) || ""));
+export const isQueueable = (p) => !!p && !isBlocked(p) && !QUEUE_SKIP_STATUS.includes(String((p && p.status) || "")) && !waitingForContact(p);
+// A company added only to build a demo, with no phone, email, website or social yet (buildManualProspect `demoOnly`).
+export const waitingForContact = (p) => {
+  const d = (p && p.data) || {};
+  if (!d.noContactYet) return false;
+  const has = (a) => Array.isArray(a) && a.length > 0;
+  return !(has(d.phones) || has(d.emails) || has(d.socials) || d.instagram || p.domain || d.website);
+};
+
+// Adding a way to reach a company later (Website demos, "Add how to reach them"). Same cleaning as adding one; returns the
+// merged `data` and `domain`, or an error. Never overwrites what is there: a new number goes after the existing ones.
+export const mergeContact = (row, input = {}) => {
+  const d = { ...((row && row.data) || {}) };
+  const rawPhone = String(input.phone || "").trim(), phone = cleanPhone(rawPhone);
+  if (rawPhone && !phone) return { error: "That phone number doesn't look right. Use the full number including the area code." };
+  const rawEmail = String(input.email || "").trim(), email = cleanEmail(rawEmail);
+  if (rawEmail && !email) return { error: "That email address doesn't look right." };
+  const rawSocial = String(input.social || "").trim();
+  const social = rawSocial ? normSocial(rawSocial, input.socialPlatform) : null;
+  if (rawSocial && !social) return { error: "That social link doesn't look right. Paste the link to their page, or their @handle and pick the platform." };
+  if (!phone && !email && !social) return { error: "Add a phone number, an email or their social media." };
+  if (phone && !(d.phones || []).some((x) => cleanPhone(x && x.number) === phone)) d.phones = [...(d.phones || []), { number: prettyPhone(phone), whose: "main", kind: "main" }];
+  if (email && !(d.emails || []).some((x) => x && x.address === email)) d.emails = [...(d.emails || []), { address: email, whose: "main" }];
+  if (social && !(d.socials || []).some((x) => x && x.url === social.url)) d.socials = [...(d.socials || []), social];
+  if (social && social.platform === "Instagram" && !d.instagram) d.instagram = social.handle;
+  delete d.noContactYet;
+  return { data: d };
+};
 
 export const dueQueue = (prospects, now = Date.now()) => {
   const n = nowMs(now);

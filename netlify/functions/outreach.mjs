@@ -10,7 +10,7 @@
 import { normInstagram } from "../lib/instagram.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { applyTouch, dueQueue, rollup, rollupByChannel, outcomeById, isBlocked, buildManualProspect, manualAddVerdict, cleanPitch, matchesPitch, pitchCounts, QUEUE_SKIP_STATUS } from "../lib/outreach.mjs";
+import { applyTouch, dueQueue, rollup, rollupByChannel, outcomeById, isBlocked, buildManualProspect, mergeContact, manualAddVerdict, cleanPitch, matchesPitch, pitchCounts, QUEUE_SKIP_STATUS } from "../lib/outreach.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -159,6 +159,24 @@ export default async (req) => {
     const { error: upErr } = await supabase.from("scout_prospects").update({ data }).eq("id", id);
     if (upErr) return json({ ok: false, error: upErr.message }, 500);
     return json({ ok: true, instagram: handle, data });
+  }
+
+  // ── A way to reach them, added later ────────────────────────────────────────
+  // For a company added only to build a demo, with nothing to reach them by yet (Website demos screen). Same cleaning as
+  // adding one (`mergeContact`); once it has a way to reach them it joins the call list.
+  if (action === "contact") {
+    if (req.method !== "POST") return json({ ok: false, error: "POST required" }, 405);
+    if (!id) return json({ ok: false, error: "id required" }, 400);
+    let body; try { body = JSON.parse((await req.text()) || "{}"); } catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+    const { data: rows, error: readErr } = await supabase.from("scout_prospects").select("id, data").eq("id", id).limit(1);
+    if (readErr) return json({ ok: false, error: readErr.message }, 500);
+    const row = (rows || [])[0];
+    if (!row) return json({ ok: false, error: "That company is no longer on the list." }, 404);
+    const merged = mergeContact(row, body);
+    if (merged.error) return json({ ok: false, error: merged.error }, 400);
+    const { error: upErr } = await supabase.from("scout_prospects").update({ data: merged.data, updated_at: new Date().toISOString() }).eq("id", id);
+    if (upErr) return json({ ok: false, error: upErr.message }, 500);
+    return json({ ok: true, data: merged.data });
   }
 
   // ── Ads, website or both: what he is selling them ──────────────────────────
