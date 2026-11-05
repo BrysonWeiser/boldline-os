@@ -2,7 +2,7 @@
 name: demo-sites
 topic: Websites
 task: build a demo website for a company before a sales meeting, show it, turn it into a client, or sell / hand over a website bought outright ($2,500, no monthly)
-keywords: [demo website, demo site, spec site, website before the meeting, show them their site, private link, they want it, buy it outright, bought outright, own it, buyout, $2500, handover, site files, download site files, zip, export site, mgmt own, WA-8, Purchase Agreement, demo-site.mjs, demo-site-background, DemoSiteBox, clientFromDemo, SiteFilesHandover, site-export.mjs, __mailto, researchFacts]
+keywords: [website demos screen, demos screen, opened signal, they opened it, recordOpen, __seen, demoOpenJS, me=1, listDemos, demo website, demo site, spec site, website before the meeting, show them their site, private link, they want it, buy it outright, bought outright, own it, buyout, $2500, handover, site files, download site files, zip, export site, mgmt own, WA-8, Purchase Agreement, demo-site.mjs, demo-site-background, DemoSiteBox, clientFromDemo, SiteFilesHandover, site-export.mjs, __mailto, researchFacts]
 status: LIVE 2026-10-20
 summary: Built 2026-10-20 (Bryson, "i want to build it for the full website for the company im cold calling when i hop on a meeting with them that way if they like it we just need to link their payment method"; pricing "$2500 ... if they want to include the $100/month for us to host it and do everything then itll be $1500 then the monthly"). On any Lead Scout or Outreach company labelled Website or Both, "Build their demo website" writes their full 5-page site with the real builder from public research facts (stock photos), served at os.boldlinemedia.com/demo/<random token>/ with a "Preview for <name>. Not live yet." strip, a guard that stops every send, noindex + no-store, no visit count, a 3-design switcher, and a 30-day expiry (rebuild keeps the same link). "They want it" picks Monthly plan ($1,500 + $100/mo) or Buy it outright ($2,500) and creates an unsigned website-only client with the demo as their website; the agreement and payment then go out from the Website tab as usual. Outright is a fifth agreement version (WA-8, "Website Design and Purchase Agreement": no monthly, handover of files, nothing after handover is ours); once fully paid the Website tab downloads the whole site as a zip made for THEIR domain (form opens the visitor's email app, booking off, photos copied in, read-me inside).
 verified: 2026-10-20
@@ -96,3 +96,28 @@ Website tab won't build before signed + paid, so there was no way.
   brand voice, service area, main offer, portal intake. 🔴 Never `notes`, `qualifiedLeadDef` or billing fields. The
   renderer gets `pitchClientOf` (leadToken/landingSlug "demo", no email/portal token).
 - `tests/verify-pitch-preview.mjs` (18 checks, 4 mutations caught). Driven at 390/768/1280/1600.
+
+## Website demos screen + "they opened it" (BUILT 2026-11-05)
+Bryson: "build a way to just create a website for a company in its own section in the os that way if a client isn't in
+outreach I can still build a website to pitch them", then "build it with the signal that they opened it".
+- **Screen:** Get clients > **Website demos** (`WebsiteDemosScreen`; sidebar, phone More sheet, Ctrl K "Website demos";
+  screen id `demos`). Form: name*, what they do, town, phone, current website, email (one way to reach them required, the
+  same rule as Outreach's add-by-hand). Build = outreach `action=add` with `pitch:"website"` (a duplicate is REUSED; one
+  labelled ads becomes "both"; one with a live demo is not rebuilt) then demo-site-background `{prospectId}` + demoPoll.
+  So every demo built here is also in Outreach, and "They want it" still creates the client. List = demo-site POST
+  `action:"list"` (`listDemos`): prospects with a demoSite + clients with a pitchSite, picked field by field (never the
+  15KB of words), with status, design, mode, expiry and opens. Filters All / Opened / Not opened yet / Link ended; top line
+  names who opened this week. Refreshes every minute while open.
+- **The signal:** `demoOpenJS` in every demo page (after the send-nothing guard, which is NOT weakened: the ping is a GET,
+  which the guard already lets through) sends `GET /demo/<token>/__seen` once per tab, only after a scroll/tap/key or 6s
+  on screen (a texting app's link preview does neither), never with `navigator.webdriver`, never in a tab opened from the
+  OS (every OS "Open" link carries `?me=1`, remembered in sessionStorage). Server `recordOpen`: refuses preview robots by
+  user agent (`PREVIEW_BOT`), blocked companies, expired or unfinished demos; repeats within 10 min are one visit; writes
+  `opens`, `firstOpenedAt`, `lastOpenedAt` on demoSite (prospects: WITHOUT touching updated_at, so the call list never
+  reorders) or pitchSite (clients). The FIRST open sends a push ("<name> opened their demo website. Good time to call while
+  it's fresh."), push only, no email or text. The Outreach demo box and the client pitch card show "They opened it 2 hours
+  ago (3 visits)" / "Not opened by them yet".
+- Caveat said to Bryson: if HE opens the copied link himself (not the OS's Open button), it counts as them.
+- Tests: `tests/verify-demo-opened.mjs` (33, incl. real-browser: scroll counts once, 2.5s preview does not, 6.7s of reading
+  does, ?me=1 and webdriver never).
+

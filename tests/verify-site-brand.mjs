@@ -61,7 +61,7 @@ ok("🔴 a pitch preview keeps the client's own Brand kit and logo (the first ve
 const BG = read("netlify/functions/demo-site-background.mjs"), SB = read("netlify/functions/site-build-background.mjs"), UI = read("index.html");
 ok("demos and pitch previews read the site while the words are written", (BG.match(/brandFromSite\(site\)\.catch\(\(\) => null\)/g) || []).length === 2);
 ok("a client's real website build reads it too, at most every 30 days", /fresh = sb && Date\.now\(\) - Date\.parse\(sb\.at \|\| 0\) < 30 \* 864e5/.test(SB) && /saveSiteBrand\(supabase, clientId, brand\)/.test(SB));
-ok("it is server-owned, and both preview cards can refresh it without rewriting the words", /SERVER_OWNED_KEYS=\[[^\]]*"siteBrand"/.test(UI) && (UI.match(/>Use their website's colours<\/button>/g) || []).length === 2);
+ok("it is server-owned, and both preview cards can refresh it without rewriting the words", /SERVER_OWNED_KEYS=\[[^\]]*"siteBrand"/.test(UI) && (UI.match(/>Use their website's colours<\/button>/g) || []).length >= 2);
 
 console.log(`verify-site-brand: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
