@@ -121,3 +121,16 @@ outreach I can still build a website to pitch them", then "build it with the sig
 - Tests: `tests/verify-demo-opened.mjs` (33, incl. real-browser: scroll counts once, 2.5s preview does not, 6.7s of reading
   does, ?me=1 and webdriver never).
 
+## Businesses with NO website (2026-11-05)
+Bryson: "I need to be able to do it for companies that don't have a website at all. Right now I'm talking to a mobile tint
+guy and he posts on instagram but he doesn't have a website." The builder never needed a website (it writes from what is on
+the record), but two things blocked it: the add form demanded a phone, email or website, and a phone typed by hand never
+reached the demo (manual rows keep it in `data.phones[]`, the demo read `data.phone`). Now:
+- `buildManualProspect` accepts `instagram` (any handle or profile link, cleaned by `normInstagram`, stored on the existing
+  `data.instagram` that Outreach's DM mode already uses) as a way to reach them, plus PUBLIC `services` (comma list, max 8)
+  and `about` (max 400). `notes` stay private and never reach the writer.
+- `demoClientOf` falls back to `phones[0].number` and adds `about` to the facts the writer may use.
+- Website demos form: Instagram, "What they offer", "Anything true about them (goes on the site)", and the website box says
+  "leave blank if they don't have one". Outreach's add-by-hand form has Instagram too.
+- Photos are still stock: their Instagram photos are theirs (see the rule at the top of lib/demo-site.mjs).
+

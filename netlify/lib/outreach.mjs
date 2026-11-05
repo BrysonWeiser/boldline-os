@@ -14,6 +14,7 @@
 
 import { dedupeKeyFor, normDomain } from "./scout-shared.mjs";
 import { pitchOf, cleanPitch, matchesPitch, pitchCounts, PITCHES } from "./pitch.mjs";
+import { normInstagram } from "./instagram.mjs";
 
 // Ads, a website, or both: what he is selling this company (KB `website-prospects`).
 export { pitchOf, cleanPitch, matchesPitch, pitchCounts, PITCHES };
@@ -177,9 +178,19 @@ export const buildManualProspect = (input = {}, { at = Date.now() } = {}) => {
   const website = normDomain(input.website);
   if (String(input.website || "").trim() && !website) return { error: "That website doesn't look right. Something like example.com." };
 
-  if (!phone && !email && !website) {
-    return { error: "Add a phone number, an email or a website, otherwise there is no way to reach them." };
+  // Their Instagram counts as a way to reach them (Bryson, 2026-11-05: a mobile tint guy "posts on instagram but he
+  // doesn't have a website"). DMs are how he talks to businesses like that.
+  const rawIg = String(input.instagram || "").trim();
+  const instagram = normInstagram(rawIg);
+  if (rawIg && !instagram) return { error: "That Instagram doesn't look right. Use their handle, like @blacklinetint, or the link to their profile." };
+
+  if (!phone && !email && !website && !instagram) {
+    return { error: "Add a phone number, an email, a website or their Instagram, otherwise there is no way to reach them." };
   }
+  // What they offer and what is true about them, typed by Bryson from their Instagram or a call. PUBLIC by design: these
+  // go to the demo writer and onto the site, unlike `notes`, which never does.
+  const services = String(input.services || "").split(/[,\n;]+/).map((x) => x.trim().replace(/\s+/g, " ")).filter(Boolean).map((x) => x.slice(0, 60)).slice(0, 8);
+  const about = String(input.about || "").trim().replace(/\s+/g, " ").slice(0, 400);
 
   const city  = String(input.city  || "").trim().replace(/\s+/g, " ");
   const niche = String(input.niche || "").trim().replace(/\s+/g, " ");
@@ -216,6 +227,9 @@ export const buildManualProspect = (input = {}, { at = Date.now() } = {}) => {
         ownerName: owner || "",
         phones: phone ? [{ number: prettyPhone(phone), whose: owner ? "owner" : "main", kind: "main" }] : [],
         emails: email ? [{ address: email, whose: owner ? "owner" : "main" }] : [],
+        ...(instagram ? { instagram } : {}),
+        ...(services.length ? { services } : {}),
+        ...(about ? { about } : {}),
         addedAt: iso,
         ...(pitch ? { pitch } : {}),
       },
