@@ -4,7 +4,7 @@ import { findPage, clientForPage } from "../lib/landing-pages-shared.mjs";
 import { fitPhrase } from "../lib/humanize.mjs";
 import { normalizeHost } from "../lib/client-domain.mjs";
 import { serveWebsiteOnDomain } from "./site.mjs";
-import { siteBrandKit } from "../lib/site-render.mjs";
+import { siteBrandKit, ratingOf } from "../lib/site-render.mjs";
 import { isBillingPaused } from "../lib/late-payment.mjs";
 import { sellsNationally } from "../lib/market-research-shared.mjs";
 import { CLICK_KEYS, UTM_KEYS, STORE_FORWARD_KEYS } from "../lib/attribution.mjs";
@@ -712,6 +712,54 @@ a{color:inherit}
 @media(max-width:719px){.mcta{display:flex}body{padding-bottom:76px}.hdr-cta{display:none}.hero-ov{min-height:440px}}
 `;
 
+  // ── THE 2026-11 STANDARD ─────────────────────────────────────────────────────────
+  // Bryson, 2026-11-05: "with the landing pages ... I want to update them to our new standard like we did for the
+  // websites. I dont want anything crazy but I want the landing pages to look better and be more alive". Layered on
+  // top of everything above, so every rule above still holds (nothing rests invisible, loops animate transform or
+  // opacity only, reduced motion stills it all). Bigger, more confident type and room on a computer; the headline
+  // rises word by word; the hero photo settles in and drifts a little with the scroll; photos open as they arrive;
+  // each step's top edge draws in; the main button glints now and then; the real rating sits up top when known.
+  const STD_CSS = `
+.wrap{max-width:1200px}
+.headline{font-size:clamp(34px,5.4vw,66px);line-height:1.04;letter-spacing:-.025em}
+.subhead{font-size:clamp(16px,1.55vw,20px);line-height:1.55}
+.sec{padding:clamp(64px,8vw,104px) 0}
+.sec-head{margin-bottom:clamp(30px,4vw,48px)}
+.sec-t{font-size:clamp(28px,3.8vw,46px);line-height:1.1;letter-spacing:-.02em}
+.sec-k{display:inline-flex;align-items:center;gap:10px}
+.sec-k::before{content:"";width:22px;height:2px;border-radius:2px;background:currentColor;transform-origin:0 50%;transition:transform .9s cubic-bezier(.2,.7,.1,1) .15s}
+.js .sec-head.reveal:not(.in) .sec-k::before{transform:scaleX(0)}
+.bcard,.step,.rev{padding:26px 24px}
+.bcard h3,.brow h3,.bnum h3{font-size:18px}
+.bcard p,.brow p,.bnum p{font-size:15px;line-height:1.6}
+.step h3{font-size:17px}
+.rev p{font-size:15.5px}
+.formsec{padding:clamp(64px,8vw,104px) 0}
+.formtitle{font-size:24px}
+.form-copy h2{font-size:clamp(26px,3.4vw,40px)}
+.lrate{display:inline-flex;align-items:center;gap:8px;margin:0 0 16px 8px;padding:6px 13px;border-radius:999px;background:${P.cardBg};border:1px solid ${P.border};font-size:13.5px;font-weight:700;color:${P.text};vertical-align:top}
+.lrate .st{color:#F5A524;letter-spacing:1px}.lrate small{font-size:12.5px;font-weight:500;color:${P.muted}}
+.hero-ov .lrate{background:rgba(255,255,255,.95);color:#111;border-color:transparent}.hero-ov .lrate small{color:#555}
+.hero-media{border-radius:var(--r);overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.30)}
+.hero-media .heroimg{box-shadow:none;border-radius:0}
+.js .heroimg,.js .heroband img{translate:0 var(--py,0px);animation:settle 1.8s cubic-bezier(.2,.7,.1,1) both}
+@keyframes settle{from{transform:scale(1.16)}to{transform:scale(1.07)}}
+.js .headline.split{animation:none}
+.js .headline .hw{display:inline-block;animation:hw .85s cubic-bezier(.2,.7,.1,1) both;animation-delay:calc(var(--i) * 55ms + .08s)}
+@keyframes hw{from{opacity:0;transform:translateY(.45em)}to{opacity:1;transform:none}}
+.js .gitem.reveal{scale:.94;transition:opacity .75s cubic-bezier(.2,.7,.1,1),translate .85s cubic-bezier(.2,.7,.1,1),scale 1.1s cubic-bezier(.2,.7,.1,1)}
+.js .gitem.reveal.in{scale:1}
+.step{overflow:hidden}
+.step::after{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:${P.brand};transform-origin:0 50%;transition:transform 1s cubic-bezier(.2,.7,.1,1) .25s}
+.js .step.reveal:not(.in)::after{transform:scaleX(0)}
+.hero .cta:not(.ghost)::before{animation:glint 7s ease-in-out 2.4s infinite}
+@keyframes glint{0%,84%{transform:translateX(-220%) skewX(-18deg);opacity:0}86%{opacity:1}100%{transform:translateX(340%) skewX(-18deg);opacity:0}}
+.reveal{transition-timing-function:cubic-bezier(.2,.7,.1,1)}
+.js .reveal.in{transition:opacity .75s cubic-bezier(.2,.7,.1,1),translate .85s cubic-bezier(.2,.7,.1,1)}
+@media(min-width:940px){.hero{padding:clamp(72px,10vh,116px) 0 clamp(64px,9vh,100px)}.hero-g.has-img{gap:56px}.heroimg{aspect-ratio:5/4}.hero-ov{min-height:min(720px,84vh)}}
+@media(prefers-reduced-motion:reduce){.js .heroimg,.js .heroband img{transform:none!important;translate:none!important}.js .gitem.reveal{scale:none!important}}
+`;
+
   // ── hero (3 layouts) ──
   // Same rule as the "Serving one town" claim below: a business that sells remotely must
   // not head its own page as a local service. Only the fallback changes, a real niche is
@@ -721,7 +769,11 @@ a{color:inherit}
     // reads that on a page selling a bottle they want shipped to them has been told the wrong
     // thing about the business in the first three words on the page.
     : (cl.niche || (shopping ? "Shop direct" : national ? "Marketing that brings you customers" : "Trusted local service"));
-  const eyebrowH = eyebrowText ? `<div class="eyebrow an">${esc(eyebrowText)}</div>` : "";
+  // Their REAL star rating, the same rule as their website (site-render ratingOf): their Google profile's numbers or
+  // a rating typed with its source and count. Never invented, so most pages simply have none.
+  const R = ratingOf(cl);
+  const rateH = R ? `<div class="lrate an" style="animation-delay:.04s"><span class="st" aria-hidden="true">${"&#9733;".repeat(Math.max(1, Math.min(5, Math.round(R.stars))))}</span>${R.stars.toFixed(1)} <small>from ${R.count} ${R.source ? esc(R.source) + " " : ""}review${R.count === 1 ? "" : "s"}</small></div>` : "";
+  const eyebrowH = (eyebrowText ? `<div class="eyebrow an">${esc(eyebrowText)}</div>` : "") + rateH;
   const headlineH = `<h1 class="headline an" style="animation-delay:.06s">${esc(lp.headline)}</h1>`;
   const subH = `<p class="subhead an" style="animation-delay:.12s">${esc(lp.subheadline || "")}</p>`;
   // 🔴 THE SAME PROMISE TWICE IS NOT TWICE THE PROMISE. Bryson, 2026-09-15: *"also make sure
@@ -1320,6 +1372,35 @@ fbq('init',${JSON.stringify(metaPixelId)});fbq('track','PageView');})();
   }
 `;
 
+  const aliveJS = `
+  try{
+    var still=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var h1=document.querySelector('.headline');
+    if(h1&&!still&&!h1.children.length){
+      var said=(h1.textContent||'').replace(/^ +| +$/g,'');
+      var ws=said.split(' ').filter(function(w){return w;});
+      if(ws.length&&ws.length<40){
+        h1.setAttribute('aria-label',said);
+        h1.innerHTML=ws.map(function(w,i){return '<span class="hw" aria-hidden="true" style="--i:'+i+'">'+w.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>';}).join(' ');
+        h1.classList.add('split');
+      }
+    }
+    var hi=document.querySelector('.heroimg,.heroband img');
+    if(hi&&!still){
+      var wait=false;
+      var drift=function(){
+        wait=false;
+        var r=hi.getBoundingClientRect(),vh=window.innerHeight||1;
+        if(r.bottom<0||r.top>vh)return;
+        var p=(r.top+r.height/2-vh/2)/vh;
+        if(p>1)p=1;if(p<-1)p=-1;
+        hi.style.setProperty('--py',(p*-16).toFixed(1)+'px');
+      };
+      window.addEventListener('scroll',function(){if(wait)return;wait=true;(window.requestAnimationFrame||setTimeout)(drift,16);},{passive:true});
+      drift();
+    }
+  }catch(e){}
+`;
   const revealJS = `  var els=[].slice.call(document.querySelectorAll('.reveal'));
   var EDGE=160;
   function showAll(){els.forEach(function(el){el.classList.add('in');});}
@@ -1417,6 +1498,16 @@ fbq('init',${JSON.stringify(metaPixelId)});fbq('track','PageView');})();
   const ownFontCss = !K && (BF.heading || BF.body) ? `
 ${BF.body ? `body{font-family:${withFont(BF.body, "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif")}}` : ""}
 ${BF.heading ? `.headline,.sec-t,.formtitle,.offer h2,.form-copy h2,.bcard h3,.bnum h3,.brow h3,.brandmark,.faq summary{font-family:${withFont(BF.heading, "inherit")}}` : ""}` : "";
+  // A proper typeface for a page with no website kit and no Brand kit fonts, by the page's mood (Bryson, 2026-11-05:
+  // "update them to our new standard like we did for the websites"). Loaded without holding up the first paint.
+  const MOOD_FONT = { modern: ["Plus+Jakarta+Sans:wght@400..800", "'Plus Jakarta Sans'", "'Plus Jakarta Sans'"],
+    bold: ["Archivo:wght@500..900", "'Archivo'", null], elegant: ["Playfair+Display:wght@500..700", "'Playfair Display'", null] };
+  const MF = !K && !BF.heading && !BF.body ? MOOD_FONT[D.font] : null;
+  const moodHref = MF ? `https://fonts.googleapis.com/css2?family=${MF[0]}&display=swap` : "";
+  const moodHead = MF ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${moodHref}" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="${moodHref}"></noscript>` : "";
+  const moodFontCss = MF ? `
+.headline,.sec-t,.formtitle,.offer h2,.form-copy h2,.bcard h3,.bnum h3,.brow h3,.brandmark,.step h3{font-family:${MF[1]},-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+${MF[2] ? `body{font-family:${MF[2]},-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}` : ""}` : "";
   // Second and accent colours: small touches only (the dot by the name, review stars, the step numbers).
   const BA = brandAccents(cl, P.brand);
   const accentCss = (BA.second !== P.brand || BA.accent !== P.brand) ? `
@@ -1427,7 +1518,7 @@ body.kit .headline,body.kit .sec-t,body.kit .formtitle,body.kit .offer h2,body.k
 body.kit .cta,body.kit .hdr-cta,body.kit .mcta a{border-radius:${K.theme === "editorial" ? "2px" : "999px"}}
 ` : "";
 
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}${kitHead}${BF.hrefs.length ? `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>${fontLinks(BF.hrefs)}` : ""}<style>${css}${kitCss}${ownFontCss}${accentCss}${IOS_NO_ZOOM}</style>${baSection ? `<style>.ba-sec{--ba-r:var(--r,14px);--ba-mute:${P.muted}}${BEFORE_AFTER_CSS}</style>` : ""}${bookHere ? `<style>.bk{--bk-ac:${P.brand};--bk-on:${P.onBrand};--bk-card:${P.cardBg};--bk-line:${P.border};--bk-ink:${P.text};--bk-mute:${P.muted};--bk-bg2:${P.inBg};--bk-r:12px}${BOOKING_WIDGET_CSS}.bk-h{font-size:19px}.formsub a{color:inherit;font-weight:700}.form-g>*,#lead-form{min-width:0}</style>` : ""}</head><body class="${bodyClass}${P.kit ? " kit" : ""}">
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}${kitHead}${BF.hrefs.length ? `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>${fontLinks(BF.hrefs)}` : ""}${moodHead}<style>${css}${STD_CSS}${kitCss}${ownFontCss}${moodFontCss}${accentCss}${IOS_NO_ZOOM}</style>${baSection ? `<style>.ba-sec{--ba-r:var(--r,14px);--ba-mute:${P.muted}}${BEFORE_AFTER_CSS}</style>` : ""}${bookHere ? `<style>.bk{--bk-ac:${P.brand};--bk-on:${P.onBrand};--bk-card:${P.cardBg};--bk-line:${P.border};--bk-ink:${P.text};--bk-mute:${P.muted};--bk-bg2:${P.inBg};--bk-r:12px}${BOOKING_WIDGET_CSS}.bk-h{font-size:19px}.formsub a{color:inherit;font-weight:700}.form-g>*,#lead-form{min-width:0}</style>` : ""}</head><body class="${bodyClass}${P.kit ? " kit" : ""}">
 ${annHTML}
 <header class="hdr"><div class="wrap">${logoUrl ? `<div class="brandmark"><img class="blogo" src="${esc(sized(logoUrl, 400))}" alt="${esc(name)}"></div>` : `<div class="brandmark"><span class="dot"></span>${esc(name)}</div>`}${phone ? `<a class="hdr-cta" href="${telHref}">${esc(phone)}</a>` : ""}</div></header>
 ${heroSection}
@@ -1442,6 +1533,7 @@ ${metaPixelTag}
 <script>
 (function(){
 ${galleryJS}
+${aliveJS}
 ${revealJS}
 ${formJS}
 })();

@@ -309,7 +309,9 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
 //   spin  — the sending spinner. A spinner rotates. That is what a spinner is.
 {
   const css = styleOf(render());
-  const EXEMPT = new Set(["sheen", "spin"]);
+  // glint — the same light across the hero button as sheen, run every few seconds instead of on hover (2026-11-05,
+  //           "more alive"): phones never hover, so they never saw it. Still a shine, not content moving sideways.
+  const EXEMPT = new Set(["sheen", "spin", "glint"]);
 
   // (a) The scroll-reveal offset is the movement a visitor sees on every single card, row
   //     and section. It is now a BARE Y DISTANCE fed into `translate:0 var(--rv)`, which

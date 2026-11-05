@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 238 task-keyed entries under `knowledge/`. They surface automatically via the
+> 239 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**238 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**239 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -48,6 +48,9 @@
 - **[landing-page-options](../knowledge/landing-page-options.md)** &mdash; &#9989; verified &middot; 2026-09-01  
   Three landing pages written from three different angles instead of one take-it-or-leave-it. Use one as it is, take single pieces from any of them, or tick a few and describe the blend in plain English. The live page is never touched except by "Use this one", and choosing keeps the page exactly as live as it already was. 96 checks, 14 mutations caught.  
   <sub>*task:* give the owner several landing pages to choose from, mix, or rewrite &nbsp;|&nbsp; *keywords:* landing page options, variants, landingVariants, multiple options, three options, blend, mix and match, pick field, take just, regenerate one, rewrite option, use this one, angles, LandingOptionsCard, blApplyVariant, blPickField, blBlendPrompt, landing-variants</sub>
+- **[landing-page-standard](../knowledge/landing-page-standard.md)** &mdash; &#9989; verified &middot; 2026-11-05  
+  Bryson, 2026-11-05 - "update them to our new standard like we did for the websites. I dont want anything crazy but I want the landing pages to look better and be more alive". Layered on top of landing.mjs (STD_CSS + aliveJS), every older rule intact - bigger type and room, headline rises word by word (script only, full line kept for screen readers), hero photo settles in and drifts with the scroll, gallery photos open as they arrive, step tops and section-label lines draw in, the hero button glints now and then, their REAL rating up top when known, and a proper typeface by the page's mood when there is no website or Brand kit font. Test copy first; tests in verify-landing-standard.  
+  <sub>*task:* make the ad landing pages (clients, his own businesses, BoldLine's /for/ pages) look better and feel alive &nbsp;|&nbsp; *keywords:* landing page standard, landing page design, more alive, landing animations, headline words, hero drift, glint, mood font, lrate, rating on landing page, STD_CSS, aliveJS, landing upgrade 2026-11</sub>
 - **[landing-pages-per-audience](../knowledge/landing-pages-per-audience.md)** &mdash; &#9989; verified &middot; 2026-09-15  
   BoldLine's own ads need a page per audience, one for car detailers and a different one for roofers, each with several options to choose from. A record could only ever hold ONE landing page, so an account may now carry `landingPages[]` alongside the one it already had. The pages answer at boldlinemedia.com/for/<name>, proxied to the OS, chosen over a subdomain each so a new audience needs no DNS and no Netlify job. 🔴 The lead form posted to a RELATIVE path, which on a proxied domain would 404 every enquiry while the ads kept spending; it now posts to `/lead`, proven live. Client detail > Assets > Landing Pages By Audience, on the My Ads account only: add, write, put live, open, copy, rename, delete.  
   <sub>*task:* give BoldLine's own ads a different landing page per audience, or add a new audience page &nbsp;|&nbsp; *keywords:* landing pages per audience, multiple landing pages, page per niche, car detailers page, roofers page, landingPages, clientForPage, freeSlug, boldlinemedia.com/for, /for/ proxy, lead path relative, /lead, one account many pages</sub>

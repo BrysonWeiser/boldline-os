@@ -48,7 +48,10 @@ for (const theme of ["aurora", "cinematic", "editorial"]) {
   const cl = base({ brandColor: "#C7362F" });
   ok("an ads-only client has no website look to borrow", siteBrandKit(cl) === null);
   const html = renderLandingPage(cl);
-  ok("🔴 so its landing page renders exactly as before: no borrowed fonts, its own background", !/fonts\.googleapis/.test(html) && !/<body class="[^"]*\bkit\b/.test(html) && landingTheme(cl).bg === "#ffffff");
+  // Since 2026-11-05 a page with no website gets a proper typeface of its own (its mood font), but never the look of a
+  // website it does not have: no kit class, no website design font, its own background.
+  ok("🔴 so its landing page borrows no website look: its own background, only its own mood font", !/<body class="[^"]*\bkit\b/.test(html) && landingTheme(cl).bg === "#ffffff"
+    && [...html.matchAll(/fonts\.googleapis\.com\/css2\?family=([^"&]+)/g)].every((m) => /^(Plus\+Jakarta\+Sans:wght@400\.\.800|Archivo:wght@500\.\.900|Playfair\+Display:wght@500\.\.700)$/.test(m[1])));
   ok("and a website object without a picked design changes nothing either", siteBrandKit(base({ website: { brandName: "X" } })) === null);
 }
 
