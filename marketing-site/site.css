@@ -1110,8 +1110,6 @@ html.mo .bento.in .mini-feed .mf:nth-child(2){animation-delay:1.1s}
 html.mo .bento.in .mini-feed .mf:nth-child(3){animation-delay:1.6s}
 
 /* With a mouse: tiles lean toward the pointer and a soft gold light follows it. */
-html.mo-fine .b-card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(420px circle at var(--mx,50%) var(--my,50%),rgba(200,168,75,.13),transparent 45%);opacity:0;transition:opacity .35s ease}
-html.mo-fine .b-card:hover::after{opacity:1}
 html.mo-fine .b-card:hover{transform:perspective(1000px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(-4px)}
 
 /* How it works: a gold line draws through the three steps and each one lights as it is reached. */

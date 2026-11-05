@@ -428,16 +428,12 @@
   if(canvas && !reduce){
     var ctx = canvas.getContext('2d');
     var pts = [], W = 0, H = 0, dpr = 1, frame = 0, small = false, LINK = 130;
-    var mx = -999, my = -999, mAct = 0, IR = 210;  // cursor pos + fading activity + reach
-    window.addEventListener('pointermove', function(e){ mx = e.clientX; my = e.clientY; mAct = 1; }, { passive: true });
-    window.addEventListener('pointerdown', function(e){ mx = e.clientX; my = e.clientY; mAct = 1.5; }, { passive: true });
-    window.addEventListener('blur', function(){ mAct = 0; });
+    // The points only drift. Nothing on this site follows the cursor.
 
     function size(){
       small = window.innerWidth < 720;             // phones get a lighter, battery-kind field
       dpr = Math.min(window.devicePixelRatio || 1, small ? 1.25 : 1.5);
       LINK = small ? 120 : 150;
-      IR = small ? 150 : 210;
       W = window.innerWidth; H = window.innerHeight;
       canvas.width = W * dpr; canvas.height = H * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -458,17 +454,9 @@
       if(++frame % 2) return;                     // ~30fps is plenty for slow drift
       ctx.clearRect(0, 0, W, H);
       var i, j, p, q, dx, dy, d, f;
-      if(mAct > 0){ mAct *= .94; if(mAct < .02) mAct = 0; }   // activity fades once the cursor stops
       for(i = 0; i < pts.length; i++){
         p = pts[i];
         p.x += p.vx; p.y += p.vy;
-        // Cursor "wake": points within reach lean toward the pointer while it
-        // moves — a positional nudge only (velocity untouched), so the field
-        // relaxes back to its calm drift the moment you stop. No clumping.
-        if(mAct > .05){
-          dx = mx - p.x; dy = my - p.y; d = dx * dx + dy * dy;
-          if(d < IR * IR && d > 1){ d = Math.sqrt(d); f = (1 - d / IR) * (small ? .5 : .8) * (mAct > 1 ? 1 : mAct); p.x += dx / d * f; p.y += dy / d * f; }
-        }
         if(p.x < -20) p.x = W + 20; else if(p.x > W + 20) p.x = -20;
         if(p.y < -20) p.y = H + 20; else if(p.y > H + 20) p.y = -20;
       }
@@ -487,22 +475,6 @@
         }
         ctx.fillStyle = 'rgba(222,205,160,.38)';
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.2832); ctx.fill();
-      }
-      // Brighter gold links reaching from the cursor to nearby points, plus a
-      // faint node at the pointer — the network visibly responds to you.
-      if(mAct > .05){
-        var m = mAct > 1 ? 1 : mAct;
-        for(i = 0; i < pts.length; i++){
-          p = pts[i]; dx = p.x - mx; dy = p.y - my;
-          if(dx > IR || dx < -IR || dy > IR || dy < -IR) continue;
-          d = Math.sqrt(dx * dx + dy * dy);
-          if(d < IR){
-            ctx.strokeStyle = 'rgba(200,168,75,' + ((1 - d / IR) * .28 * m).toFixed(3) + ')';
-            ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(p.x, p.y); ctx.stroke();
-          }
-        }
-        ctx.fillStyle = 'rgba(222,205,160,' + (.55 * m).toFixed(3) + ')';
-        ctx.beginPath(); ctx.arc(mx, my, 1.8, 0, 6.2832); ctx.fill();
       }
     }
     size();
@@ -779,10 +751,9 @@
   var rt; addEventListener('resize',function(){ clearTimeout(rt); rt=setTimeout(function(){ measure(); frame(); },120); });
   addEventListener('load',function(){ measure(); frame(); });
 
-  /* With a mouse, tiles lean toward the pointer and carry a soft light under it. */
+  /* With a mouse, tiles lean a little toward the pointer, in place. Nothing follows the cursor. */
   if(fine) [].forEach.call(document.querySelectorAll('.b-card'),function(cd){
     cd.addEventListener('pointermove',function(ev){ var r=cd.getBoundingClientRect(), x=(ev.clientX-r.left)/r.width, y=(ev.clientY-r.top)/r.height;
-      cd.style.setProperty('--mx',(x*100).toFixed(1)+'%'); cd.style.setProperty('--my',(y*100).toFixed(1)+'%');
       cd.style.setProperty('--ry',((x-.5)*5).toFixed(2)+'deg'); cd.style.setProperty('--rx',((.5-y)*5).toFixed(2)+'deg'); });
     cd.addEventListener('pointerleave',function(){ cd.style.setProperty('--rx','0deg'); cd.style.setProperty('--ry','0deg'); });
   });
