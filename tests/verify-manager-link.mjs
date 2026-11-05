@@ -23,7 +23,7 @@ const threw = async (fn) => { try { await fn(); return null; } catch (e) { retur
 // Customer ID is saved means one mistyped digit sends a stranger a request from an agency
 // they have never heard of, asking for control of their ad account.
 ok("🔴 the request is a button, not a side effect of saving the ID",
-  /<LinkRequestRow customerId=\{form\.googleAdsCustomerId\} \/>/.test(UI)
+  /<LinkRequestRow customerId=\{form\.googleAdsCustomerId\}( ended=\{form\.contractStatus==="expired"\})? \/>/.test(UI)
   && !/onChange[\s\S]{0,120}linkClient/.test(UI),
   "one mistyped digit would otherwise reach a real stranger's Google Ads account");
 ok("🔴 and it takes two presses, showing the number back first",

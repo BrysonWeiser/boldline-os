@@ -300,6 +300,66 @@ export async function getClientLinkStatus(accessToken, clientCustomerId) {
   return { status, linked: status === "ACTIVE", statuses: rows };
 }
 
+// ── Ending our access when a client leaves ────────────────────────────────────
+//
+// Bryson, 2026-11-04, at the end of Stencil & Thread's agreement: *"how do i remove boldlines manager access from
+// his account or can we make that automated"*. Offboarding ends with removing our manager access (KB
+// client-lifecycle): the client keeps their account, their ads and all their history; we just stop being able
+// to touch it.
+//
+// It is a button with a second press, never a side effect of marking a contract Expired: a mis-tap or an agreement
+// that was quietly renewed would cut us off a live client, and getting back in needs the client to approve a fresh
+// request.
+//
+// Google documents two ways and confirms neither end to end, so this tries the manager side first (our own link
+// row, CustomerClientLinkService, a single `operation`), then the client side through the access we still hold
+// (CustomerManagerLinkService, an `operations` list), and then ASKS GOOGLE again. "Removed" is only ever what
+// Google says afterwards, never what a request returned.
+export async function unlinkClientAccount(accessToken, clientCustomerId) {
+  const client = digits(clientCustomerId);
+  const mcc = digits(G.mcc);
+  const fail = (m, detail) => { const e = new Error(m); e.stage = "unlinkClient"; if (detail) e.detail = detail; return e; };
+  if (!client) throw fail("clientCustomerId required");
+  if (client.length !== 10) throw fail(`A Google Ads Customer ID is 10 digits. Got ${client.length}.`);
+  if (!mcc) throw fail("No BoldLine manager account configured");
+  if (client === mcc) throw fail("That is BoldLine's own manager account, not a client's.");
+  const query = `SELECT customer_client_link.client_customer, customer_client_link.status,
+      customer_client_link.manager_link_id
+    FROM customer_client_link
+    WHERE customer_client_link.client_customer = 'customers/${client}'`;
+  const r0 = await fetch(`${ADS_BASE}/customers/${mcc}/googleAds:search`, { method: "POST", headers: baseHeaders(accessToken), body: JSON.stringify({ query }) });
+  const d0 = await r0.json().catch(() => ({}));
+  if (!r0.ok) throw fail(apiErrMsg("unlinkClient", r0.status, d0), d0);
+  const links = (d0.results || []).map((x) => x.customerClientLink || {}).filter((l) => l.managerLinkId);
+  const link = links.find((l) => l.status === "ACTIVE") || links.find((l) => l.status === "PENDING");
+  // Nothing live and nothing waiting: there is no access to remove.
+  if (!link) return { status: (links[0] && links[0].status) || "NONE", removed: true, how: "none" };
+  // A request they never accepted is withdrawn (CANCELED); a live link is ended (INACTIVE).
+  const want = link.status === "PENDING" ? "CANCELED" : "INACTIVE";
+  const errors = [];
+  const r1 = await fetch(`${ADS_BASE}/customers/${mcc}/customerClientLinks:mutate`, {
+    method: "POST", headers: baseHeaders(accessToken),
+    body: JSON.stringify({ operation: { updateMask: "status", update: { resourceName: `customers/${mcc}/customerClientLinks/${client}~${link.managerLinkId}`, status: want } } }),
+  });
+  let how = "manager";
+  if (!r1.ok) {
+    errors.push(apiErrMsg("unlinkClient", r1.status, await r1.json().catch(() => ({}))));
+    how = "client";
+    // The client side can only end a live link (a pending request has no link on their side yet).
+    if (link.status === "ACTIVE") {
+      const r2 = await fetch(`${ADS_BASE}/customers/${client}/customerManagerLinks:mutate`, {
+        method: "POST", headers: baseHeaders(accessToken),
+        body: JSON.stringify({ operations: [{ updateMask: "status", update: { resourceName: `customers/${client}/customerManagerLinks/${mcc}~${link.managerLinkId}`, status: "INACTIVE" } }] }),
+      });
+      if (!r2.ok) errors.push(apiErrMsg("unlinkClient", r2.status, await r2.json().catch(() => ({}))));
+      else errors.length = 0;
+    }
+  }
+  if (errors.length) throw fail(errors.join(" | "));
+  const after = await getClientLinkStatus(accessToken, client);
+  return { status: after.status, removed: after.status !== "ACTIVE" && after.status !== "PENDING", how };
+}
+
 // ── Tell Google which leads were real, for ONE client and ONE stage ──────────
 //
 // 🔴 LIFTED OUT OF THE HANDLER SO THE NIGHTLY JOB RUNS THE SAME CODE. Bryson,
@@ -1155,6 +1215,12 @@ export default async (req) => {
       if (!digits(body.customerId)) return json({ ok: false, error: "customerId required" }, 400);
       const result = await linkClientAccount(accessToken, body.customerId);
       return json({ ok: true, action, customerId: digits(body.customerId), result });
+    }
+
+    if (action === "unlinkClient") {
+      if (!digits(body.customerId)) return json({ ok: false, error: "customerId required" }, 400);
+      const result = await unlinkClientAccount(accessToken, body.customerId);
+      return json({ ok: true, action, customerId: digits(body.customerId), ...result });
     }
 
     if (action === "linkStatus") {

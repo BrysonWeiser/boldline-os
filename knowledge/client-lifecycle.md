@@ -114,3 +114,5 @@ caught.** Full suite 65 suites, 0 failures. One existing guard in `verify-client
 the new review template legitimately (every button must not silently fall back to the bare
 marketing site); it was widened by exactly one anchor, `#reviews`, and both original failure
 modes were re-tested and still bite.
+
+**2026-11-04:** the "remove manager access" offboarding step is now one tap in the OS for Google Ads (Edit client > Campaign tab, under the Google Ads ID; it appears in amber once the contract is Expired, needs a second press, and only says done when Google confirms). Details in KB `google-ads-api`. Meta partner access is still removed by hand.

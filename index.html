@@ -6103,8 +6103,10 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
 // ours to touch. So a 10-digit ID triggers one read of the link row on our manager account,
 // and this row reports whatever Google says today. Sending the request by hand outside the
 // OS, which is exactly what happened with our first client, still shows up here as granted.
-function LinkRequestRow({customerId}) {
+function LinkRequestRow({customerId,ended}) {
   const [state,setState] = useState("");      // "" | "confirm" | "sending" | "sent" | "error"
+  const [rm,setRm] = useState("");            // removing our access: "" | "confirm" | "working" | "done" | "error"
+  const [rmMsg,setRmMsg] = useState("");
   const [msg,setMsg] = useState("");
   const [link,setLink] = useState(null);      // null = not checked yet | {status,linked} | {error}
   const digits = String(customerId||"").replace(/[^0-9]/g,"");
@@ -6134,8 +6136,42 @@ function LinkRequestRow({customerId}) {
     } catch(e) { setState("error"); setMsg(String((e&&e.message)||e)); }
   };
 
+  // Ending our access when a client leaves (Bryson, 2026-11-04: "how do i remove boldlines manager access from his
+  // account or can we make that automated"). Two presses, never automatic on marking a contract Expired: a mis-tap or a
+  // quietly renewed agreement would cut us off a live client, and getting back in needs them to approve a new request.
+  // "Done" is only what Google says afterwards (unlinkClient re-asks it).
+  const remove = async () => {
+    setRm("working"); setRmMsg("");
+    try {
+      const d = await gadsCall({action:"unlinkClient",customerId:digits});
+      if (!d.removed) throw new Error("Google still lists BoldLine as a manager on this account.");
+      setLink({status:d.status,linked:false}); setRm("done");
+    } catch(e) { setRm("error"); setRmMsg(String((e&&e.message)||e)); }
+  };
+  const hasAccess = link && (link.linked || link.status==="PENDING");
+  const removeRow = rm==="done"
+    ? <div style={{fontSize:11,color:C.green,lineHeight:1.6,marginTop:8}}>✓ Done. Google confirms BoldLine no longer has access to {pretty}. They keep their account, their ads and all their history.</div>
+    : !hasAccess ? null
+    : rm==="confirm"||rm==="working"
+      ? (<div style={{marginTop:10,padding:"10px 12px",borderRadius:9,border:`1px solid ${C.amber}55`,background:C.amber+"10"}}>
+          <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,marginBottom:8}}>Remove BoldLine's access to <strong style={{color:C.text}}>{pretty}</strong>? We will no longer be able to see or change their ads. Getting back in later needs them to approve a new request.</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <button onClick={remove} disabled={rm==="working"} style={{padding:"9px 18px",minHeight:36,fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.amber,color:"#0a0800",cursor:rm==="working"?"default":"pointer"}}>{rm==="working"?"Removing…":"Yes, remove our access"}</button>
+            <button onClick={()=>setRm("")} disabled={rm==="working"} style={{padding:"9px 18px",minHeight:36,fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer"}}>Cancel</button>
+          </div>
+        </div>)
+      : ended
+        ? (<div style={{marginTop:10,padding:"10px 12px",borderRadius:9,border:`1px solid ${C.amber}55`,background:C.amber+"10"}}>
+            <div style={{fontSize:11,color:C.amber,fontWeight:700,lineHeight:1.6}}>Their agreement has ended, and BoldLine can still reach their Google Ads.</div>
+            <button onClick={()=>{setRm("confirm");setRmMsg("");}} style={{marginTop:8,padding:"8px 14px",minHeight:36,fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.amber,color:"#0a0800",cursor:"pointer"}}>Remove our access</button>
+          </div>)
+        : <button onClick={()=>{setRm("confirm");setRmMsg("");}} style={{marginTop:8,background:"none",border:"none",padding:0,color:C.textMuted,fontSize:10.5,textDecoration:"underline",cursor:"pointer"}}>Remove our access</button>;
+  const removeErr = rm==="error"
+    ? <div style={{fontSize:11,color:C.red,marginTop:8,lineHeight:1.6}}>{rmMsg} You can still do it by hand: sign in to BoldLine's Google Ads manager account, open Settings, then Sub-account settings, tick their account, then Unlink.</div>
+    : null;
+
   // Google's answer, in the words Bryson uses. "ACTIVE" is a Google word, not his.
-  const linkLine = !link ? null
+  const linkLine = !link || rm==="done" || (ended && !link.checking && !link.error && !link.linked && link.status!=="PENDING") ? null
     : link.checking ? {c:C.textMuted,t:"Checking with Google whether we manage this account…"}
     : link.error ? {c:C.textMuted,t:"Could not check with Google just now. "+link.error}
     : link.linked ? {c:C.green,t:"✓ We manage this account. Access is approved and live."}
@@ -6146,7 +6182,7 @@ function LinkRequestRow({customerId}) {
   return (
     <div style={{marginTop:4,paddingTop:11,borderTop:`1px solid ${C.border2}`}}>
       {linkLine&&<div style={{fontSize:11,color:linkLine.c,lineHeight:1.6,marginBottom:link&&link.linked?0:9}}>{linkLine.t}</div>}
-      {link&&link.linked ? null : state==="sent"
+      {rm==="done"||ended ? null : link&&link.linked ? null : state==="sent"
         ? <div style={{fontSize:11,color:C.green,lineHeight:1.6}}>✓ {msg}</div>
         : state==="confirm"
           ? (<div>
@@ -6163,6 +6199,7 @@ function LinkRequestRow({customerId}) {
               <div style={{fontSize:10,color:C.textMuted,marginTop:6,lineHeight:1.5}}>Save the ID first. Sends from BoldLine's manager account; the client approves it on their side.</div>
             </>)}
       {state==="error"&&<div style={{fontSize:11,color:C.red,marginTop:8,lineHeight:1.6}}>{msg} You can still do it by hand in Google Ads: Accounts, then the + button, then Link existing account.</div>}
+      {removeRow}{removeErr}
     </div>
   );
 }
@@ -21225,7 +21262,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                   means one mistyped digit sends a stranger a request from an agency they have
                   never heard of, asking for control of their ad account. So the number is
                   shown back and it waits to be pressed. */}
-              {!isHouse(client)&&<LinkRequestRow customerId={form.googleAdsCustomerId} />}
+              {!isHouse(client)&&<LinkRequestRow customerId={form.googleAdsCustomerId} ended={form.contractStatus==="expired"} />}
             </Card>
             {/* 🔴 THE AGREED RATE, WHERE HE ACTUALLY LOOKS FOR IT. Bryson, 2026-09-08:
                 *"there is no place to put 50 in the edit tab but it is on the contract that
@@ -21334,6 +21371,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                   <option value="active" style={{backgroundColor:C.bg2}}>Signed and Active</option>
                   <option value="expired" style={{backgroundColor:C.bg2}}>Expired</option>
                 </select>
+                {form.contractStatus==="expired"&&!isHouse(client)&&String(form.googleAdsCustomerId||"").replace(/[^0-9]/g,"").length===10&&<div style={{fontSize:11,color:C.amber,marginTop:6,lineHeight:1.5}}>Next: remove BoldLine's access to their Google Ads. <button type="button" onClick={()=>setSection("campaign")} style={{background:"none",border:"none",padding:0,color:C.amber,fontSize:11,fontWeight:800,textDecoration:"underline",cursor:"pointer"}}>Open the Campaign tab</button> and use the button under their Google Ads ID.</div>}
               </div>
               <div style={{marginTop:10}}>
                 <label style={fieldLabelStyle}>Contract Start Date</label>

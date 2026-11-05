@@ -421,6 +421,8 @@ user agent (Google serves Safari a different file): Fraunces at `opsz 144` with 
 Libre Caslon Display); Playfair Display was the clearest that still looks fancy. Now: Playfair Display 400 to 700 (no
 italic), headings weight 500 and -.01em, mid-size 450 to 600; Fraunces is gone from the site renderer. Landing pages that
 borrow the website's look follow automatically (siteBrandKit). A Brand kit heading font still wins over it.
+✅ LIVE 2026-11-04 ~7:32pm Phoenix (merge `41ad63d`, rollback `rollback/20261105-022859`); verified by fetching boldlinemedia.com
+(editorial + handyman samples load Playfair Display, no Fraunces left, design picture updated).
 
 ### ✅ LIVE 2026-11-04 ~4:50pm Phoenix (merge `eb4052e`, rollback `rollback/20261104-234910`)
 The split-screen Cinematic, the magazine Editorial, light or dark on every design, and top-on-refresh. Verified by fetching
