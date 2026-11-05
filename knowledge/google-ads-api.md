@@ -2,7 +2,7 @@
 name: google-ads-api
 topic: OS app
 task: connect, test, or debug the Google Ads API integration (MCC, OAuth, Basic Access, approval queue)
-keywords: [google-ads.mjs, MCC, login-customer-id, GOOGLE_ADS_API_VERSION, redirect_uri_mismatch, basic-access, propose_action, pendingActions]
+keywords: [unlink, remove manager access, unlinkClient, offboarding access, google-ads.mjs, MCC, login-customer-id, GOOGLE_ADS_API_VERSION, redirect_uri_mismatch, basic-access, propose_action, pendingActions]
 status: verified
 summary: Google Ads is FULLY LIVE — Basic Access approved AND the Deploy-tab test card verified green 2026-07-19 ("Authenticated (API v24), 1 account visible to the manager, MCC confirmed"). One MCC + Developer Token + OAuth refresh token (login-customer-id header); code in google-ads.mjs (test/campaigns/setBudget/setStatus/createCampaign). approve→execute AND owner-side campaign launch both BUILT; remaining step is live E2E-verification against a real linked client account. Use the Web-app OAuth client (Desktop got redirect_uri_mismatch).
 verified: 2026-07-19
@@ -43,6 +43,26 @@ verified: 2026-07-19
 - **Handler branch:** `if (action === "createCampaign") { … return json({ ok:true, action, ...result }); }`.
 - **`GoogleLaunchCard({client})` on the client Package tab** (index.html), gated `/google/i.test(pkg.platform)`. `linked = !!client.googleAdsCustomerId`. Pre-fills headlines/descriptions/keywords from niche/offer/differentiator/area and `landingUrl` from `landingSlug`; textareas (headlines ≤30 / descriptions ≤90 / keywords one-per-line), match-type select (Broad/Phrase/Exact). Launch → `gadsCall({action:"createCampaign", customerId, name, dailyBudgetDollars, landingUrl, headlines, descriptions, keywords, matchType})`. Both launch cards (Google + Meta) are gated by package platform on the Package tab.
 - **⚠ FIRST-LINKED-CLIENT TEST PLAN:** link a real Google client to the MCC, set `googleAdsCustomerId`, open Package tab → Build Campaign with a tiny budget, then confirm in the Google Ads UI that the campaign/adgroup/RSA/keywords landed PAUSED. Google's mutate is stricter than Meta's (exact field casing, resource-name refs) — watch the returned error `detail` on first run.
+
+## 2026-11-04 — removing our manager access when a client leaves (Bryson: "how do i remove boldlines manager access from his account or can we make that automated")
+**`unlinkClient` action** (`unlinkClientAccount` in google-ads.mjs): reads our link row on the MCC (`customer_client_link`,
+with `manager_link_id`), then ends it. A live link is set `INACTIVE`, a request they never accepted `CANCELED`. Tries the
+MANAGER side first (`POST /customers/{mcc}/customerClientLinks:mutate`, single `operation` with `updateMask:"status"` and
+`update.resourceName = customers/{mcc}/customerClientLinks/{client}~{linkId}`), and if refused the CLIENT side through the
+access we still hold (`POST /customers/{client}/customerManagerLinks:mutate`, `operations` list, resource
+`customers/{client}/customerManagerLinks/{mcc}~{linkId}`). Google's docs only document the client side end to end, so both
+are tried. **"Removed" is only what Google says afterwards** (it re-runs getClientLinkStatus); a 200 that changed nothing
+still reads as not removed. No link at all: nothing is sent.
+**OS:** Edit client > Campaign tab, under the Google Ads ID (`LinkRequestRow`, now `ended={form.contractStatus==="expired"}`).
+Expired + access live => amber box "Their agreement has ended, and BoldLine can still reach their Google Ads" with Remove our
+access, then a confirm reading the number back ("Yes, remove our access"). Not expired => a small underlined link. Marking the
+contract Expired on the Status tab shows "Next: remove BoldLine's access ... Open the Campaign tab". 🔴 Deliberately NEVER
+automatic on Expired: a mis-tap or a quietly renewed agreement would cut us off a live client, and getting back in needs the
+client to approve a new request. Once ended, the OS stops offering to send a NEW link request. Failure prints the manual path
+(manager account > Settings > Sub-account settings > tick > Unlink; client side: Admin > Access and security > Managers >
+Remove access). 🔴 Shipped untested against the live API (same as linkClient): it cannot be exercised without a real linked
+account to cut off; the first real use is Stencil & Thread. `tests/verify-manager-unlink.mjs` (16, with a stand-in Google).
+Meta partner access is NOT covered (manual: Business settings > Partners).
 
 ## 2026-09-08 — the manager link request can now be sent from the OS
 
