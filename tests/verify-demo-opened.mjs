@@ -100,7 +100,10 @@ const SCR = UI.slice(UI.indexOf("function WebsiteDemosScreen"), UI.indexOf("// �
 ok("a Website demos screen, in the menu on a computer, on a phone and in search", /function WebsiteDemosScreen\(/.test(UI) && /onClick=\{onDemos\}[^\n]*Website demos<\/button>/.test(UI) && /"Website demos","Build a site to pitch, see who opened it",onDemos/.test(UI) && /id:"g-demos"[^\n]*setScreen\("demos"\)/.test(UI) && /screen==="demos"&&<WebsiteDemosScreen /.test(UI));
 ok("🔴 building from it adds the company to Outreach labelled Website (never lost to follow-up), reusing one already there", /outreach\("action=add",\{method:"POST",body:JSON\.stringify\(\{\.\.\.form,pitch:"website",demoOnly:true\}\)\}\)/.test(SCR) && /if\(d\.duplicate\)\{/.test(SCR) && /pitch:"both"/.test(SCR));
 ok("it never silently rebuilds a demo that is already live", /already has a demo\. It's in the list below\./.test(SCR) && /window\.confirm\(`Rebuild \$\{x\.name\}'s demo\?/.test(SCR));
-ok("🔴 Bryson's own taps carry ?me=1 everywhere he opens a demo", /href=\{demoOwnUrl\(d\.url\)\}/.test(SCR) && /href=\{demoOwnUrl\(demo\.url\)\}[^\n]*Open the preview/.test(UI) && /href=\{demoOwnUrl\(demo\.url\)\}[^\n]*Open their site/.test(UI) && !/href=\{demo\.url\}/.test(UI));
+// Since 2026-11-05 every Open goes through the in-OS viewer (verify-demo-host), which adds ?me=1 to the frame and its
+// "Open in browser" link alike.
+ok("🔴 Bryson's own taps carry ?me=1 everywhere he opens a demo", /openDemoView\(\{url:d\.url,/.test(SCR) && /openDemoView\(\{url:demo\.url,[^\n]*Open the preview/.test(UI) && /openDemoView\(\{url:demo\.url,[^\n]*Open their site/.test(UI)
+  && /const own=demoOwnUrl\(v\.url\);/.test(UI) && /src=\{own\}/.test(UI) && /href=\{own\} target="_blank"/.test(UI) && !/href=\{demo\.url\}/.test(UI));
 ok("the list says who opened it and when, and the top line names who to call", /Opened \{demoAgo\(d\.lastOpenedAt\)\}/.test(SCR) && /opened their demo":recent\.length\+" companies opened their demos"\} this week\. Call while it's fresh\./.test(SCR));
 ok("the existing demo and pitch cards show it too", (UI.match(/<DemoOpened demo=\{demo\}\/>/g) || []).length === 2);
 ok("'They want it' still turns the demo into a client", /onCreateClient&&onCreateClient\(clientFromDemo\(/.test(SCR) && /DEMO_PLANS\.map/.test(SCR));

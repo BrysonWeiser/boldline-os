@@ -99,13 +99,17 @@ export function pitchClientOf(row, pitch = {}) {
     leadToken: "demo", landingSlug: "demo", ...(c.gbpStats ? { gbpStats: c.gbpStats } : {}),
     // 🔴 THEIR BRAND, which the first version dropped: the Brand kit, any colour set by hand, their logo, and what
     // was read off their current website. A pitch in BoldLine's colours sells the wrong thing.
-    ...(c.brandKit ? { brandKit: c.brandKit } : {}), ...(c.brandColor ? { brandColor: c.brandColor } : {}),
-    ...(c.landingPage && c.landingPage.brandColor ? { landingPage: { brandColor: c.landingPage.brandColor } } : {}),
+    // 🔴 "Use their website's colours" pressed on THIS preview (pitch.brand) is the latest thing he asked for, so it
+    // beats a colour picked for their ad landing page or typed on the Website tab (Springbok, 2026-11-05: the landing
+    // page's colour would otherwise have hidden the colours he had just taken from their site). The Brand kit, their
+    // official brand, still wins over everything.
+    ...(c.brandKit ? { brandKit: c.brandKit } : {}), ...(c.brandColor && !pitch.brand ? { brandColor: c.brandColor } : {}),
+    ...(c.landingPage && c.landingPage.brandColor && !pitch.brand ? { landingPage: { brandColor: c.landingPage.brandColor } } : {}),
     mediaLibrary: (c.mediaLibrary || []).filter((m) => m && m.category === "logo"),
     ...(pitch.brand || c.siteBrand ? { siteBrand: pitch.brand || c.siteBrand } : {}),
     website: { content: pitch.content || null, stock: pitch.stock || [], theme: pitch.theme || DEMO_THEME_DEFAULT, published: false, ...((c.website || {}).rating ? { rating: c.website.rating } : {}),
       ...(pitch.mode === "light" || pitch.mode === "dark" ? { mode: pitch.mode } : {}),
-      ...(c.website && typeof c.website === "object" && c.website.brandColor ? { brandColor: c.website.brandColor } : {}) },
+      ...(c.website && typeof c.website === "object" && c.website.brandColor && !pitch.brand ? { brandColor: c.website.brandColor } : {}) },
   };
 }
 
@@ -117,6 +121,15 @@ export const demoExpired = (demo, now = Date.now()) => {
   const e = demoExpiresAt(demo);
   return !e || Date.parse(e) <= now;
 };
+
+// 🔴 WHERE A DEMO LINK LIVES: the client-websites site (sites/), NEVER the OS's address (Bryson, 2026-11-05: "make
+// sure that when I send the link that there is no way for the person with the link to be able to access the os").
+// A link on os.boldlinemedia.com told every prospect where the OS is (delete the path and there is its sign-in page)
+// and ran their page on the OS's own origin. On this host there is no OS at all: only client websites and demos.
+// Old links on the OS's address are sent here (functions/demo-site.mjs). The same value is written in index.html
+// (DEMO_ORIGIN_OS) and pinned equal by tests/verify-demo-host.mjs.
+export const DEMO_HOST = "boldline-sites.netlify.app";
+export const DEMO_ORIGIN = `https://${DEMO_HOST}`;
 
 // What the OS is told about a demo: never the copy itself (it can be 15KB and the list holds hundreds).
 export const demoSummary = (demo, origin = "") => {
@@ -183,11 +196,14 @@ ${MODE_TOGGLE_CSS}
 //    texting app (which neither scrolls nor waits) never reads as "opened";
 //  - never from an automated browser, and never in a tab Bryson opened from the OS (the OS adds ?me=1; remembered for
 //    the tab so clicking around the design switcher stays his);
+//  - never inside a frame: the only frame a demo is ever shown in is the OS's own viewer (Bryson looking), which
+//    cannot keep ?me=1 across pages because the frame is sandboxed away from storage;
 //  - once per tab. The server also ignores repeats within 10 minutes and known preview robots.
 export const demoOpenJS = (seenUrl, key) => `(function(){try{var K=${JSON.stringify(key)},U=${JSON.stringify(seenUrl)},ss=null;try{ss=window.sessionStorage;}catch(e){}
 if(/[?&]me=1(&|$)/.test(location.search)){try{ss&&ss.setItem('bl-me','1');}catch(e){}}
 var me=false;try{me=!!ss&&(ss.getItem('bl-me')==='1'||ss.getItem(K)==='1');}catch(e){}
-if(me||navigator.webdriver)return;
+var framed=true;try{framed=window.top!==window.self;}catch(e){}
+if(me||framed||navigator.webdriver)return;
 var sent=false,t=null;var go=function(){if(sent||document.visibilityState!=='visible')return;sent=true;try{ss&&ss.setItem(K,'1');}catch(e){}try{fetch(U,{method:'GET',cache:'no-store',credentials:'omit',keepalive:true});}catch(e){}};
 var arm=function(){clearTimeout(t);if(document.visibilityState==='visible')t=setTimeout(go,6000);};
 ['scroll','pointerdown','touchstart','keydown'].forEach(function(ev){addEventListener(ev,go,{passive:true,once:true});});

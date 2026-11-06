@@ -146,6 +146,21 @@ export const summarize = (checks) => {
   };
 };
 
+// 🔴 WHO CAN GET INTO THE OS (Bryson, 2026-11-05: "make sure ... there is no way for the person with the link to be
+// able to access the os"). The OS's sign-in page is public, and so is the key its page uses to talk to the database.
+// While the database lets anyone create their own login, someone who finds the address can sign themselves up and
+// every "is this a signed-in user?" check in the OS lets them through. Found OPEN on 2026-11-05. Two checks:
+//  - sign-ups are switched off (Supabase: Authentication, Sign In / Providers, "Allow new users to sign up");
+//  - no login was created in the last day (one that was is either him on purpose, or someone who got in).
+export const signupCheck = (settings) => {
+  if (!settings || typeof settings !== "object" || typeof settings.disable_signup !== "boolean") return { ok: null, detail: "couldn't read the setting" };
+  return settings.disable_signup ? { ok: true, detail: "" }
+    : { ok: false, detail: "Anyone who finds the OS's address can create their own login and get in. In Supabase: Authentication, Sign In / Providers, turn off \"Allow new users to sign up\", then Save." };
+};
+export const newLogins = (users, now = Date.now(), hours = 26) => (Array.isArray(users) ? users : [])
+  .filter((u) => u && Number.isFinite(Date.parse(u.created_at)) && now - Date.parse(u.created_at) < hours * 3600e3)
+  .map((u) => u.email || u.phone || u.id);
+
 const get = async (url, ms = 15000, headers = {}) => {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), ms);
@@ -298,6 +313,21 @@ export default withFailureAlert("daily-check", async () => {
     if (target === NETLIFY_TARGET) add("The client websites site answers", null, "not set up yet (SITES_NETLIFY_SITE), so client websites still run from the OS");
     else { const h = await get(`https://${target}/__health`); add("The client websites site answers", h.ok, h.ok ? "" : `returned ${h.status} ${h.error || ""}. Live client websites may be down.`); }
   } catch (e) { add("The client websites site answers", false, e.message); }
+
+  // ── 6b. Nobody can let themselves into the OS (see signupCheck) ───────────
+  try {
+    const st = await get(`${SUPABASE_URL}/auth/v1/settings`, 10000, { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY || "" });
+    let parsed = null; try { parsed = JSON.parse(st.body); } catch (e) { /* reported as unread */ }
+    const sc = signupCheck(parsed);
+    add("🔴 Nobody can create their own login to the OS", sc.ok, sc.detail);
+  } catch (e) { add("🔴 Nobody can create their own login to the OS", null, e.message); }
+  try {
+    const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 200 });
+    if (error) throw error;
+    const fresh = newLogins(data && data.users);
+    add("🔴 No new OS login appeared in the last day", fresh.length === 0,
+      fresh.length ? `New login: ${fresh.join(", ")}. If that wasn't you, it shouldn't exist: delete it in Supabase (Authentication, Users).` : "");
+  } catch (e) { add("🔴 No new OS login appeared in the last day", null, (e && e.message) || String(e)); }
 
   const sum = summarize(checks);
 

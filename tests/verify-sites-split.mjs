@@ -62,7 +62,8 @@ const ignore = (from, to) => { try { execFileSync("node", [join(ROOT, "sites/ign
   const nokey = await W.default(new Request("https://www.acme.com/", { headers: { host: "www.acme.com" } }));
   ok("missing setup is a quiet 'temporarily unavailable', not a crash", nokey.status === 503 && !/boldline/i.test(await nokey.text()));
   if (key) process.env.SUPABASE_SERVICE_ROLE_KEY = key;
-  eq("🔴 every path is a page except the form and the visitor count", W.config, { path: "/*", excludedPath: ["/lead", "/site-hit", "/.netlify/*"] });
+  // /demo/* added 2026-11-05: demo websites live here now (sites/functions/demo.mjs), never on the OS's address.
+  eq("🔴 every path is a page except the form, the visitor count and demo websites", W.config, { path: "/*", excludedPath: ["/lead", "/site-hit", "/demo/*", "/.netlify/*"] });
   const L = await import("../sites/functions/lead.mjs"); const H = await import("../sites/functions/site-hit.mjs");
   ok("the form and the visitor count have their own routes there", L.config.path === "/lead" && H.config.path === "/site-hit");
 }

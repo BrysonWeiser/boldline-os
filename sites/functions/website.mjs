@@ -26,4 +26,4 @@ export default async (req) => {
     return plain(500, "Something went wrong. Please try again in a moment.");
   }
 };
-export const config = { path: "/*", excludedPath: ["/lead", "/site-hit", "/.netlify/*"] };
+export const config = { path: "/*", excludedPath: ["/lead", "/site-hit", "/demo/*", "/.netlify/*"] };

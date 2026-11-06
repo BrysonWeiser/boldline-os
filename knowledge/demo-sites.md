@@ -2,7 +2,7 @@
 name: demo-sites
 topic: Websites
 task: build a demo website for a company before a sales meeting, show it, turn it into a client, or sell / hand over a website bought outright ($2,500, no monthly)
-keywords: [no website, no social media, just starting out, new business, social media link, facebook page, tiktok, normSocial, social.mjs, noContactYet, waitingForContact, mergeContact, action=contact, demoOnly, newBusiness, website demos screen, demos screen, opened signal, they opened it, recordOpen, __seen, demoOpenJS, me=1, listDemos, demo website, demo site, spec site, website before the meeting, show them their site, private link, they want it, buy it outright, bought outright, own it, buyout, $2500, handover, site files, download site files, zip, export site, mgmt own, WA-8, Purchase Agreement, demo-site.mjs, demo-site-background, DemoSiteBox, clientFromDemo, SiteFilesHandover, site-export.mjs, __mailto, researchFacts]
+keywords: [demo host, boldline-sites demo, demo link address, exit demo, back to the os, DemoViewer, openDemoView, demo-page.mjs, serveDemoPage, demoRedirect, BrandFixSheet, brandFromPicked, screenshot colours, cloudflare challenge, springbok colours, no website, no social media, just starting out, new business, social media link, facebook page, tiktok, normSocial, social.mjs, noContactYet, waitingForContact, mergeContact, action=contact, demoOnly, newBusiness, website demos screen, demos screen, opened signal, they opened it, recordOpen, __seen, demoOpenJS, me=1, listDemos, demo website, demo site, spec site, website before the meeting, show them their site, private link, they want it, buy it outright, bought outright, own it, buyout, $2500, handover, site files, download site files, zip, export site, mgmt own, WA-8, Purchase Agreement, demo-site.mjs, demo-site-background, DemoSiteBox, clientFromDemo, SiteFilesHandover, site-export.mjs, __mailto, researchFacts]
 status: LIVE 2026-10-20
 summary: Built 2026-10-20 (Bryson, "i want to build it for the full website for the company im cold calling when i hop on a meeting with them that way if they like it we just need to link their payment method"; pricing "$2500 ... if they want to include the $100/month for us to host it and do everything then itll be $1500 then the monthly"). On any Lead Scout or Outreach company labelled Website or Both, "Build their demo website" writes their full 5-page site with the real builder from public research facts (stock photos), served at os.boldlinemedia.com/demo/<random token>/ with a "Preview for <name>. Not live yet." strip, a guard that stops every send, noindex + no-store, no visit count, a 3-design switcher, and a 30-day expiry (rebuild keeps the same link). "They want it" picks Monthly plan ($1,500 + $100/mo) or Buy it outright ($2,500) and creates an unsigned website-only client with the demo as their website; the agreement and payment then go out from the Website tab as usual. Outright is a fifth agreement version (WA-8, "Website Design and Purchase Agreement": no monthly, handover of files, nothing after handover is ours); once fully paid the Website tab downloads the whole site as a zip made for THEIR domain (form opens the visitor's email app, booking off, photos copied in, read-me inside).
 verified: 2026-10-20
@@ -158,3 +158,38 @@ they are on instagram or another social media platform or they don't even have s
 - The Outreach call card now shows each social link (↗ Facebook etc.) beside phone/email/site, https only.
 - Pinned by `tests/verify-demo-opened.mjs` section 4.
 
+## Demo host, the in-OS viewer, and colours from blocked sites (2026-11-05, evening)
+Bryson: "make sure for the demo sites there is a way to exit out of them in the os and also make sure that when I send
+the link that there is no way for the person with the link to be able to access the os", then "I added springbok
+wellnesses website and it didn't work".
+- 🔴 **Demo links live on the client-websites site now: `https://boldline-sites.netlify.app/demo/<token>/`**
+  (`DEMO_HOST`/`DEMO_ORIGIN` in lib/demo-site.mjs, `DEMO_ORIGIN_OS` in index.html, pinned equal by
+  `tests/verify-demo-host.mjs`). Served by `sites/functions/demo.mjs` (GET/HEAD only) through the lean
+  `netlify/lib/demo-page.mjs` (`serveDemoPage`, `renderDemo`, `parseDemoPath`), which must NOT import the OS demo
+  function (that drags report/push code into the client-websites build: verify-sites-split). The page's "they opened it"
+  ping goes to `<demo host>/demo/<t>/__seen`, which passes it server to server to the OS function (push needs the OS's
+  keys); the OS address appears only there, never in the page.
+  - The OS function no longer renders demo pages: every GET on `os.boldlinemedia.com/demo/...` (links already sent)
+    gets a **302** to the same page on the demo host (`demoRedirect`); `__seen` is still recorded there.
+  - Why: the old address told every prospect where the OS is and ran their page on the OS's own origin. That host has
+    no OS on it. Rendered pages were checked to contain no OS address and no relative links.
+  - Optional later: a branded address (e.g. preview.boldlinemedia.com) = DNS record + Netlify alias on boldline-sites,
+    then change both constants. Not done.
+- **In-OS viewer** (`DemoViewer` / `openDemoView`, mounted once in App): every Open button (Website demos card,
+  DemoSiteBox "Open their site", PitchPreviewCard "Open the preview") opens the demo over the OS with a gold
+  "✕ Back to the OS" button (Esc works) and "Open in browser ↗". Before, Open navigated away, and the home-screen app
+  (manifest scope "/") had no back button. The frame: `sandbox="allow-scripts allow-popups
+  allow-popups-to-escape-sandbox"` (preview-safety manifest row "Demo website"). `demoOpenJS` never pings inside a frame,
+  because a sandboxed frame has no storage to remember ?me=1 across pages.
+- **Colours when a site blocks servers.** springbokwellness.com sits behind Cloudflare's "Just a moment..." challenge:
+  403 to any server, and even a real headless browser from a data centre stays stuck. We do NOT try to get round it
+  (a browser-disguise retry was rejected as bot-check circumvention). Instead the brand action answers
+  `{blocked:true}` and the OS opens `BrandFixSheet`: steps (open their site on your phone, screenshot the top, add it),
+  the picture is sampled in the browser (`bkPalette(f,{gap:30,max:8})`, nothing uploaded), he taps the main colour or
+  uses the colour picker, and `{primary, colors}` goes to the same action > `brandFromPicked()` (brand-scrape.mjs),
+  saved with `from:"screenshot"`, keeping any earlier logo/fonts. The website address is asked in the same sheet (no
+  more browser pop-up).
+- 🔴 **For a client's pitch preview, colours taken via "Use their website's colours" (`pitchSite.brand`) now beat the
+  landing page colour and the Website tab colour** (`pitchClientOf`). Otherwise Springbok's ad landing page colour
+  would have hidden them. The Brand kit still wins over everything.
+- Found on the way: Supabase sign-ups were open. See KB `os-signup-lockdown`.

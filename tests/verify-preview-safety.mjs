@@ -69,6 +69,11 @@ const MANIFEST = {
   // fetch, and every link intercepted in the preview (it only asks the OS to switch tabs).
   "Website preview": "sandbox allow-scripts only; form refuses to send from about:; links intercepted to postMessage",
   "Website agreement preview": "sandbox=\"\" (no scripts, no forms, no navigation); a static document with nothing to click",
+  // Added 2026-11-05: the in-OS demo viewer (Bryson: "a way to exit out of them in the os"). A URL frame onto the
+  // DEMO HOST (the client-websites site), so a different origin from the OS. Sandboxed with scripts and popups only:
+  // no allow-same-origin, no allow-forms, no top navigation, so it can neither read the OS nor move it. The demo page
+  // itself sends nothing (DEMO_GUARD_JS) and never counts a view from inside a frame (demoOpenJS).
+  "Demo website": "a cross-origin demo on the demo host; sandbox allow-scripts + popups only (no same-origin, forms or top navigation)",
 };
 
 // 🔴 NOT IN THE MANIFEST, AND DELIBERATELY SO: saved landing pages (2026-09-04). They are the
@@ -135,6 +140,14 @@ const MANIFEST = {
     ok(`🔴 the "${e.title}" preview is accounted for`, !!MANIFEST[e.title],
       "a new preview was added without deciding what stops it changing real data. Add it to "
       + "MANIFEST in this file, with a real guard, and add an assertion for that guard below.");
+  }
+  {
+    const tag = (UI.match(/<iframe title="Demo website"[^>]*>/) || [""])[0];
+    const sb = (tag.match(/sandbox="([^"]*)"/) || [, null])[1];
+    ok("🔴 the demo viewer is sandboxed with scripts and popups only (never same-origin, forms or top navigation)",
+      sb === "allow-scripts allow-popups allow-popups-to-escape-sandbox", sb);
+    ok("🔴 the demo viewer only ever shows the demo host, with ?me=1", /src=\{own\}/.test(tag) && /const own=demoOwnUrl\(v\.url\);/.test(UI)
+      && /const DEMO_ORIGIN_OS="https:\/\/boldline-sites\.netlify\.app";/.test(UI));
   }
   ok("🔴 every untitled embed is rejected", !embeds.some((e) => e.title === "(untitled)"),
     "an embed with no title cannot be reasoned about or matched to the manifest");

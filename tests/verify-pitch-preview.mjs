@@ -15,7 +15,7 @@ import { buildPrompt } from "../netlify/functions/site-build-background.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
-const UI = read("index.html"), GET = read("netlify/functions/demo-site.mjs"), BG = read("netlify/functions/demo-site-background.mjs"), PORTAL = read("netlify/functions/portal.mjs");
+const UI = read("index.html"), GET = read("netlify/functions/demo-site.mjs") + read("netlify/lib/demo-page.mjs") /* the page itself moved there 2026-11-05 */, BG = read("netlify/functions/demo-site-background.mjs"), PORTAL = read("netlify/functions/portal.mjs");
 const { DEMO_DETAIL } = await import("../scripts/site-showcase-demo.mjs");
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => { if (cond) { pass++; return; } fail++; console.log(`  FAIL  ${name}${extra ? `\n        ${extra}` : ""}`); };

@@ -116,6 +116,22 @@ export async function brandFromSite(url, { fetchImpl = fetch, now = new Date() }
   return { ...(pal || {}), logo, ...fonts, from: page.url, at: now.toISOString() };
 }
 
+// Colours Bryson picked himself, from a screenshot of their website sampled in the OS (or the colour picker), for a
+// site that will not let a server read it (Bryson, 2026-11-05: "I added springbok wellnesses website and it didn't
+// work": springbokwellness.com sits behind a "checking your browser" wall that only a real person gets past). We never
+// try to get round such a wall; the person who can see the site takes a screenshot instead. `primary` is the one he
+// chose as their main colour; second and accent are the next clearly different colours from the same screenshot.
+export function brandFromPicked(colors, primary) {
+  const list = (Array.isArray(colors) ? colors : []).slice(0, 8).map(toHex).filter(Boolean);
+  const main = toHex(primary) || list[0] || "";
+  if (!main) return null;
+  const usable = (c) => c !== main && chroma(c) >= 38 && lum(c) > 0.08 && lum(c) < 0.9;
+  const rest = list.filter(usable);
+  const second = rest.find((c) => hueGap(c, main) >= 25) || "";
+  const accent = rest.find((c) => c !== second && hueGap(c, main) >= 25 && (!second || hueGap(c, second) >= 25)) || "";
+  return { primary: main.toUpperCase(), second: second.toUpperCase(), accent: accent.toUpperCase(), picked: true };
+}
+
 // Where a business's CURRENT website lives, if we know: a prospect's found site, a client's typed site, the address
 // they gave in the portal, or their own domain before we put the new site on it.
 export function currentSiteOf(subject) {
