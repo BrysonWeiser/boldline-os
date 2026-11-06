@@ -193,3 +193,7 @@ wellnesses website and it didn't work".
   landing page colour and the Website tab colour** (`pitchClientOf`). Otherwise Springbok's ad landing page colour
   would have hidden them. The Brand kit still wins over everything.
 - Found on the way: Supabase sign-ups were open. See KB `os-signup-lockdown`.
+- **Their own photos and videos from social media (asked same evening):** not pulled automatically (login walls; going
+  round them breaks the platforms' rules and risks BoldLine's Meta app). Official Instagram route parked behind Meta
+  approval, and an "Add their photos and videos" upload on the demo card offered instead. Details and status in KB
+  `meta-parked-work` item 5.
