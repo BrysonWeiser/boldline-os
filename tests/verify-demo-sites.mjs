@@ -22,7 +22,7 @@ import { WEBSITE_OFFER } from "../netlify/lib/pricing-shared.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
-const UI = read("index.html"), GET = read("netlify/functions/demo-site.mjs"), BG = read("netlify/functions/demo-site-background.mjs");
+const UI = read("index.html"), GET = read("netlify/functions/demo-site.mjs") + read("netlify/lib/demo-page.mjs") /* the page itself moved there 2026-11-05 */, BG = read("netlify/functions/demo-site-background.mjs");
 const SITE = read("netlify/functions/site.mjs"), DEAL = read("netlify/functions/website-deal.mjs"), TOML = read("netlify.toml");
 const { DEMO_DETAIL } = await import("../scripts/site-showcase-demo.mjs");
 

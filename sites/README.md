@@ -13,3 +13,5 @@ Client websites are served from THIS folder's Netlify site, separate from the OS
   count), `lead` (contact form: passed to the OS, and kept safe to deliver later if the OS is down).
   `book` and `optout` pass booking and unsubscribes to the OS; `pay` passes a customer paying for a booking
   (KB `payments-connect`), handing back the redirect to the business's own Stripe or Square checkout.
+  `demo` serves demo websites (`/demo/<token>/`, KB `demo-sites`) so a link sent to a prospect never names the
+  OS; its "they opened it" ping is passed on to the OS.

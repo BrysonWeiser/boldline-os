@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 239 task-keyed entries under `knowledge/`. They surface automatically via the
+> 240 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**239 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**240 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -841,6 +841,12 @@
   Bryson, 2026-10-07, picked "walk the whole path a new client takes". Live crawl of boldlinemedia.com (49 pages) found no broken links; two Calendly links (30min ads, website), four real forms. Fixed: (1) every email now carries reply_to bryson@boldlinemedia.com, the address CONFIRMED to forward (hello@, the sender, is not confirmed routed), (2) emails to a client's CUSTOMERS are sent as that business with reply_to the business, (3) the free-check form said "Got it" even when the request was saved nowhere, (4) public pages showed a gmail address, now bryson@boldlinemedia.com. Recommended, not built: an instant reply to contact-form enquiries, and a faster than 15-minute phone ping.  
   <sub>*task:* check or change the path a new client takes (ad, website, booking, free check, contact form, emails, agreement, welcome), where replies to our emails go, or who customer emails appear to come from &nbsp;|&nbsp; *keywords:* client journey, funnel, walkthrough, reply to, reply_to, BOLDLINE_REPLY_TO, fromName, free check silent failure, audit.mjs, contact form auto reply, speed to lead, public email address</sub>
 
+## Security
+
+- **[os-signup-lockdown](../knowledge/os-signup-lockdown.md)** &mdash; &#9989; verified &middot; 2026-11-05  
+  Found 2026-11-05 while checking that a demo link can't reach the OS. Supabase still had public sign-ups ON (disable_signup false, email provider on), and the OS page carries the public database key, so anyone who read the page could create their own login, confirm it by email, and pass every "is this a signed-in user?" check in ~49 OS functions plus every table policy granted to signed-in users. Nothing in the OS creates users, so turning sign-ups off breaks nothing. The daily check now fails (red alert) while sign-ups are on, and names any login created in the last 26 hours.  
+  <sub>*task:* make sure nobody but Bryson can get into the OS (sign-ups, new logins, who a demo link can reach) &nbsp;|&nbsp; *keywords:* security, sign up, signup, sign-ups, disable signup, allow new users to sign up, supabase auth, new login, rogue account, who can access the os, os access, login lockdown, auth settings, auth/v1/settings, listUsers, daily check, publishable key</sub>
+
 ## Supabase
 
 - **[supabase-access-model](../knowledge/supabase-access-model.md)** &mdash; &#9989; verified &middot; 2026-07-02  
@@ -872,7 +878,7 @@
 
 - **[demo-sites](../knowledge/demo-sites.md)** &mdash; &#9989; verified &middot; 2026-10-20  
   Built 2026-10-20 (Bryson, "i want to build it for the full website for the company im cold calling when i hop on a meeting with them that way if they like it we just need to link their payment method"; pricing "$2500 ... if they want to include the $100/month for us to host it and do everything then itll be $1500 then the monthly"). On any Lead Scout or Outreach company labelled Website or Both, "Build their demo website" writes their full 5-page site with the real builder from public research facts (stock photos), served at os.boldlinemedia.com/demo/<random token>/ with a "Preview for <name>. Not live yet." strip, a guard that stops every send, noindex + no-store, no visit count, a 3-design switcher, and a 30-day expiry (rebuild keeps the same link). "They want it" picks Monthly plan ($1,500 + $100/mo) or Buy it outright ($2,500) and creates an unsigned website-only client with the demo as their website; the agreement and payment then go out from the Website tab as usual. Outright is a fifth agreement version (WA-8, "Website Design and Purchase Agreement": no monthly, handover of files, nothing after handover is ours); once fully paid the Website tab downloads the whole site as a zip made for THEIR domain (form opens the visitor's email app, booking off, photos copied in, read-me inside).  
-  <sub>*task:* build a demo website for a company before a sales meeting, show it, turn it into a client, or sell / hand over a website bought outright ($2,500, no monthly) &nbsp;|&nbsp; *keywords:* no website, no social media, just starting out, new business, social media link, facebook page, tiktok, normSocial, social.mjs, noContactYet, waitingForContact, mergeContact, action=contact, demoOnly, newBusiness, website demos screen, demos screen, opened signal, they opened it, recordOpen, __seen, demoOpenJS, me=1, listDemos, demo website, demo site, spec site, website before the meeting, show them their site, private link, they want it, buy it outright, bought outright, own it, buyout, $2500, handover, site files, download site files, zip, export site, mgmt own, WA-8, Purchase Agreement, demo-site.mjs, demo-site-background, DemoSiteBox, clientFromDemo, SiteFilesHandover, site-export.mjs, __mailto, researchFacts</sub>
+  <sub>*task:* build a demo website for a company before a sales meeting, show it, turn it into a client, or sell / hand over a website bought outright ($2,500, no monthly) &nbsp;|&nbsp; *keywords:* demo host, boldline-sites demo, demo link address, exit demo, back to the os, DemoViewer, openDemoView, demo-page.mjs, serveDemoPage, demoRedirect, BrandFixSheet, brandFromPicked, screenshot colours, cloudflare challenge, springbok colours, no website, no social media, just starting out, new business, social media link, facebook page, tiktok, normSocial, social.mjs, noContactYet, waitingForContact, mergeContact, action=contact, demoOnly, newBusiness, website demos screen, demos screen, opened signal, they opened it, recordOpen, __seen, demoOpenJS, me=1, listDemos, demo website, demo site, spec site, website before the meeting, show them their site, private link, they want it, buy it outright, bought outright, own it, buyout, $2500, handover, site files, download site files, zip, export site, mgmt own, WA-8, Purchase Agreement, demo-site.mjs, demo-site-background, DemoSiteBox, clientFromDemo, SiteFilesHandover, site-export.mjs, __mailto, researchFacts</sub>
 
 ## Workflow
 
