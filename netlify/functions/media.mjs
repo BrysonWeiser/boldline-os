@@ -49,7 +49,10 @@ export default async (req) => {
 
   // "confirm" and "delete" both operate on a path scoped to this client
   const path = String(body.path || "");
-  if (!path.startsWith(`${data.id}/`)) return json({ ok: false, error: "Invalid path" }, 400);
+  // A photo that came with their demo (KB demo-sites, "their own photos") lives under demo/, not their folder. It is
+  // theirs to remove only when it is in THEIR library, so no path elsewhere can be named.
+  const fromTheirDemo = path.startsWith("demo/") && !path.includes("..") && ((data.data && data.data.mediaLibrary) || []).some((m) => m && m.path === path);
+  if (!path.startsWith(`${data.id}/`) && !fromTheirDemo) return json({ ok: false, error: "Invalid path" }, 400);
 
   if (action === "delete") {
     const { error: removeError } = await supabaseAdmin.storage.from(BUCKET).remove([path]);

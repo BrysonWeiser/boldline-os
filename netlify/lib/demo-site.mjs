@@ -17,8 +17,10 @@
 //  - is never indexed, never counted as a visit, and lives at a long random address nobody can guess;
 //  - expires 30 days after it was built (rebuild to renew), so a "website" with their name on it does not sit on
 //    the internet for ever after a no;
-//  - uses stock photos only. Their Instagram photos are theirs, and copying them before they have agreed would be
-//    using their work without permission; their own photos come in through the portal once they buy.
+//  - uses stock photos, unless Bryson adds THEIR OWN photos and videos on the demo card (Bryson, 2026-11-05: "make sure
+//    for the social media ones that it takes pictures and videos etc from what's shown on the accounts"). They are
+//    their work, so they go on this private link only; nothing is pulled from Instagram or the like automatically
+//    (those sites block it, and going round that breaks their rules: KB meta-parked-work item 5).
 // The copy writer's "don't invent anything" rule still holds: only what the research actually found is passed in.
 
 import { randomBytes } from "node:crypto";
@@ -30,6 +32,22 @@ export const newDemoToken = () => randomBytes(18).toString("base64url");
 export const validToken = (t) => /^[A-Za-z0-9_-]{20,40}$/.test(String(t || ""));
 
 const s = (v, n = 400) => String(v == null ? "" : v).replace(/\s+/g, " ").trim().slice(0, n);
+
+// ── Their own photos and videos (see the rule above) ───────────────────────────────────────────────────────────────
+// Kept on the demo itself (`demoSite.media` / `pitchSite.media`): [{ kind: "photo"|"video", url, path, tall, at }].
+// Photos go in front of the stock photos everywhere the design shows one; videos become one section on the home page.
+export const DEMO_MEDIA_MAX = { photo: 12, video: 3 };
+export const DEMO_MEDIA_BUCKET = "client-media";
+export const demoMediaOf = (demo) => (Array.isArray(demo && demo.media) ? demo.media : [])
+  .filter((m) => m && (m.kind === "photo" || m.kind === "video") && /^https:\/\/[^\s"'<>]+$/.test(String(m.url || "")));
+export const demoMediaLibrary = (demo, name = "") => demoMediaOf(demo).filter((m) => m.kind === "photo").slice(0, DEMO_MEDIA_MAX.photo)
+  .map((m, i) => ({ url: m.url, path: String(m.path || ""), category: "photo", label: `${s(name, 60) || "Our work"}, photo ${i + 1}` }));
+export const demoVideoBlocks = (demo, name = "") => {
+  const clips = demoMediaOf(demo).filter((m) => m.kind === "video").slice(0, DEMO_MEDIA_MAX.video).map((m) => ({ url: m.url, tall: !!m.tall }));
+  return clips.length ? [{ id: "theirvideos", type: "video", heading: `${s(name, 60) || "Our work"} at work`, clips }] : [];
+};
+// Where a demo's files live in storage, by whose demo it is. Paths outside it are refused.
+export const demoMediaPrefix = (kind, id) => `demo/${kind === "client" ? "c" : "p"}-${String(id || "").replace(/[^A-Za-z0-9_-]/g, "")}/`;
 
 // What the research found, as a client-shaped record the real builder and renderer understand. Only public,
 // checkable facts go in; nothing from Bryson's private notes (a verdict like "cannot afford ads" would read
@@ -64,7 +82,10 @@ export function demoClientOf(prospect, demo = {}) {
     landingSlug: "demo",
     // Their look, read off their current website when the demo was built (brand-scrape.mjs).
     ...(demo.brand ? { siteBrand: demo.brand } : {}),
+    // Their own photos, added by Bryson, ahead of the stock ones.
+    mediaLibrary: demoMediaLibrary(demo, s(d.dba, 80) || s(p.name, 80)),
     website: { content: demo.content || null, stock: demo.stock || [], theme: demo.theme || DEMO_THEME_DEFAULT, published: false,
+      blocks: demoVideoBlocks(demo, s(d.dba, 80) || s(p.name, 80)),
       // Light or dark, when Bryson picked one for this demo (otherwise the design's own).
       ...(demo.mode === "light" || demo.mode === "dark" ? { mode: demo.mode } : {}),
       // The star rating the research found, shown at the top of the Showcase design. Only a real one with a count.
@@ -105,9 +126,10 @@ export function pitchClientOf(row, pitch = {}) {
     // official brand, still wins over everything.
     ...(c.brandKit ? { brandKit: c.brandKit } : {}), ...(c.brandColor && !pitch.brand ? { brandColor: c.brandColor } : {}),
     ...(c.landingPage && c.landingPage.brandColor && !pitch.brand ? { landingPage: { brandColor: c.landingPage.brandColor } } : {}),
-    mediaLibrary: (c.mediaLibrary || []).filter((m) => m && m.category === "logo"),
+    mediaLibrary: [...(c.mediaLibrary || []).filter((m) => m && m.category === "logo"), ...demoMediaLibrary(pitch, (c.website || {}).brandName || c.reviewSenderName || c.name)],
     ...(pitch.brand || c.siteBrand ? { siteBrand: pitch.brand || c.siteBrand } : {}),
-    website: { content: pitch.content || null, stock: pitch.stock || [], theme: pitch.theme || DEMO_THEME_DEFAULT, published: false, ...((c.website || {}).rating ? { rating: c.website.rating } : {}),
+    website: { content: pitch.content || null, stock: pitch.stock || [], theme: pitch.theme || DEMO_THEME_DEFAULT, published: false,
+      blocks: demoVideoBlocks(pitch, (c.website || {}).brandName || c.reviewSenderName || c.name), ...((c.website || {}).rating ? { rating: c.website.rating } : {}),
       ...(pitch.mode === "light" || pitch.mode === "dark" ? { mode: pitch.mode } : {}),
       ...(c.website && typeof c.website === "object" && c.website.brandColor && !pitch.brand ? { brandColor: c.website.brandColor } : {}) },
   };
@@ -141,6 +163,8 @@ export const demoSummary = (demo, origin = "") => {
     builtAt: demo.builtAt || null, startedAt: demo.startedAt || null, error: demo.error || null,
     expiresAt: demoExpiresAt(demo), expired: demo.status === "done" ? demoExpired(demo) : false,
     url: demo.token && origin ? `${origin.replace(/\/+$/, "")}/demo/${demo.token}/` : "",
+    // Their own photos and videos on it, for the card's thumbnails.
+    media: demoMediaOf(demo).map((m) => ({ kind: m.kind, url: m.url, path: String(m.path || ""), tall: !!m.tall })),
   };
 };
 

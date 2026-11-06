@@ -71,7 +71,7 @@ media_url,media_type,caption,permalink}}`), read through BoldLine's own Instagra
 business and creator accounts (most small businesses), Instagram only (no TikTok, and Facebook Pages need a separate
 review), and needs `instagram_basic` + Page permissions at Advanced Access, i.e. another App Review. Parked here.
 The no-approval alternative offered to Bryson: an "Add their photos and videos" button on the demo card (he saves or
-screenshots from their page and picks from his camera roll). Status: offered, waiting on his yes (KB `demo-sites`).
+screenshots from their page and picks from his camera roll). Status: he said yes; BUILT and live 2026-11-05 (KB `demo-sites`). The automatic Instagram pull stays parked here until Meta approves.
 Either way the rule at the top of lib/demo-site.mjs ("stock photos only") changes to "their own photos are fine on the
 PRIVATE demo, at Bryson's say-so (2026-11-05); never anywhere public until they have bought".
 
