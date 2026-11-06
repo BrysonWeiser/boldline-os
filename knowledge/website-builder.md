@@ -676,3 +676,14 @@ I'm viewing the preview for the website"*. The portal opens the site in a new ta
   to localStorage `bl_portal_back` (same origin), never from the OS's own portal preview. Only a `/portal?token=` path
   is accepted, within 7 days. Else `history.back()`, else `window.close()`, else the button says the tab can be closed.
 - `tests/verify-preview-exit.mjs` (7 checks); driven in a browser: portal, tap See your website, Exit, back on the portal.
+
+## Showcase always gets the portal (2026-11-05)
+Bryson, on demos: "once you get to the middle/bottom it's supposed to show an image with the name and if you keep
+scrolling the image will open ... that's how it shows on my website and that's what I want ... on the demos it doesn't
+have that it's just one long page". Cause: `motionRecipe` gives each client one scene (portal | rail | stack), but
+Showcase replaces the services section (where rail and stack live) with photo tiles, so a Showcase site that drew rail
+or stack had NO scroll moment. Fix in `homeBody`: the story section is the portal when `M.scene === "portal"` OR the
+theme is showcase. Cinematic and Editorial have their own homes and never show it, so the "never share a scene" rule
+still holds in practice (`motionRecipe` itself is unchanged, so no other site's motion moved). Also `.pcopy` gets 104px
+bottom padding under 760px so the story clears the floating Book/Call bar. Pinned in verify-site-builder; the marketing
+samples only gained that one CSS line (they already had the portal).

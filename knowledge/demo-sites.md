@@ -211,3 +211,5 @@ wellnesses website and it didn't work".
     the client's portal can delete a carried-over photo because media.mjs allows a `demo/` path that is in THEIR library.
   - The rule at the top of lib/demo-site.mjs changed from "stock photos only" to "their own photos on this private demo
     only, added by Bryson". Pinned by `tests/verify-demo-media.mjs`.
+- **Showcase demos now always have the "photo opens" scroll moment** (2026-11-05), same as the sample sites. Details
+  in KB `website-builder`, "Showcase always gets the portal".
