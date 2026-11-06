@@ -6311,6 +6311,10 @@ const demoThemesFor=(cur)=>DEMO_THEMES.some(x=>x[0]===cur)?DEMO_THEMES:cur==="au
 // it, or $2,500 once to own it outright and host it themselves.
 const DEMO_PLANS=[{id:"care",label:"Monthly plan",sub:"$1,500 build, then $100/mo. We host it and look after everything."},
   {id:"own",label:"Buy it outright",sub:"$2,500 once. They get the site files and host and manage it themselves."}];
+const demoPhotosToLibrary=(media)=>(Array.isArray(media)?media:[]).filter(m=>m&&m.kind==="photo"&&/^https:\/\//.test(m.url||""))
+  .map(m=>({url:m.url,path:m.path||"",category:"photo",label:"Their photo",uploadedAt:m.at||new Date().toISOString()}));
+const demoVideoBlockOS=(media,name)=>{ const clips=(Array.isArray(media)?media:[]).filter(m=>m&&m.kind==="video"&&/^https:\/\//.test(m.url||"")).slice(0,3).map(m=>({url:m.url,tall:!!m.tall}));
+  return clips.length?{id:"theirvideos",type:"video",heading:`${name||"Our work"} at work`,clips}:null; };
 function clientFromDemo(p,demo,plan){
   const d=(p&&p.data)||{};
   const cl=clientFromMeeting({}, {companyName:d.dba||d.name||p.name, niche:p.niche||"", notes:""}, WEB_PKG_ID);
@@ -6319,7 +6323,11 @@ function clientFromDemo(p,demo,plan){
     businessPhone:d.phone||"", businessAddress:d.address||"", email:d.email||"", contactName:d.ownerName||"",
     campaignSetup:{...cl.campaignSetup, serviceArea:area, targetLocations:area},
     // The demo becomes their website: same words, same photos, same design. Not live, and not until they pay.
-    website:{content:demo.content, stock:demo.stock||[], theme:demo.theme||"showcase", ...(demo.mode?{mode:demo.mode}:{}), published:false, fromDemo:{prospectId:p.id, builtAt:demo.builtAt||null}},
+    // Their own photos and videos added to the demo come too (DemoMediaRow): photos into their media library, videos as
+    // the same section on the home page.
+    mediaLibrary:[...(cl.mediaLibrary||[]),...demoPhotosToLibrary(demo.media)],
+    website:{content:demo.content, stock:demo.stock||[], theme:demo.theme||"showcase", ...(demo.mode?{mode:demo.mode}:{}), published:false, fromDemo:{prospectId:p.id, builtAt:demo.builtAt||null},
+      ...(demoVideoBlockOS(demo.media,d.dba||d.name||p.name)?{blocks:[demoVideoBlockOS(demo.media,d.dba||d.name||p.name)]}:{})},
     websitePlanChoice:plan==="own"?"own":"care",
     salesNotes:{...(cl.salesNotes||{}), demoSite:`Came from a demo website shown on the meeting (${plan==="own"?"buying it outright":"monthly plan"}).`},
   };
@@ -6535,6 +6543,7 @@ function WebsiteDemosScreen({onBack,isDesktop,onCreateClient}){
                       <button onClick={()=>useSiteColours(x.kind==="client"?{clientId:x.id}:{id:x.id},m=>setMsg(m))} style={{background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Use their website's colours</button>
                       <button onClick={()=>rebuild(x)} style={{background:"none",border:"none",color:C.textMuted,fontSize:11,textDecoration:"underline",cursor:"pointer",padding:0}}>Rebuild</button>
                     </div>
+                    <DemoMediaRow x={x} onMedia={media=>setRows(rs=>(rs||[]).map(r=>r.kind===x.kind&&r.id===x.id?{...r,demo:{...r.demo,media}}:r))}/>
                     {choosing===key&&(
                       <div style={{marginTop:10,display:"grid",gap:7}}>
                         {DEMO_PLANS.map(pl=>(
@@ -6558,6 +6567,74 @@ function WebsiteDemosScreen({onBack,isDesktop,onCreateClient}){
 // NOT `website`: the portal never shows it, there is no download and no publish, and the private link expires after
 // 30 days. It becomes their website only once the website agreement is signed and the first payment is in.
 // Read the business's colours, logo and fonts off its current website again, without rewriting the words (KB brand-kit).
+// ── Their own photos and videos on a demo (Bryson, 2026-11-05: "make sure for the social media ones that it takes
+// pictures and videos etc from what's shown on the accounts"). Instagram, Facebook and TikTok don't let an outside
+// system read an account (KB meta-parked-work item 5), so he saves or screenshots them on his phone and adds them
+// here. Photos are shrunk on the phone first (2000px, so the demo stays fast) and go in front of the stock photos;
+// videos become one section on the home page. They are the business's own work: this private demo only.
+const demoPrepPhoto=async(file)=>{
+  try{ const bm=await createImageBitmap(file); const k=Math.min(1,2000/Math.max(bm.width,bm.height));
+    const cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(bm.width*k)); cv.height=Math.max(1,Math.round(bm.height*k));
+    cv.getContext("2d").drawImage(bm,0,0,cv.width,cv.height);
+    const blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",0.86)); if(blob) return blob; }catch(e){}
+  return /^image\/(jpeg|png|webp)$/.test(file.type)?file:null; };
+// A phone video (Instagram reel, TikTok) is taller than wide, and is shown that way.
+const demoVideoTall=(file)=>new Promise(res=>{ let done=false; const fin=(v)=>{ if(!done){ done=true; res(v); } };
+  try{ const u=URL.createObjectURL(file); const v=document.createElement("video"); v.preload="metadata"; v.muted=true;
+    v.onloadedmetadata=()=>{ fin(v.videoHeight>v.videoWidth); URL.revokeObjectURL(u); }; v.onerror=()=>{ fin(false); URL.revokeObjectURL(u); };
+    v.src=u; setTimeout(()=>fin(false),8000); }catch(e){ fin(false); } });
+function DemoMediaRow({x,onMedia}){
+  const idKey=x.kind==="client"?{clientId:x.id}:{id:x.id};
+  const media=(x.demo&&x.demo.media)||[];
+  const [busy,setBusy]=useState(""); const [err,setErr]=useState("");
+  const photos=media.filter(m=>m.kind==="photo").length, videos=media.length-photos;
+  const add=async(files)=>{
+    const list=files.slice(0,15); if(!list.length) return; setErr("");
+    let n=0;
+    for(const f of list){ n++; setBusy(list.length>1?`Adding ${n} of ${list.length}…`:"Adding…");
+      try{
+        const kind=/^video\//.test(f.type)?"video":"photo";
+        const blob=kind==="photo"?await demoPrepPhoto(f):f;
+        if(!blob) throw new Error("That photo type won't show on a website. Take a screenshot of it and add the screenshot instead.");
+        const type=kind==="photo"?(blob.type||"image/jpeg"):(f.type||"video/mp4");
+        const tall=kind==="video"?await demoVideoTall(f):false;
+        const sign=await demoCall({action:"mediaSign",...idKey,kind,type,size:blob.size});
+        const put=await fetch(sign.signedUrl,{method:"PUT",headers:{"Content-Type":type},body:blob});
+        if(!put.ok) throw new Error(kind==="video"?"That video didn't upload. Use a short clip under 50 MB.":"That photo didn't upload. Try again.");
+        const d=await demoCall({action:"mediaAdd",...idKey,kind,path:sign.path,tall});
+        onMedia(d.media||[]);
+      }catch(e){ setErr(e.message); break; }
+    }
+    setBusy(""); };
+  const remove=async(m)=>{ setErr(""); setBusy("Removing…");
+    try{ const d=await demoCall({action:"mediaRemove",...idKey,path:m.path}); onMedia(d.media||[]); }catch(e){ setErr(e.message); }
+    setBusy(""); };
+  return (
+    <div style={{marginTop:10,padding:"10px 12px",borderRadius:10,border:`1px dashed ${C.border}`}}>
+      <div style={{fontSize:12,fontWeight:700,color:C.text}}>Their photos and videos</div>
+      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.5,marginTop:2}}>{media.length
+        ?`${photos} photo${photos===1?"":"s"}${videos?` and ${videos} video${videos===1?"":"s"}`:""} on their demo, in place of the stock photos.`
+        :"Save or screenshot them from their Instagram, Facebook or TikTok, then add them here. They replace the stock photos on this demo."}</div>
+      {!!media.length&&<div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:9}}>{media.map(m=>(
+        <div key={m.path||m.url} style={{position:"relative",width:60,height:60,borderRadius:9,overflow:"hidden",background:C.bg3,border:`1px solid ${C.border}`}}>
+          {m.kind==="video"
+            ?<video src={m.url} muted playsInline preload="metadata" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+            :<img src={m.url} alt="" loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>}
+          {m.kind==="video"&&<span aria-hidden="true" style={{position:"absolute",left:5,bottom:3,fontSize:11,color:"#fff",textShadow:"0 1px 3px #000"}}>▶</span>}
+          <button onClick={()=>remove(m)} disabled={!!busy} aria-label={m.kind==="video"?"Remove this video":"Remove this photo"}
+            style={{position:"absolute",top:3,right:3,width:24,height:24,borderRadius:999,border:"none",background:"rgba(0,0,0,.7)",color:"#fff",fontSize:12,lineHeight:"24px",padding:0,cursor:"pointer"}}>✕</button>
+        </div>))}</div>}
+      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginTop:9}}>
+        <label style={{display:"inline-flex",alignItems:"center",padding:"9px 13px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.gold}66`,color:C.gold,background:C.goldDim,cursor:busy?"default":"pointer",opacity:busy?.55:1,whiteSpace:"nowrap"}}>
+          + Add photos or videos
+          <input type="file" accept="image/*,video/*" multiple disabled={!!busy} onChange={e=>{ const fs=[...(e.target.files||[])]; e.target.value=""; add(fs); }} style={{display:"none"}}/></label>
+        {busy&&<span role="status" style={{fontSize:11.5,color:C.textDim}}>{busy}</span>}
+      </div>
+      {err&&<div style={{fontSize:11.5,color:C.red,marginTop:6,lineHeight:1.5}}>{err}</div>}
+    </div>
+  );
+}
+
 // ── Looking at a demo without leaving the OS (Bryson, 2026-11-05: "make sure for the demo sites there is a way to
 // exit out of them in the os"). Opening one used to navigate away; in the home-screen app that left no way back.
 // Now it opens over the OS with "Back to the OS" always on top. The frame is another site (the demo host) and is
@@ -6727,7 +6804,12 @@ function PitchPreviewCard({client,onUpdate}){
     if(hasSite&&!window.confirm(`${client.name} already has website words. Replace them with the preview?`)) return;
     try{
       const full=await demoCall({action:"content",clientId:id});
-      onUpdate&&onUpdate({...client,website:{...(client.website||{}),content:full.content,stock:full.stock||[],theme:full.theme||"showcase",...(full.mode?{mode:full.mode}:{}),published:false,fromPitch:{builtAt:full.builtAt||null}}});
+      const had=new Set((client.mediaLibrary||[]).map(m=>m&&m.url));
+      const vb=demoVideoBlockOS(full.media,client.reviewSenderName||client.name);
+      const blocks=((client.website||{}).blocks||[]).filter(b=>b&&b.id!=="theirvideos");
+      onUpdate&&onUpdate({...client,mediaLibrary:[...(client.mediaLibrary||[]),...demoPhotosToLibrary(full.media).filter(m=>!had.has(m.url))],
+        website:{...(client.website||{}),content:full.content,stock:full.stock||[],theme:full.theme||"showcase",...(full.mode?{mode:full.mode}:{}),published:false,fromPitch:{builtAt:full.builtAt||null},
+          ...(vb||blocks.length?{blocks:vb?[...blocks,vb]:blocks}:{})}});
       pitchSet(id,{msg:"Done. The preview is now their website (not live yet). Finish and publish it below."});
     }catch(e){ pitchSet(id,{msg:e.message}); }
   };

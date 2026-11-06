@@ -15,7 +15,9 @@ import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { THEME_IDS, THEME_DEFAULT, MODES } from "../lib/site-render.mjs";
 import { parseDemoPath, renderDemo, serveDemoPage, plain } from "../lib/demo-page.mjs";
 export { parseDemoPath, renderDemo, serveDemoPage };
-import { demoClientOf, demoExpired, demoSummary, decorateDemo, validToken, pitchClientOf, PREVIEW_BOT, DEMO_HOST, DEMO_ORIGIN } from "../lib/demo-site.mjs";
+import { demoClientOf, demoExpired, demoSummary, decorateDemo, validToken, pitchClientOf, PREVIEW_BOT, DEMO_HOST, DEMO_ORIGIN,
+  demoMediaOf, demoMediaPrefix, DEMO_MEDIA_MAX, DEMO_MEDIA_BUCKET } from "../lib/demo-site.mjs";
+import { randomBytes } from "node:crypto";
 import { isBlocked, waitingForContact } from "../lib/outreach.mjs";
 import { saveDemo, findProspect, savePitch, saveSiteBrand } from "./demo-site-background.mjs";
 import { brandFromSite, currentSiteOf, brandFromPicked } from "../lib/brand-scrape.mjs";
@@ -73,9 +75,9 @@ const notifyFirstOpen = async ({ name, pitch }) => {
 
 // Every demo and pitch preview, for the Website demos screen: who, the state of the build, and whether they opened it.
 // Picked field by field, never the whole record: a demo's words run to 15KB each and the list holds all of them.
-const DEMO_LIST_PROSPECT = "id, name, niche, area, status, blocked_at, pitch:data->>pitch, phones:data->phones, emails:data->emails, phone1:data->>phone, email1:data->>email, dba:data->>dba, city:data->>city, state:data->>state, address:data->>address, owner:data->>ownerName, noContact:data->>noContactYet, socials:data->socials, ig:data->>instagram, domain, d_status:data->demoSite->>status, d_token:data->demoSite->>token, d_theme:data->demoSite->>theme, d_mode:data->demoSite->>mode, d_builtAt:data->demoSite->>builtAt, d_startedAt:data->demoSite->>startedAt, d_error:data->demoSite->>error, d_opens:data->demoSite->>opens, d_first:data->demoSite->>firstOpenedAt, d_last:data->demoSite->>lastOpenedAt";
-const DEMO_LIST_CLIENT = "id, c_name:data->>name, c_niche:data->>niche, d_status:data->pitchSite->>status, d_token:data->pitchSite->>token, d_theme:data->pitchSite->>theme, d_mode:data->pitchSite->>mode, d_builtAt:data->pitchSite->>builtAt, d_startedAt:data->pitchSite->>startedAt, d_error:data->pitchSite->>error, d_opens:data->pitchSite->>opens, d_first:data->pitchSite->>firstOpenedAt, d_last:data->pitchSite->>lastOpenedAt";
-const demoOfRow = (r) => ({ status: r.d_status, token: r.d_token, theme: r.d_theme, mode: r.d_mode, builtAt: r.d_builtAt, startedAt: r.d_startedAt, error: r.d_error, opens: r.d_opens, firstOpenedAt: r.d_first, lastOpenedAt: r.d_last });
+const DEMO_LIST_PROSPECT = "id, name, niche, area, status, blocked_at, pitch:data->>pitch, phones:data->phones, emails:data->emails, phone1:data->>phone, email1:data->>email, dba:data->>dba, city:data->>city, state:data->>state, address:data->>address, owner:data->>ownerName, noContact:data->>noContactYet, socials:data->socials, ig:data->>instagram, domain, d_status:data->demoSite->>status, d_token:data->demoSite->>token, d_theme:data->demoSite->>theme, d_mode:data->demoSite->>mode, d_builtAt:data->demoSite->>builtAt, d_startedAt:data->demoSite->>startedAt, d_error:data->demoSite->>error, d_opens:data->demoSite->>opens, d_first:data->demoSite->>firstOpenedAt, d_last:data->demoSite->>lastOpenedAt, d_media:data->demoSite->media";
+const DEMO_LIST_CLIENT = "id, c_name:data->>name, c_niche:data->>niche, d_status:data->pitchSite->>status, d_token:data->pitchSite->>token, d_theme:data->pitchSite->>theme, d_mode:data->pitchSite->>mode, d_builtAt:data->pitchSite->>builtAt, d_startedAt:data->pitchSite->>startedAt, d_error:data->pitchSite->>error, d_opens:data->pitchSite->>opens, d_first:data->pitchSite->>firstOpenedAt, d_last:data->pitchSite->>lastOpenedAt, d_media:data->pitchSite->media";
+const demoOfRow = (r) => ({ media: r.d_media, status: r.d_status, token: r.d_token, theme: r.d_theme, mode: r.d_mode, builtAt: r.d_builtAt, startedAt: r.d_startedAt, error: r.d_error, opens: r.d_opens, firstOpenedAt: r.d_first, lastOpenedAt: r.d_last });
 export async function listDemos(supabase, origin) {
   const [{ data: prows, error: e1 }, { data: crows, error: e2 }] = await Promise.all([
     supabase.from("scout_prospects").select(DEMO_LIST_PROSPECT).not("data->demoSite->>status", "is", null).limit(500),
@@ -106,6 +108,13 @@ export default async (req) => {
   if (req.method === "POST") {
     if (!(await owner(req, supabase))) return json({ ok: false, error: "Not authenticated" }, 401);
     let body; try { body = JSON.parse((await req.text()) || "{}"); } catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+    // Their own photos and videos on a demo or a pitch preview (Bryson, 2026-11-05: "make sure for the social media ones
+    // that it takes pictures and videos etc from what's shown on the accounts"). He picks them on his phone; the file goes
+    // straight to storage on a one-time upload address, then is added to the demo. Nothing is fetched from any platform.
+    if (/^media(Sign|Add|Remove)$/.test(String(body.action || ""))) {
+      const out = await demoMedia(supabase, body);
+      return json(out.body, out.status);
+    }
     // "Use their website's colours" (KB brand-kit): read their current site again, words untouched. `url` is an address
     // Bryson typed when the OS doesn't know one.
     if (body.action === "brand") {
@@ -160,7 +169,7 @@ export default async (req) => {
         await savePitch(supabase, crow.id, { mode: body.mode }); pd = { ...(pd || {}), mode: body.mode };
       } else if (body.action === "content") {
         if (!pd || pd.status !== "done" || !pd.content) return json({ ok: false, error: "The preview isn't finished yet." }, 409);
-        return json({ ok: true, content: pd.content, stock: pd.stock || [], theme: pd.theme || THEME_DEFAULT, mode: MODES.includes(pd.mode) ? pd.mode : "", builtAt: pd.builtAt || null });
+        return json({ ok: true, content: pd.content, stock: pd.stock || [], theme: pd.theme || THEME_DEFAULT, mode: MODES.includes(pd.mode) ? pd.mode : "", builtAt: pd.builtAt || null, media: demoMediaOf(pd) });
       } else if (body.action !== "poll") return json({ ok: false, error: "unknown action" }, 400);
       return json({ ok: true, demo: demoSummary(pd, DEMO_ORIGIN) });
     }
@@ -183,7 +192,7 @@ export default async (req) => {
       const row = await findProspect(supabase, found.id, "data");
       const d = (row && row.data && row.data.demoSite) || {};
       if (d.status !== "done" || !d.content) return json({ ok: false, error: "Their demo isn't finished yet." }, 409);
-      return json({ ok: true, content: d.content, stock: d.stock || [], theme: d.theme || THEME_DEFAULT, mode: MODES.includes(d.mode) ? d.mode : "", builtAt: d.builtAt || null });
+      return json({ ok: true, content: d.content, stock: d.stock || [], theme: d.theme || THEME_DEFAULT, mode: MODES.includes(d.mode) ? d.mode : "", builtAt: d.builtAt || null, media: demoMediaOf(d) });
     } else if (body.action !== "poll") return json({ ok: false, error: "unknown action" }, 400);
     const row = await findProspect(supabase, found.id, "data");
     return json({ ok: true, demo: demoSummary(row && row.data && row.data.demoSite, DEMO_ORIGIN) });
@@ -200,6 +209,60 @@ export default async (req) => {
   if (!validToken(token)) return plain("Page not found", "This page doesn't exist.", 404);
   return demoRedirect(url, token, seg);
 };
+
+// mediaSign / mediaAdd / mediaRemove for one demo (`id`) or pitch preview (`clientId`). Exported for the tests.
+const EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm" };
+const MB = 1024 * 1024;
+export async function demoMedia(supabase, body, { now = new Date() } = {}) {
+  const bad = (error, status = 400) => ({ status, body: { ok: false, error } });
+  let rec;
+  if (body.clientId) {
+    const { data: crow } = await supabase.from("clients").select("id, data").eq("id", String(body.clientId)).maybeSingle();
+    if (!crow) return bad("That client could not be found.", 404);
+    rec = { kind: "client", id: crow.id, demo: (crow.data && crow.data.pitchSite) || null };
+  } else {
+    const pr = await findProspect(supabase, String(body.id || ""), "id, data");
+    if (!pr) return bad("That company could not be found.", 404);
+    rec = { kind: "prospect", id: pr.id, demo: (pr.data && pr.data.demoSite) || null };
+  }
+  if (!rec.demo || !rec.demo.status) return bad("Build their demo first, then add their photos.", 409);
+  const prefix = demoMediaPrefix(rec.kind, rec.id);
+  const media = demoMediaOf(rec.demo);
+  const kind = body.kind === "photo" || body.kind === "video" ? body.kind : "";
+  const save = (next) => rec.kind === "client" ? savePitch(supabase, rec.id, { media: next }) : saveDemo(supabase, rec.id, { media: next });
+  const full = (k) => media.filter((m) => m.kind === k).length >= DEMO_MEDIA_MAX[k];
+  const tooMany = (k) => `That's the most ${k}s a demo can hold (${DEMO_MEDIA_MAX[k]}). Remove one first.`;
+  if (body.action === "mediaSign") {
+    const type = String(body.type || "").toLowerCase();
+    if (!kind || !EXT[type] || !type.startsWith(kind === "photo" ? "image/" : "video/")) return bad("Only photos (JPG, PNG) and videos (MP4, MOV) can be added.");
+    if (full(kind)) return bad(tooMany(kind));
+    if (Number(body.size) > (kind === "video" ? 50 : 15) * MB) return bad(kind === "video" ? "That video is too big. Use one under 50 MB (a short clip)." : "That photo is too big.");
+    const path = `${prefix}${now.getTime()}-${randomBytes(6).toString("hex")}.${EXT[type]}`;
+    await supabase.storage.createBucket(DEMO_MEDIA_BUCKET, { public: true }).catch(() => {});
+    const { data: signed, error } = await supabase.storage.from(DEMO_MEDIA_BUCKET).createSignedUploadUrl(path);
+    if (error || !signed) return bad("Couldn't start the upload. Try again.", 500);
+    return { status: 200, body: { ok: true, signedUrl: signed.signedUrl, path } };
+  }
+  const path = String(body.path || "");
+  if (!path.startsWith(prefix) || !/^[A-Za-z0-9/_.-]+$/.test(path) || path.includes("..")) return bad("That file isn't part of this demo.");
+  if (body.action === "mediaAdd") {
+    if (!kind) return bad("Only photos and videos can be added.");
+    if (media.some((m) => m.path === path)) return { status: 200, body: { ok: true, media } };
+    if (full(kind)) return bad(tooMany(kind));
+    const { data: pub } = supabase.storage.from(DEMO_MEDIA_BUCKET).getPublicUrl(path);
+    const url = pub && pub.publicUrl;
+    if (!/^https:\/\//.test(String(url || ""))) return bad("Couldn't save that file.", 500);
+    const next = [...media, { kind, url, path, ...(kind === "video" && body.tall ? { tall: true } : {}), at: now.toISOString() }];
+    if (!(await save(next))) return bad("It uploaded but couldn't be saved. Try again.", 500);
+    return { status: 200, body: { ok: true, media: next } };
+  }
+  // mediaRemove: off the demo and out of storage.
+  const { error: rmErr } = await supabase.storage.from(DEMO_MEDIA_BUCKET).remove([path]);
+  if (rmErr) console.error("demo media: storage remove failed (still taken off the demo):", rmErr.message);
+  const next = media.filter((m) => m.path !== path);
+  if (!(await save(next))) return bad("Couldn't remove it. Try again.", 500);
+  return { status: 200, body: { ok: true, media: next } };
+}
 
 // The same page on the demo host, keeping the design asked for. Temporary (302), so a browser never remembers it.
 export function demoRedirect(url, token, seg) {

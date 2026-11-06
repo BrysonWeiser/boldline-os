@@ -2,7 +2,7 @@
 name: demo-sites
 topic: Websites
 task: build a demo website for a company before a sales meeting, show it, turn it into a client, or sell / hand over a website bought outright ($2,500, no monthly)
-keywords: [demo host, boldline-sites demo, demo link address, exit demo, back to the os, DemoViewer, openDemoView, demo-page.mjs, serveDemoPage, demoRedirect, BrandFixSheet, brandFromPicked, screenshot colours, cloudflare challenge, springbok colours, no website, no social media, just starting out, new business, social media link, facebook page, tiktok, normSocial, social.mjs, noContactYet, waitingForContact, mergeContact, action=contact, demoOnly, newBusiness, website demos screen, demos screen, opened signal, they opened it, recordOpen, __seen, demoOpenJS, me=1, listDemos, demo website, demo site, spec site, website before the meeting, show them their site, private link, they want it, buy it outright, bought outright, own it, buyout, $2500, handover, site files, download site files, zip, export site, mgmt own, WA-8, Purchase Agreement, demo-site.mjs, demo-site-background, DemoSiteBox, clientFromDemo, SiteFilesHandover, site-export.mjs, __mailto, researchFacts]
+keywords: [their photos, their videos, add photos or videos, demo photos, instagram photos, DemoMediaRow, mediaSign, mediaAdd, mediaRemove, demoSite.media, demo host, boldline-sites demo, demo link address, exit demo, back to the os, DemoViewer, openDemoView, demo-page.mjs, serveDemoPage, demoRedirect, BrandFixSheet, brandFromPicked, screenshot colours, cloudflare challenge, springbok colours, no website, no social media, just starting out, new business, social media link, facebook page, tiktok, normSocial, social.mjs, noContactYet, waitingForContact, mergeContact, action=contact, demoOnly, newBusiness, website demos screen, demos screen, opened signal, they opened it, recordOpen, __seen, demoOpenJS, me=1, listDemos, demo website, demo site, spec site, website before the meeting, show them their site, private link, they want it, buy it outright, bought outright, own it, buyout, $2500, handover, site files, download site files, zip, export site, mgmt own, WA-8, Purchase Agreement, demo-site.mjs, demo-site-background, DemoSiteBox, clientFromDemo, SiteFilesHandover, site-export.mjs, __mailto, researchFacts]
 status: LIVE 2026-10-20
 summary: Built 2026-10-20 (Bryson, "i want to build it for the full website for the company im cold calling when i hop on a meeting with them that way if they like it we just need to link their payment method"; pricing "$2500 ... if they want to include the $100/month for us to host it and do everything then itll be $1500 then the monthly"). On any Lead Scout or Outreach company labelled Website or Both, "Build their demo website" writes their full 5-page site with the real builder from public research facts (stock photos), served at os.boldlinemedia.com/demo/<random token>/ with a "Preview for <name>. Not live yet." strip, a guard that stops every send, noindex + no-store, no visit count, a 3-design switcher, and a 30-day expiry (rebuild keeps the same link). "They want it" picks Monthly plan ($1,500 + $100/mo) or Buy it outright ($2,500) and creates an unsigned website-only client with the demo as their website; the agreement and payment then go out from the Website tab as usual. Outright is a fifth agreement version (WA-8, "Website Design and Purchase Agreement": no monthly, handover of files, nothing after handover is ours); once fully paid the Website tab downloads the whole site as a zip made for THEIR domain (form opens the visitor's email app, booking off, photos copied in, read-me inside).
 verified: 2026-10-20
@@ -193,3 +193,21 @@ wellnesses website and it didn't work".
   landing page colour and the Website tab colour** (`pitchClientOf`). Otherwise Springbok's ad landing page colour
   would have hidden them. The Brand kit still wins over everything.
 - Found on the way: Supabase sign-ups were open. See KB `os-signup-lockdown`.
+- **Their own photos and videos from social media (asked same evening):** not pulled automatically (login walls; going
+  round them breaks the platforms' rules and risks BoldLine's Meta app). Official Instagram route parked behind Meta
+  approval (KB `meta-parked-work` item 5). Bryson said yes to the upload instead, built and LIVE 2026-11-05:
+  - **Website demos card > "Their photos and videos" > + Add photos or videos** (every finished demo and client pitch
+    preview card; NOT on Outreach's DemoSiteBox). Several at once from the phone. `DemoMediaRow` in index.html.
+  - Photos are shrunk on the phone to 2000px JPEG (`demoPrepPhoto`; a format the browser can't draw, e.g. HEIC on
+    Chrome, is refused with "take a screenshot instead"); videos up to 50 MB, MP4/MOV/WebM, tall/wide detected.
+  - Server: demo-site POST `mediaSign` (one-time upload address in bucket `client-media` under
+    `demo/p-<prospectId>/` or `demo/c-<clientId>/`, `demoMediaPrefix`), browser PUTs the file, `mediaAdd` records
+    `{kind,url,path,tall,at}` on `demoSite.media` / `pitchSite.media`; `mediaRemove` deletes from storage too.
+    Max 12 photos + 3 videos (`DEMO_MEDIA_MAX`). Paths outside the demo's own folder are refused.
+  - On the page: photos become `mediaLibrary` photos (site-render puts them in front of stock everywhere); videos become
+    one "<name> at work" section (`demoVideoBlocks`), using the new video-block `clips` (2-3 side by side) and `tall`
+    (9:16) options in site-render `cleanBlock`/`renderBlock`. A block without clips renders exactly as before.
+  - "They want it" and a client adopting a pitch preview carry them over (`demoPhotosToLibrary`, `demoVideoBlockOS`);
+    the client's portal can delete a carried-over photo because media.mjs allows a `demo/` path that is in THEIR library.
+  - The rule at the top of lib/demo-site.mjs changed from "stock photos only" to "their own photos on this private demo
+    only, added by Bryson". Pinned by `tests/verify-demo-media.mjs`.

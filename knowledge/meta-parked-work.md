@@ -60,6 +60,21 @@ out of the resubmission entirely — `ads_management` is a superset and was alre
 earlier `ads_read` rejection was about a screencast showing placeholder numbers, which real traffic
 fixes on its own.
 
+### 5. Demo websites that use the business's own Instagram photos (asked 2026-11-05)
+Bryson: "make sure for the social media ones that it takes pictures and videos etc from what's shown on the accounts".
+**Not built automatically, on purpose.** Instagram, Facebook and TikTok all refuse to show an account to an outside
+server (a login wall), and getting round that breaks their rules: it is the same kind of "get past the robot check"
+the brand reader was stopped from doing the same evening, and it would put BoldLine's own Meta app, which every
+Meta ad client depends on, at risk while its approval is still pending.
+The legitimate route is Instagram's **Business Discovery** (Graph API: `business_discovery.username(<handle>){media{
+media_url,media_type,caption,permalink}}`), read through BoldLine's own Instagram professional account. It only sees
+business and creator accounts (most small businesses), Instagram only (no TikTok, and Facebook Pages need a separate
+review), and needs `instagram_basic` + Page permissions at Advanced Access, i.e. another App Review. Parked here.
+The no-approval alternative offered to Bryson: an "Add their photos and videos" button on the demo card (he saves or
+screenshots from their page and picks from his camera roll). Status: he said yes; BUILT and live 2026-11-05 (KB `demo-sites`). The automatic Instagram pull stays parked here until Meta approves.
+Either way the rule at the top of lib/demo-site.mjs ("stock photos only") changes to "their own photos are fine on the
+PRIVATE demo, at Bryson's say-so (2026-11-05); never anywhere public until they have bought".
+
 ## What is NOT blocked
 
 **Google clients are sellable today**, and everything built this month (live local conditions,

@@ -1163,7 +1163,11 @@ export function cleanBlock(b) {
   if (b.type === "text") return { ...base, body: String(b.body == null ? "" : b.body).replace(/[—–]/g, ", ").slice(0, 2000).trim() };
   if (b.type === "gallery") return { ...base, photos: list(b.photos, 12).map(httpsUrl).filter(Boolean) };
   if (b.type === "pricing") return { ...base, items: list(b.items, 6).map((i) => ({ name: clean(i && i.name, 60), price: clean(i && i.price, 30), text: clean(i && i.text, 220) })).filter((i) => i.name), note: clean(b.note, 160) };
-  if (b.type === "video") return { ...base, url: httpsUrl(b.url), text: clean(b.text, 300) };
+  // `clips`: several videos in one section, each 16:9 or `tall` (9:16, a phone video from Instagram or TikTok). Added
+  // 2026-11-05 for a demo carrying the business's own videos; a block without clips is the single video it always was.
+  if (b.type === "video") return { ...base, url: httpsUrl(b.url), text: clean(b.text, 300),
+    ...(b.tall ? { tall: true } : {}),
+    ...(Array.isArray(b.clips) && b.clips.length ? { clips: list(b.clips, 3).map((c) => ({ url: httpsUrl(c && c.url), tall: !!(c && c.tall) })).filter((c) => c.url) } : {}) };
   if (b.type === "areas") return { ...base, text: clean(b.text, 300), places: list(b.places, 30).map((p) => clean(p, 40)).filter(Boolean) };
   if (b.type === "team") return { ...base, people: list(b.people, 8).map((p) => ({ name: clean(p && p.name, 60), role: clean(p && p.role, 60), photo: httpsUrl(p && p.photo) })).filter((p) => p.name) };
   return null;
@@ -1221,6 +1225,18 @@ function renderBlock(theme, b, C, base, photos) {
     if (!b.items.length) return "";
     return `<section class="sec"><div class="wrap">${head}<div class="grid ${b.items.length === 4 ? "g4" : b.items.length === 2 || b.items.length === 1 ? "g2" : "g3"}">${b.items.map((i, n) => `<div class="card rv d${n % 3}"><span class="tick"></span><h3>${esc(i.name)}</h3>${i.price ? `<p class="disp" style="font-size:30px;color:var(--ink);margin:6px 0 10px">${esc(i.price)}</p>` : ""}${i.text ? `<p>${esc(i.text)}</p>` : ""}</div>`).join("")}</div>
 ${b.note ? `<p class="rv" style="color:var(--mute);margin-top:18px">${esc(b.note)}</p>` : ""}<div class="rv" style="margin-top:26px">${ctaBtn(C, base)}</div></div></section>`;
+  }
+  if (b.type === "video" && ((b.clips && b.clips.length) || b.tall)) {
+    const clips = (b.clips && b.clips.length ? b.clips : [{ url: b.url, tall: b.tall }]).map((c) => ({ ...c, v: videoEmbed(c.url) })).filter((c) => c.v);
+    if (!clips.length) return "";
+    const one = (c) => {
+      const media = c.v.kind === "frame"
+        ? `<iframe src="${esc(c.v.src)}" title="${esc(b.heading || "Video")}" loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>`
+        : `<video src="${esc(c.v.src)}" controls playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000"></video>`;
+      return `<div class="ph rv" style="position:relative;aspect-ratio:${c.tall ? "9/16" : "16/9"}${clips.length === 1 && c.tall ? ";max-width:420px;margin:0 auto" : ""}">${media}</div>`;
+    };
+    const body = clips.length === 1 ? one(clips[0]) : `<div class="grid ${clips.length === 2 ? "g2" : "g3"}" style="align-items:start">${clips.map(one).join("")}</div>`;
+    return `<section class="sec"><div class="wrap" style="max-width:${clips.length === 1 ? "1000px" : "1200px"}">${head}${b.text ? `<p class="rv" style="color:var(--mute);margin:-20px 0 24px">${esc(b.text)}</p>` : ""}${body}</div></section>`;
   }
   if (b.type === "video") {
     const v = videoEmbed(b.url);
