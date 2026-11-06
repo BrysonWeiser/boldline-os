@@ -137,6 +137,13 @@ ok("🔴 and only when there is real distance to travel", /if\(dx<innerWidth\*\.
 }
 // (Aurora: since 2026-11-04 the three offered designs each have their own home layout: Showcase photo tiles, Cinematic
 // a split screen, Editorial a magazine. The per-client scroll moment lives on for sites still on Aurora.)
+// Bryson, 2026-11-05, on demos: "it's supposed to show an image with the name and if you keep scrolling the image will
+// open ... on the demos it doesn't have that it's just one long page". Showcase swaps the services scenes for photo
+// tiles, so it must always get the portal, whatever scene the client drew; the other two designs never show it.
+ok("🔴 every Showcase home has the portal (name, then the photo opens), exactly once, whatever scene was drawn",
+  MOTION.scene.every((sc) => { const h = sceneHome(sc, "showcase"); return /<section class="portal" data-scene="pin"><div class="stage"><div class="pword disp"/.test(h) && (h.match(/class="portal"|class="sec rail"|class="stk"/g) || []).length === 1; }));
+ok("and Cinematic and Editorial never show it", MOTION.scene.every((sc) => ["cinematic", "editorial"].every((th) => !/class="portal"/.test(sceneHome(sc, th)))));
+ok("on a phone the story inside it clears the floating Book / Call bar", /@media \(max-width:760px\)\{\.pcopy\{padding-bottom:104px\}\}/.test(home));
 ok("🔴 the right amount: the home page has exactly one big scroll moment", MOTION.scene.every((sc) => { const h = sceneHome(sc, "aurora"); return (h.match(/class="portal"|class="sec rail"|class="stk"/g) || []).length === 1; }));
 ok("no AI tells: no all-caps labels, no [01] numbering, no monospace font", all.every((x) => !/text-transform:uppercase/.test(x.html) && !/\[\d\d\]/.test(shown(x.html)) && !/JetBrains|monospace/.test(x.html)));
 ok("button labels roll on hover, and the copy is silent to screen readers", /content:attr\(data-t\) \/ ""/.test(home) && /<span class="bt"><span data-t="Book a visit">Book a visit<\/span><\/span>/.test(home));

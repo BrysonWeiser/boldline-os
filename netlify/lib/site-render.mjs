@@ -472,6 +472,7 @@ html.js .fill .w.lit{opacity:1}
 .pword{display:none}
 .pcopy{position:relative;z-index:2;color:#fff;padding:clamp(40px,8vw,110px) 0}
 .pcopy p{font-size:clamp(28px,4.4vw,64px);line-height:1.12;max-width:1000px}
+@media (max-width:760px){.pcopy{padding-bottom:104px}}
 /* steps */
 .steps{position:relative}
 .step{padding:28px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:120px 1fr;gap:20px}
@@ -1269,7 +1270,12 @@ function homeBody(theme, cl, C, base, photos0, M, ba = []) {
 <div class="steps" data-scene="pass">${C.process.map((s, i) => `<div class="step rv"><span class="num">Step ${i + 1}</span><div><h3>${esc(s.title)}</h3><p>${esc(s.text)}</p></div></div>`).join("")}</div></div></section>` : "";
   const faq = C.faqs.length ? `<section class="sec"><div class="wrap"><div class="sec-h"><h2 class="disp rv">Questions, answered</h2></div>
 ${C.faqs.slice(0, 5).map((f) => `<details class="faq rv"><summary>${esc(f.q)}<i aria-hidden="true">+</i></summary><p>${esc(f.a)}</p></details>`).join("")}</div></section>` : "";
-  const storySec = M.scene === "portal" ? portal(C, storyPh, story)
+  // 🔴 SHOWCASE ALWAYS GETS THE PORTAL (Bryson, 2026-11-05: on the demos "once you get to the middle/bottom it's
+  // supposed to show an image with the name and if you keep scrolling the image will open ... that's what I want ...
+  // on the demos it doesn't have that it's just one long page"). Showcase swaps the services scenes (rail, stack) for
+  // photo tiles, so a Showcase site that drew either of those had no scroll moment at all. The other two designs never
+  // use this section (they have their own homes), so no client sees the portal twice.
+  const storySec = (M.scene === "portal" || theme === "showcase") ? portal(C, storyPh, story)
     : `<section class="sec"><div class="wrap split">${storyText(M.fill, story)}${photoBlock(storyPh, "4/5")}</div></section>`;
   const built = {
     hero: () => heroHome(theme, C, base, photos), marquee: () => marquee(C), services: () => theme === "showcase" ? bento(C, base, photos) : servicesSection(M.scene, C, base, theme === "cinematic" && photos.length > 1 ? [...photos.slice(1), photos[0]] : photos),
