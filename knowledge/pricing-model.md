@@ -4,9 +4,15 @@ topic: Pricing
 task: quote a price, change package pricing, explain what a client pays, or work out why a bill is what it is
 keywords: [pricing, monthly minimum, greater of, whichever is higher, per-lead fee, ad spend percentage, package price, retainer, management fee, tier, ad budget, MIN_AD_BUDGET, COMBO_MIN_BUDGET, calcMonthlyBill, packageForBudget, pricingModel, adSpendPct, minBudget, combined unlock, Stencil, setup fee, e-commerce pricing, ROAS bonus]
 status: verified
-summary: Rewritten 2026-08-18 after Stencil & Thread turned the old model down. There is NO management fee. A package's `price` is a monthly MINIMUM and the performance fee counts toward it — the client pays whichever is HIGHER, never both. Lead gen bills per qualified lead; e-commerce bills 15% of ad spend (12% at the top tier). Ad budget decides the tier ($500-2.5k min $400 / $2.5k-10k min $700 / $10k+ min $1,200). Platform is a choice not a price: Google and Meta are identical at the same tier. Combined unlocks at $5,000/mo of ad budget, which is why there is no combined Launch tier. Hard floor of $500/mo ad budget to be a client at all. 1,140 assertions in tests/verify-packages.mjs.
+summary: SUPERSEDED for new clients by terms v9 (2026-11-07, KB complete-plan - no minimum for anyone). Rewritten 2026-08-18 after Stencil & Thread turned the old model down. There is NO management fee. A package's `price` is a monthly MINIMUM and the performance fee counts toward it — the client pays whichever is HIGHER, never both. Lead gen bills per qualified lead; e-commerce bills 15% of ad spend (12% at the top tier). Ad budget decides the tier ($500-2.5k min $400 / $2.5k-10k min $700 / $10k+ min $1,200). Platform is a choice not a price: Google and Meta are identical at the same tier. Combined unlocks at $5,000/mo of ad budget, which is why there is no combined Launch tier. Hard floor of $500/mo ad budget to be a client at all. 1,140 assertions in tests/verify-packages.mjs.
 verified: 2026-08-18
 ---
+
+## 🔴 SUPERSEDED FOR NEW CLIENTS (2026-11-07, KB complete-plan)
+From terms v9 there is NO monthly minimum for anyone: ads are paid per qualified lead only, stores 15%/12% of ad spend
+with no minimum, and the Complete plan is $500/mo plus the lead fee. Everything below describes agreements signed BEFORE
+v9, which keep it. `price` in the catalog now means only "the minimum of a pre-v9 agreement"; `minimumOf(cl, pkg)` is
+the one reader and returns 0 on v9.
 
 ## Why it changed
 

@@ -13,7 +13,7 @@
 // the portal, so a held article can never leak through one of them.
 
 import crypto from "node:crypto";
-import { termsOf, isSigned, fullyPaid, dealOf } from "./website-deal.mjs";
+import { termsOf, isSigned, fullyPaid, dealOf, completeCovered } from "./website-deal.mjs";
 import { brandName } from "./site-render.mjs";
 import { humanizeDeep } from "./humanize.mjs";
 
@@ -28,6 +28,8 @@ export function blogActive(cl) {
   if (!cl || cl.demo) return false;
   if (cl.internal) return !!(cl.website && cl.website.blogOn);
   const t = termsOf(cl), d = dealOf(cl);
+  // Complete includes the blog (KB complete-plan): on once their one agreement is signed and the site is live.
+  if (completeCovered(cl)) return !!(cl.contractSigned && d.launchedAt);
   if (!t.blog || !isSigned(cl) || !fullyPaid(cl) || !d.launchedAt) return false;
   return !(d.careSub && d.careSub.status === "canceled");
 }

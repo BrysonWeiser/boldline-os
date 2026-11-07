@@ -110,7 +110,9 @@ t("a signed contract with no date at all gets the current terms", () => {
 
 // ── The clause itself ─────────────────────────────────────────────────────────
 t("it says what happens and what it costs", () => {
-  const html = server({ id: "c2", name: "New", packageId: "g-growth" }, PKG, "");
+  // Pinned to v8: this is the clause as every agreement WITH a monthly minimum reads it. The v9 (no minimum) wording
+  // is checked straight after, and in verify-new-pricing.
+  const html = server({ id: "c2", name: "New", packageId: "g-growth", contractTermsVersion: 8 }, PKG, "");
   const sec = html.slice(html.indexOf("Client Delay and Abandonment"), html.indexOf("No Guarantee of Results"));
   assert.match(sec, /fourteen \(14\) days/, "no deadline for the intake");
   assert.match(sec, /written reminder/, "it can be ended without warning them first");
@@ -118,6 +120,15 @@ t("it says what happens and what it costs", () => {
   assert.match(sec, /end this Agreement immediately/, "it never actually says the agreement can be ended");
   assert.match(sec, /setup fee is earned in full and is not refundable/, "no money is owed, which was half the request");
   assert.match(sec, /Monthly Minimum remains payable/, "the months already run are not payable");
+});
+
+t("v9 (no minimum): the same clause, owing only the setup and fees already accrued", () => {
+  const html = server({ id: "c3", name: "New", packageId: "g-growth", billingPerLead: 50 }, PKG, "");
+  const sec = html.slice(html.indexOf("Client Delay and Abandonment"), html.indexOf("No Guarantee of Results"));
+  assert.match(sec, /fourteen \(14\) days/); assert.match(sec, /end this Agreement immediately/);
+  assert.match(sec, /Setup Fee is earned in full and is not refundable/);
+  assert.match(sec, /fees already accrued remain payable/);
+  assert.doesNotMatch(sec, /Monthly Minimum/, "a v9 agreement has no minimum to keep charging");
 });
 
 t("🔴 the money is framed as amounts earned, not as a punishment", () => {
@@ -187,8 +198,9 @@ t("no dashes crept into the new clause", () => {
 // month to every remaining month.
 const REMAIN = /Monthly Minimum for each remaining month/;
 
-t("a new client owes the remaining term, not one month", () => {
-  for (const html of both({ id: "c9", name: "New", packageId: "g-growth" })) {
+t("a v3 to v8 client owes the remaining term, not one month", () => {
+  // Pinned to v8, the last terms with a monthly minimum. From v9 there is no minimum to accelerate (see below).
+  for (const html of both({ id: "c9", name: "New", packageId: "g-growth", contractTermsVersion: 8 })) {
     assert.match(html, REMAIN, "cancelling early still costs only one month");
     assert.match(html, /Setup Fee is earned on signing and is not refundable/, "the setup fee is not stated as non-refundable");
     assert.match(html, /written notice to Agency at the email address on page one/,
@@ -201,7 +213,7 @@ t("🔴 a part month counts as a whole month, at THEIR rate", () => {
   // A flat number bearing no relation to their contract is the shape a court reads as a
   // penalty rather than a genuine estimate of loss, and on every package above $400 it would
   // make cancelling in the last month CHEAPER than seeing it out.
-  const html = server({ id: "c9", name: "New", packageId: "g-growth" }, PKG, "");
+  const html = server({ id: "c9", name: "New", packageId: "g-growth", contractTermsVersion: 8 }, PKG, "");
   assert.match(html, /any part of a month counts as a whole month/, "a final part month is prorated or unpriced");
   assert.ok(!/\$400/.test(html), "a flat cancellation number was put back in, unrelated to what the client actually pays");
 });
@@ -212,6 +224,19 @@ t("🔴 nobody on an older version gets the harsher clause", () => {
       assert.ok(!REMAIN.test(html), `an agreement signed under older terms now charges the whole remaining term (${cl.name})`);
       assert.match(html, /one \(1\) month&rsquo;s Monthly Minimum/, "the old clause was removed instead of kept for the people who signed it");
     }
+  }
+});
+
+t("🔴 v9 (KB complete-plan): ads end early for no fee; Complete pays the rest of the free build", () => {
+  for (const html of both({ id: "c10", name: "New", packageId: "g-growth", billingPerLead: 50 })) {
+    assert.ok(!REMAIN.test(html), "a v9 agreement charges remaining minimums it does not have");
+    assert.match(html, /THERE IS NO EARLY-TERMINATION FEE UNDER THIS AGREEMENT/);
+    assert.match(html, /continues <strong>month to month<\/strong>/);
+  }
+  for (const html of both({ id: "c11", name: "New", packageId: "g-growth", billingPerLead: 50, plan: "complete" })) {
+    assert.match(html, /\$125 for each month of the initial term remaining/);
+    assert.match(html, /any part of a month counting as a whole month/);
+    assert.ok(!REMAIN.test(html));
   }
 });
 

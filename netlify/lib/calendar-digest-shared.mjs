@@ -14,6 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, escapeHTML } from "./report-shared.mjs";
 import { sendPushToAll } from "./push-shared.mjs";
 import { isOwned } from "./owned.mjs";
+import { rollingTerm } from "./contract-shared.cjs";
 
 const TZ = "America/Phoenix";
 const CAL = "https://api.calendly.com";
@@ -99,7 +100,8 @@ const buildToday = async (supabase, todayYMD) => {
         add(ymdInTZ(c.billingNextCharge), { kind: "invoice", title: `Invoice — ${c.name}`, sub: "Auto-charges the card on file" });
         add(shiftYMD(c.billingNextCharge, -7), { kind: "review", title: `Review leads — ${c.name}`, sub: "Approve or exclude before the invoice" });
       }
-      if (c.contractEnd) {
+      // v9 agreements run month to month after the first term, so there is no end or renewal window to diary.
+      if (c.contractEnd && !rollingTerm(c)) {
         add(ymdInTZ(c.contractEnd), { kind: "contract", title: `Contract ends — ${c.name}`, sub: "Renew or offboard" });
         add(shiftYMD(c.contractEnd, -30), { kind: "renewal", title: `Renewal window — ${c.name}`, sub: "~30 days to contract end" });
       }

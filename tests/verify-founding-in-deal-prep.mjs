@@ -44,6 +44,9 @@ ok("the standing pricing sentence warns the model it is overridden",
   ok("🔴 the terms say the setup fee is waived, not discounted", /WAIVED/.test(block) && /Not reduced, waived/.test(block));
   ok("🔴 and that there is NO monthly minimum", /NO monthly minimum/.test(block),
     "the monthly minimum is the exact thing a burned prospect is afraid of");
+  // Since 2026-11-07 (KB complete-plan) "no minimum" is everyone's deal; what founding ADDS is the free first month.
+  ok("🔴 the founding extra is the first month of LEAD FEES free", /FIRST MONTH OF LEAD FEES IS FREE/.test(block) && /first 30 days after the ads go live/.test(block));
+  ok("🔴 and it is never sold as the service being free", /NEVER call the service itself "free"/.test(block));
   ok("it says they are billed in arrears, after delivery", /in arrears/.test(block));
   ok("it spells out the zero-delivery case in plain words",
     /delivers nothing in a month, they owe nothing/.test(block),
@@ -140,12 +143,12 @@ ok("and Deal Prep is actually handed the clients to count",
   /<DealPrepScreen[\s\S]{0,240}?clients=\{clients\}/.test(OSCODE),
   "computing from a list nobody passes in is a very convincing way to always say yes");
 ok("the Deal Prep package card is aware of the offer at all",
-  /foundingOpen&&pkg\.leadFee&&leadFee/.test(OSCODE));
+  /\{foundingOpen\?<><span style=\{\{textDecoration:"line-through"/.test(OSCODE));
 {
   ok("🔴 it leads with the per-lead fee, not a monthly minimum he would not charge",
-    /\$\{leadFee\}<span[^>]*>\/lead/.test(OSCODE));
-  ok("it says no monthly minimum in plain words on the card itself",
-    /color:C\.green,fontWeight:700\}\}>no monthly minimum</.test(OSCODE),
+    /\$\{leadFee\|\|"\?"\}<span[^>]*>\/lead/.test(OSCODE));
+  ok("it says no monthly fee in plain words on the card itself",
+    /color:C\.green,fontWeight:700\}\}>no monthly fee</.test(OSCODE),
     "the loose check also matched the banner below, so the card could say the opposite and pass");
   ok("and shows the setup fee struck through rather than hiding it",
     /textDecoration:"line-through"/.test(OSCODE) && /waived/.test(OSCODE),
@@ -156,8 +159,9 @@ ok("the Deal Prep package card is aware of the offer at all",
 }
 
 // The standard prices must still be intact underneath, because the offer ends.
+// Since 2026-11-07 the standard deal has no minimum either (KB complete-plan), so what survives the offer is the setup.
 ok("the standard package prices are still there for when the offer ends",
-  /\$400\/mo MINIMUM/.test(packagesPromptBlock(75)) && /\$750 one-time setup/.test(packagesPromptBlock(75)));
+  /NO monthly fee/.test(packagesPromptBlock(75)) && /\$750 one-time setup/.test(packagesPromptBlock(75)) && !/MINIMUM/.test(packagesPromptBlock(75)));
 
 // ── 🔴 IT TAKES ITSELF DOWN. NOBODY HAS TO REMEMBER. ─────────────────────────
 // Bryson, 2026-09-07: "once I land a third client... that triggers the copy and website banner

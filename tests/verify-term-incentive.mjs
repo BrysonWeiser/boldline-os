@@ -14,6 +14,13 @@
 //
 // The fix is one sentence on a sales call: the same percentage applies to both numbers.
 
+// 🔴 RETIRED FOR NEW RENEWALS, Bryson, Sat 2026-11-07 (KB complete-plan): "for renewals after the first 3 months
+// will only be month to month because there is no reason for a client to sign for more than a month at a time
+// anymore". With no monthly fee for ads there is nothing left to discount, so the renewal menu (1/3/6/12 months,
+// month to month +10%, a year -10%) is gone from the OS. What stays is the arithmetic below, because agreements
+// signed before v9 still describe it in their renewal clause, and the guards that renewing now moves a client onto
+// the new terms instead.
+
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -59,21 +66,6 @@ t("🔴 a longer term is cheaper over the WHOLE term, not just per month", () =>
   }
 });
 
-// ── 🔴 THE FIX: the discount reaches the per-lead rate too ─────────────────────
-t("🔴 renewing applies the same percentage to the per-lead rate", () => {
-  assert.match(S, /const perLead=basePerLead>0\?termMonthly\(basePerLead,months\):null;/,
-    "the term discount still only touches the monthly minimum, so a client whose ads work well gets nothing for committing");
-  assert.match(S, /billingPerLead:perLead/,
-    "the discounted per-lead rate is calculated and then not saved");
-});
-
-t("🔴 it scales from a stored base, so renewals never compound", () => {
-  // Two twelve-month renewals scaling off the CURRENT rate would reach 19% off, not 10%.
-  assert.match(S, /const basePerLead = client\.billingPerLeadBase!=null \? Number\(client\.billingPerLeadBase\) : perLeadNow;/,
-    "the per-lead discount scales from the current rate, so every renewal discounts the discount");
-  assert.match(S, /billingPerLeadBase:basePerLead/, "the base is never stamped, so it cannot survive the first renewal");
-});
-
 t("the arithmetic of that, done twice", () => {
   const base = 100;
   const first = termMonthly(base, 12);            // 90
@@ -83,41 +75,7 @@ t("the arithmetic of that, done twice", () => {
   assert.notEqual(secondFromBase, secondFromCurrent, "precondition: compounding would be visible");
 });
 
-t("a client with no per-lead rate is left alone entirely", () => {
-  // 🔴 An e-commerce client bills a percentage of spend and has no per-lead rate. Writing a
-  // zero or a null onto them would put a rate in a contract that should not name one.
-  assert.match(S, /\.\.\.\(perLead!=null\?\{billingPerLead:perLead,billingPerLeadBase:basePerLead\}:\{\}\)/,
-    "a client with no per-lead rate gets one written onto them by renewing");
-});
 
-// ── He has to be able to SEE it, or he cannot sell it ─────────────────────────
-t("🔴 the renewal screen shows both numbers", () => {
-  // Showing only the minimum is what made the discount invisible in the first place. Under
-  // greater-of the client usually pays the per-lead side, so that is the number that sells.
-  // 🔴 The GATE is pinned, not just the text. A first version matched the words "Per
-  // qualified lead" and passed happily when the whole block was changed to `{false&&...}`:
-  // the string was still in the file and rendered to nobody. Checking that a line EXISTS is
-  // not checking that it is shown, which is a mistake this repo has made in three different
-  // costumes now.
-  // 🔴 The word is now the client's own (lead or sale, KB `billing-for-sales`), so the GATE is
-  // pinned and the word is required to follow the client rather than be a literal.
-  assert.match(S, /\{basePerLead>0&&<div style=\{\{marginTop:3\}\}>Per qualified \{client\.billingResultKind==="sale"\?"sale":"lead"\}: <strong/,
-    "the per-lead line is gone, is gated on something other than the client actually having a rate, "
-    + "or stopped following whether this client is billed per lead or per sale");
-  assert.match(S, /termMonthly\(basePerLead,m\)/, "the per-lead figure shown is not the discounted one");
-});
-
-t("the saving line does not overclaim", () => {
-  // It counts only the minimum, so it must say so. A number presented as the whole saving
-  // when it is half of it is the kind of thing that gets repeated to a client.
-  assert.match(S, /on the minimum alone over the term/,
-    "the saving line implies it covers everything when it only counts the monthly minimum");
-});
-
-t("the month-to-month warning names both numbers too", () => {
-  assert.match(S, /flexibility premium on both the minimum and the per-lead rate/,
-    "the premium is described as applying only to the minimum, which is no longer true");
-});
 
 // ── The dials stay editable, and stay sane ────────────────────────────────────
 t("the rates are still one editable table", () => {
@@ -179,11 +137,6 @@ t("the percentages land on halves, not on awkward decimals", () => {
   }
 });
 
-t("🔴 renewing writes the discounted percentage onto the client", () => {
-  assert.match(S, /const spendPct=basePct>0\?termPct\(basePct,months\):null;/,
-    "the term discount never reaches the e-commerce fee, so a store gets nothing for committing");
-  assert.match(S, /billingSpendPct:spendPct/, "the discounted percentage is worked out and then not saved");
-});
 
 t("🔴 it scales from the PACKAGE, so it cannot compound", () => {
   // Unlike the per-lead rate, this needs no stored base: the standard lives on the package,
@@ -193,10 +146,6 @@ t("🔴 it scales from the PACKAGE, so it cannot compound", () => {
     "the e-commerce base is read from the client instead of the package, so every renewal discounts the discount");
 });
 
-t("a lead-gen client never gets a percentage written onto them", () => {
-  assert.match(S, /\.\.\.\(spendPct!=null\?\{billingSpendPct:spendPct\}:\{\}\)/,
-    "a per-lead client gets an ad-spend percentage written onto them by renewing");
-});
 
 t("🔴 the contract prints the client's rate, not the package's", () => {
   // Both copies. Writing the discounted percentage onto the client is pointless if the
@@ -208,10 +157,28 @@ t("🔴 the contract prints the client's rate, not the package's", () => {
   assert.match(S, R, "the OS copy of the contract still quotes the package's standard percentage");
 });
 
-t("the renewal screen shows the percentage for a store", () => {
-  assert.match(S, /\{basePct>0&&<div style=\{\{marginTop:3\}\}>Fee on ad spend: <strong/,
-    "an e-commerce renewal shows no percentage, or shows it regardless of whether the client has one");
-  assert.match(S, /termPct\(basePct,m\)/, "the percentage shown is not the discounted one");
+
+
+// ── 🔴 WHAT RENEWING DOES NOW (KB complete-plan) ───────────────────────────────
+t("🔴 renewing moves the client onto the new terms: no minimum, current version stamped", () => {
+  assert.match(S, /onRenew\(client\.contractEnd\|\|fmt\(new Date\(\)\),\{billingMonthly:0,contractTermsVersion:CONTRACT_TERMS_VERSION,/,
+    "renewing still writes a term-priced minimum, which the v9 agreement it now carries does not have");
+});
+t("🔴 and stops an old minimum subscription at the end of the month already paid, never at once", () => {
+  assert.match(S, /stripeBilling\("end-minimum",\{customerId:client\.stripeCustomerId,subscriptionId:client\.stripeSubscriptionId\}\)/);
+  const SB = readFileSync(join(ROOT, "netlify/functions/stripe-billing.mjs"), "utf8");
+  const blk = SB.slice(SB.indexOf('if (action === "end-minimum")'), SB.indexOf('if (action === "update-subscription")'));
+  assert.match(blk, /cancel_at_period_end: true/, "the old minimum is cancelled immediately, or not at all");
+  assert.doesNotMatch(blk, /method: "DELETE"/, "deleting the subscription would cut off the month they already paid for");
+  assert.match(blk, /adsSubscriptionOf\(subs\.data\)/, "it could stop website care or an add-on instead of the ads");
+});
+t("there is no renewal length menu any more", () => {
+  assert.doesNotMatch(S, /\["1","3","6","12"\]\.map\(m=>\{/, "the 1/3/6/12 month menu is back on the renewal card");
+  assert.match(S, /Renew onto the new terms/);
+});
+t("🔴 a v9 client is never offered a renewal at all", () => {
+  assert.match(S, /\{!rolling&&showRenewBtn&&!showRenewal&&\(/, "a month-to-month client is offered a renewal they do not need");
+  assert.match(S, /There's nothing to renew\. Either side can end it with \{NOTICE_DAYS\} days' notice\./);
 });
 
 console.log(`✓ verify-term-incentive: ${n} checks passed`);

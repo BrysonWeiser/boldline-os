@@ -75,7 +75,7 @@ HOW TO SET THE NUMBER. Work the chain, in this order, and let the arithmetic lea
 THREE HARD SANITY CHECKS, applied after the arithmetic:
 - The fee must be WELL below the cost per lead the client would pay the ad platform anyway. If BoldLine's fee approaches their CPL, the total cost per lead roughly doubles and no owner signs that.
 - The fee must be small enough that a good month is still obviously profitable for the client. Run it: at their likely lead volume, does the maths still look like a bargain against the revenue?
-- Never go below $10. Below that the fee cannot clear any monthly minimum and the performance pricing becomes fiction.
+- Never go below $10. Below that the fee is not worth the work of counting and billing each lead.
 
 THE ANCHOR. BoldLine's existing table suggests about $${anchor} per lead for this kind of business${isDefault ? " (this is the generic fallback, not a niche-specific figure, so weight it lightly)" : ""}. Treat it as a sanity check, not an instruction. Move away from it when the specific details justify it, and say why in the rationale. If the details are thin, stay near it.
 

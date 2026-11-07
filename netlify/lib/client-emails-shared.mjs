@@ -242,6 +242,9 @@ const T = {
     const unitLower = sale ? "qualified sales" : "qualified leads";
     const setup = Number(c.setup || 0);
     const monthly = Number(c.monthly || 0);
+    // The Complete plan fee (KB complete-plan). NOT a minimum: lead fees are added to it in full, never measured
+    // against it, exactly as the agreement says.
+    const planFee = Number(c.planMonthly || 0);
     const leadCount = Math.max(0, Math.floor(Number(c.leadCount || 0)));
     const leadRate = Number(c.leadRate || 0);
     const leadTotal = c.leadTotal != null ? Number(c.leadTotal) : leadCount * leadRate;
@@ -256,6 +259,7 @@ const T = {
     const feeThisMonth = Math.max(monthly, leads);
     const rows = [];
     if (setup > 0) rows.push(["One-time setup", money(setup)]);
+    if (planFee > 0) rows.push(["Complete plan, this month", money(planFee)]);
     if (usingLeads && leads > 0) {
       rows.push([`${unitMany} (${leadCount} × ${money(leadRate)})`, money(leads)]);
       // Said out loud, because a client who knows they have a minimum will look for it and
@@ -269,7 +273,7 @@ const T = {
       // not charged twice — one invoice, two names, for one thing their agreement calls a sale.
       if (leads > 0) rows.push([`${leadCount} ${leadCount === 1 ? unitLower.replace(/s$/, "") : unitLower} at ${money(leadRate)} counted toward the minimum, not added`, ""]);
     }
-    const total = setup + feeThisMonth;
+    const total = setup + planFee + feeThisMonth;
     rows.push(["Amount due", money(total), GOLD]);
     // A results-only client in a month with no qualified leads owes nothing, and their
     // agreement says so in those words. An "invoice for $0" is a confusing thing to receive
@@ -654,7 +658,7 @@ export const EMAIL_TYPES = [
   // reads "THE TWO ARE NEVER CHARGED TOGETHER". The template itself was fixed on 2026-08-26
   // after it invoiced a client the minimum AND the lead fees; this line was left describing
   // the bug. Bryson caught it 2026-09-04: *"it would be setup + qualified leads"*.
-  { id: "invoice", label: "Invoice", icon: "\u{1F9FE}", auto: null, desc: "Branded invoice with a secure Pay-online button (setup, then the monthly minimum or the qualified leads / sales, whichever is higher)." },
+  { id: "invoice", label: "Invoice", icon: "\u{1F9FE}", auto: null, desc: "Branded invoice with a secure Pay-online button (setup, the Complete plan fee if they have one, and the qualified leads / sales; a client on older terms sees their minimum or their leads, whichever is higher)." },
   { id: "receipt", label: "Payment Receipt", icon: "\u{1F4B3}", auto: "when a payment goes through", desc: "Thank-you + confirmation after a successful payment." },
   { id: "past_due", label: "Payment Past-Due", icon: "\u23F0", auto: "when a payment fails", desc: "Polite heads-up that a payment didn't process, with an update link." },
   { id: "renewal", label: "Renewal Reminder", icon: "\u{1F504}", auto: "30 days before the term ends", desc: "Nudge before the term ends \u2014 keep the campaigns running." },

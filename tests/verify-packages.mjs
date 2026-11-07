@@ -235,7 +235,16 @@ ok("no ROAS bonus survives in the contract copy", !/roas/i.test(contractSrc) || 
 {
   const g = osPkgs["g-growth"];       // $700 floor, per lead
   const e = osPkgs["e-growth"];       // $700 floor, 15% of ad spend
-  const bill = (pkg, args) => os.calcMonthlyBill(pkg, args);
+  // The greater-of arithmetic, as every agreement signed before 2026-11-07 still bills (`noMinimum: false`).
+  const bill = (pkg, args) => os.calcMonthlyBill(pkg, { noMinimum: false, ...args });
+  // 🔴 And the new terms (KB complete-plan): no floor at all, so the bill IS what was earned, a dead month is $0.
+  const now = (pkg, args) => os.calcMonthlyBill(pkg, args);
+  eq("new terms: a quiet month bills only its leads", now(g, { qualifiedLeads: 4, perLeadFee: 45 }).billed, 180);
+  eq("new terms: a dead month bills nothing", now(g, { qualifiedLeads: 0, perLeadFee: 45 }).billed, 0);
+  eq("new terms: a store pays its share of spend, no floor", now(e, { adSpend: 3000 }).billed, 450);
+  eq("new terms: nothing is ever 'under the minimum'", now(g, { qualifiedLeads: 1, perLeadFee: 45 }).atFloor, false);
+  for (const [label, fn] of [["pricing-shared", shared.calcMonthlyBill], ["the OS", os.calcMonthlyBill]])
+    eq(`${label}: the new terms are the default`, fn(g, { qualifiedLeads: 4, perLeadFee: 45 }).floor, 0);
 
   eq("under the floor bills the floor", bill(g, { qualifiedLeads: 4, perLeadFee: 45 }).billed, 700);
   eq("under the floor is flagged", bill(g, { qualifiedLeads: 4, perLeadFee: 45 }).atFloor, true);
@@ -357,9 +366,10 @@ for (const p of os.ALL_PKGS) {
 // The quote block a model reads aloud must not describe a retainer PLUS a fee.
 {
   const block = shared.packagesPromptBlock(75);
-  ok("the quote block says MINIMUM", /MINIMUM/.test(block));
-  ok("the quote block says whichever is higher", /whichever is higher/i.test(block));
-  ok("the quote block says never both", /never both/i.test(block));
+  // Since 2026-11-07 (KB complete-plan) there is no minimum for anyone, so the model must not be told one exists.
+  ok("the quote block says there is no monthly fee", /NO monthly fee/.test(block));
+  ok("the quote block never mentions a minimum", !/MINIMUM|minimum/.test(block.replace(/no minimum/g, "")));
+  ok("the quote block never describes a greater-of rule", !/whichever is higher/i.test(block));
   ok("the quote block never says management fee", !/management/i.test(block));
   ok("the quote block never mentions a ROAS bonus", !/roas/i.test(block));
   ok("the quote block covers every package", os.ALL_PKGS.every((p) => block.includes(p.id)));
@@ -579,10 +589,9 @@ PUBLIC_PKGS.forEach((p) => {
     eq(`${p.id} one-time fee matches the site`, c.once, p.setup);
     eq(`${p.id} advertises no monthly`, c.price, 0);
   } else {
-    // 🔴 THE SITE IS AHEAD OF BILLING ON PURPOSE, UNTIL THE NO-MINIMUM BUILD LANDS (KB complete-plan, build
-    // plan steps 1 to 3). The catalog's `price` is still the old monthly minimum the OS bills; the public page
-    // already says "No monthly fee". This branch must not reach main until billing, the agreement and Deal
-    // Prep agree with it. Then this check also asserts the catalog price is 0.
+    // Since 2026-11-07 (KB complete-plan, terms v9) no new client has a monthly minimum: the agreement, billing and
+    // Deal Prep all read the minimum through `minimumOf`, which is zero on v9. The catalog's `price` survives ONLY as
+    // the minimum of agreements signed before v9, so it is deliberately not what the public site shows.
     ok(`${p.id} advertises no monthly fee`, c.noFee && c.price === 0, JSON.stringify(c));
     eq(`${p.id} is not sold as a one-time build`, c.once, null);
   }

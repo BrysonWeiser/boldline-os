@@ -71,9 +71,14 @@ t("every heading is numbered 1..N with no gap or repeat (plain, add-on, special 
   for (const [cl, pkg] of cases) for (const h of both(cl, pkg)) { const ns = heads(h); assert.deepEqual(ns, ns.map((_, i) => i + 1), `numbering: ${ns.join(",")}`); }
 });
 t("the fee never counts toward the Minimum or the Performance Fee, in this agreement's own words", () => {
-  assert.match(section(both({ ...base, addOns: GBP })[0]), /does not count toward the Monthly Minimum or the Performance Fee/);
-  assert.match(section(both({ ...base, addOns: GBP, billingMonthly: 0, billingPerLead: 60 })[0]), /is not part of the Performance Fee/);
-  assert.match(section(both({ ...base, addOns: GBP })[0]), /not part of the Committed Term/);
+  // Old terms (v8, a minimum): pinned, because a v8 agreement out in the world still reads this way.
+  const v8 = { ...base, contractTermsVersion: 8 };
+  assert.match(section(both({ ...v8, addOns: GBP })[0]), /does not count toward the Monthly Minimum or the Performance Fee/);
+  assert.match(section(both({ ...v8, addOns: GBP, billingMonthly: 0, billingPerLead: 60 })[0]), /is not part of the Performance Fee/);
+  assert.match(section(both({ ...v8, addOns: GBP })[0]), /not part of the Committed Term/);
+  // New terms (v9, KB complete-plan): no minimum to mention, and the first term is the "initial term".
+  const v9 = section(both({ ...base, addOns: GBP, billingPerLead: 60 })[0]);
+  assert.match(v9, /is not part of the Performance Fee/); assert.doesNotMatch(v9, /Monthly Minimum/); assert.match(v9, /not part of the initial term/);
 });
 t("🔴 a v7 agreement signed before add-ons existed never gains it, even with the box ticked", () => {
   const cl = { ...base, contractSigned: true, contractSignedAt: "2026-10-10T18:00:00Z", addOns: GBP };
@@ -279,7 +284,7 @@ t("the webhook routes add-on money away from the ads status, before anything els
 });
 t("ads lookups skip tagged subscriptions; the watcher filters invoices and starts add-ons", () => {
   const SB = src("netlify/functions/stripe-billing.mjs"), BW = src("netlify/functions/billing-watch.mjs");
-  assert.equal((SB.match(/adsSubscriptionOf\(subs\.data\)/g) || []).length, 2); assert.doesNotMatch(SB, /limit=1&status=all/);
+  assert.equal((SB.match(/adsSubscriptionOf\(subs\.data\)/g) || []).length, 3); assert.doesNotMatch(SB, /limit=1&status=all/);   // 3: update-subscription, sync, end-minimum (KB complete-plan)
   assert.match(BW, /\.filter\(isAdsInvoice\)/); assert.match(BW, /adsSubscriptionOf\(subs\.data\)/); assert.match(BW, /runAddOnStarts\(supabase, rows/);
   assert.match(src("netlify/functions/gbp.mjs"), /addOnPlan\(\{ \.\.\.linked, id: row\.id \}, "gbp_care"\)\.state === "ready"/);
 });

@@ -5,7 +5,7 @@ import { planGoogleLink, metaChanged, GOOGLE_NOTE, META_NOTE, googleAlertText, m
 import { cleanDomain } from "../lib/site-domain.mjs";
 import { weeklyChartHTML, WEEKLY_CHART_CSS } from "../lib/portal-chart.mjs";
 import { createClient } from "@supabase/supabase-js";
-import { makeContractHTML, resultWords, contractFeatureIds } from "../lib/contract-shared.cjs";
+import { makeContractHTML, resultWords, contractFeatureIds, rollingTerm, noMinimumTerms, planOf, planFeeOf, minimumOf } from "../lib/contract-shared.cjs";
 import { withLambda } from "../lib/lambda-adapter.mjs";
 import { stripe, ensureCustomer } from "../lib/stripe-shared.mjs";
 import { websitePortalHTML, WEBSITE_PORTAL_JS, hasWebsite } from "../lib/portal-website.mjs";
@@ -88,7 +88,8 @@ const ALL_PKGS = Object.values(PACKAGES_DB).flat();
 // "Whichever is more" — the floor or what the month actually earned. Every surface
 // that quotes a number (deal prep, the billing card, the contract, the portal, the
 // marketing site) runs this, so none of them can disagree with the invoice.
-const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 } = {}) => {
+// `noMinimum` (default TRUE since 2026-11-07, KB complete-plan), the same as pricing-shared.mjs and the OS.
+const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0, noMinimum = true } = {}) => {
   if (!pkg) return { floor:0, earned:0, billed:0, atFloor:false, model:"none", basis:"" };
   // A one-time build has no monthly side at all. Returning a zero floor rather than
   // falling through matters: `atFloor` false stops the billing card telling the owner a
@@ -96,7 +97,7 @@ const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 
   if (pkg.pricingModel === "one_time")
     return { floor:0, earned:0, billed:0, atFloor:false, model:"one_time",
              basis:`one-time build, $${Number(pkg.setup||0).toLocaleString()}` };
-  const floor = Number(pkg.price) || 0;
+  const floor = noMinimum ? 0 : (Number(pkg.price) || 0);
   const pctModel = pkg.pricingModel === "ad_spend_pct";
   const pct = Number(pkg.adSpendPct) || 0;
   const spend = Number(adSpend) || 0;
@@ -329,7 +330,9 @@ const makePortalHTML = (cl, pkg, notice, site = null) => {
   const inclIds = contractFeatureIds(cl);
   const inclFeats = ALL_FEATURES.filter((f) => inclIds.includes(f.id));
   const exclFeats = ALL_FEATURES.filter((f) => !pkgHasFeature(cl.packageId, f.id) && upgOpts.some((p) => pkgHasFeature(p.id, f.id)));
-  const dL = daysUntil(cl.contractEnd);
+  // v9 (KB complete-plan): after the first term the agreement runs month to month, so there is no renewal to warn about.
+  const rolling = rollingTerm(cl);
+  const dL = rolling ? Infinity : daysUntil(cl.contractEnd);
   const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const scol = SC[si] || "#C8A84B";
   const prog = si >= 0 ? Math.round(((si + 1) / STAGES.length) * 100) : 0;
@@ -364,11 +367,16 @@ const makePortalHTML = (cl, pkg, notice, site = null) => {
   const curBudget  = budgetOf(cl.adBudget);
   const perLeadNow = cl.billingPerLead != null ? Number(cl.billingPerLead) : (pl || 0);
   const usd = (n) => "$" + Number(n || 0).toLocaleString();
+  // On the new terms (KB complete-plan) no ad plan has a monthly fee: moving up a tier changes what is included,
+  // never what they pay per lead. An older agreement still reads in its own words, minimum and all.
+  const noMin = noMinimumTerms(cl);
 
   const upgSection = upgOpts.length === 0 ? "" :
     '<div class="card" id="upgrade-section"><div class="lbl">Ready to Scale</div>' +
     '<div style="font-size:13px;color:#9CA3AF;line-height:1.65;margin-bottom:6px">Your plan is set by your <strong style="color:#F0F2FF">monthly ad budget</strong>, not chosen from a list. Raise the budget and the next tier unlocks, along with everything in it.</div>' +
-    '<div style="font-size:12.5px;color:#6B7280;line-height:1.65;margin-bottom:12px">Each figure below is a <strong style="color:#9CA3AF">monthly minimum</strong>, not an added fee. You pay that minimum or your per-' + noun + ' total, <strong style="color:#9CA3AF">whichever is higher, never both</strong>. Ad spend is paid by you directly to Google and Meta and is never part of it.</div>' +
+    (noMin
+      ? '<div style="font-size:12.5px;color:#6B7280;line-height:1.65;margin-bottom:12px">There is <strong style="color:#9CA3AF">no monthly fee</strong> on any tier. You keep paying per ' + noun + ', the same as today. Ad spend is paid by you directly to Google and Meta and is never part of it.</div>'
+      : '<div style="font-size:12.5px;color:#6B7280;line-height:1.65;margin-bottom:12px">Each figure below is a <strong style="color:#9CA3AF">monthly minimum</strong>, not an added fee. You pay that minimum or your per-' + noun + ' total, <strong style="color:#9CA3AF">whichever is higher, never both</strong>. Ad spend is paid by you directly to Google and Meta and is never part of it.</div>') +
     (curBudget > 0
       ? '<div style="font-size:12.5px;color:#6B7280;margin-bottom:12px;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)">Your current ad budget: <strong style="color:#C8A84B">' + usd(curBudget) + '/mo</strong></div>'
       : '<div style="font-size:12.5px;color:#6B7280;margin-bottom:12px;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)">Tell us your monthly ad budget in My Info and we can show you exactly which tiers are open to you.</div>') +
@@ -394,14 +402,16 @@ const makePortalHTML = (cl, pkg, notice, site = null) => {
               : `<div class="uopt-qual">Unlocks at <strong>${usd(needed)}/mo</strong> of ad budget. That is ${usd(shortfall)}/mo more than you run today</div>`)
         : "";
 
-      const feeHTML = `<div class="uopt-fee">${usd(p.price)}<span class="uopt-fee-sub">/mo minimum</span>`
-        + (perLeadNow > 0 ? `<div class="uopt-fee-alt">or ${usd(perLeadNow)} ${RW.per}, whichever is higher</div>` : "")
+      const feeHTML = (noMin
+          ? `<div class="uopt-fee">No monthly fee` + (perLeadNow > 0 ? `<div class="uopt-fee-alt">${usd(perLeadNow)} ${RW.per}, as now</div>` : "")
+          : `<div class="uopt-fee">${usd(p.price)}<span class="uopt-fee-sub">/mo minimum</span>`
+            + (perLeadNow > 0 ? `<div class="uopt-fee-alt">or ${usd(perLeadNow)} ${RW.per}, whichever is higher</div>` : ""))
         + (Number(p.setup) > 0 ? `<div class="uopt-fee-alt">${usd(p.setup)} one-time build</div>` : "")
         + `</div>`;
 
       // A locked option stays visible and readable, because knowing what the next step costs
       // is the point of showing it, but it cannot be selected.
-      return `<div class="uopt${qualifies ? "" : " uopt-locked"}" id="u${i}" data-name="${p.name} (${p.platform}) ${usd(p.price)}/mo minimum"${qualifies ? ` onclick="selUpg(this,${i})"` : ""}>${qualHTML}<div style="display:flex;justify-content:space-between;gap:12px"><div><div style="font-size:14.5px;font-weight:700;color:#F0F2FF">${p.name}</div><div style="font-size:11.5px;color:#6B7280">${p.platform}</div></div>${feeHTML}</div>${featHTML}</div>`;
+      return `<div class="uopt${qualifies ? "" : " uopt-locked"}" id="u${i}" data-name="${p.name} (${p.platform})${noMin ? "" : ` ${usd(p.price)}/mo minimum`}"${qualifies ? ` onclick="selUpg(this,${i})"` : ""}>${qualHTML}<div style="display:flex;justify-content:space-between;gap:12px"><div><div style="font-size:14.5px;font-weight:700;color:#F0F2FF">${p.name}</div><div style="font-size:11.5px;color:#6B7280">${p.platform}</div></div>${feeHTML}</div>${featHTML}</div>`;
     }).join("") +
     '<div style="font-size:12px;color:#4B5563;line-height:1.6;margin-top:10px">Ready to raise your budget? Mention it on your next check-in and we will walk through whether the extra spend is worth it in your market before anything changes.</div>' +
     '<div id="upg-action"><button class="btn" id="upgbtn" disabled onclick="askUpg()" style="opacity:.4">Ask About Scaling Up</button></div></div>';
@@ -769,7 +779,7 @@ const makePortalHTML = (cl, pkg, notice, site = null) => {
     + '<div id="t-reports" style="display:none">' + reportSection + "</div>"
     + '<div id="t-account" style="display:none">'
     + (webOnly ? websitePlanHTML : ('<details class="acc"><summary><div><div class="at">Your Package</div><div class="as">What you are on, and what it includes.</div></div><span class="car">&#9654;</span></summary><div class="abody">'
-    + '<div><div class="card"><div class="lbl">Your Package: ' + ((pkg && pkg.name) || "—") + '</div><div style="font-size:12.5px;color:#C8A84B;margin-bottom:12px">' + ((pkg && pkg.platform) || "") + (pkg ? " · $" + pkg.price + "/mo" : "") + "</div>" + fHTML + (exclFeats.length > 0 ? '<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)"><div class="lbl">Unlocks As You Scale</div>' + uHTML + "</div>" : "") + "</div>" + upgSection + "</div>" + "</div></details>"))
+    + '<div><div class="card"><div class="lbl">Your Package: ' + ((pkg && pkg.name) || "—") + '</div><div style="font-size:12.5px;color:#C8A84B;margin-bottom:12px">' + ((pkg && pkg.platform) || "") + (!pkg ? "" : planOf(cl) === "complete" ? " · Complete plan, $" + planFeeOf(cl).toLocaleString() + "/mo plus " + RW.per : noMinimumTerms(cl) ? " · No monthly fee, you pay " + RW.per : " · $" + minimumOf(cl, pkg).toLocaleString() + "/mo minimum") + "</div>" + fHTML + (exclFeats.length > 0 ? '<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)"><div class="lbl">Unlocks As You Scale</div>' + uHTML + "</div>" : "") + "</div>" + upgSection + "</div>" + "</div></details>"))
     + '<details class="acc"><summary><div><div class="at">Your Information</div><div class="as">' + (webOnly ? "Everything we build your website from. Change it any time." : "Everything we build your ads from. Change it any time.") + '</div></div><span class="car">&#9654;</span></summary><div class="abody">'
     + `<div>`
     + `<div class="card"><div class="lbl">Business Details</div><input class="inp" data-key="contactName" placeholder="Contact Name" value="${esc(cl.contactName || "")}"><input class="inp" data-key="email" placeholder="Email" value="${esc(cl.email || "")}"><input class="inp" data-key="businessPhone" placeholder="Business phone number (for call forwarding)" value="${esc(cl.businessPhone || "")}"><input class="inp" data-key="businessAddress" placeholder="Business Address" value="${esc(cl.businessAddress || "")}"><input class="inp" data-key="campaignSetup.serviceArea" placeholder="Service Area" value="${esc(cs.serviceArea || "")}"></div>`
@@ -793,7 +803,7 @@ const makePortalHTML = (cl, pkg, notice, site = null) => {
     + `<button class="btn" id="savebtn" onclick="saveInfo(this)">Save My Information</button>`
     + `</div></div></details>`
     + (webOnly ? websiteAgreementSection : ('<details class="acc" id="acc-agreement"><summary><div><div class="at">Your Agreement' + sigDot + '</div><div class="as">Your contract with us, readable and downloadable.</div></div><span class="car">&#9654;</span></summary><div class="abody">'
-    + '<div><div class="cwide"><div class="card"><div class="lbl">Contract Status</div><div style="font-size:14.5px;font-weight:700;color:' + (cl.contractStatus === "active" ? "#10B981" : cl.contractStatus === "pending" ? "#F59E0B" : "#EF4444") + ';margin-bottom:6px">' + (cl.contractStatus === "active" ? "Signed and Active" : cl.contractStatus === "pending" ? "Pending Signature" : "Expired") + '</div><div style="font-size:12.5px;color:#6B7280;line-height:1.6">Start: ' + (cl.contractStart || "not set") + " · End: " + (cl.contractEnd || "not set") + "</div>" + contractAlert + "</div>"
+    + '<div><div class="cwide"><div class="card"><div class="lbl">Contract Status</div><div style="font-size:14.5px;font-weight:700;color:' + (cl.contractStatus === "active" ? "#10B981" : cl.contractStatus === "pending" ? "#F59E0B" : "#EF4444") + ';margin-bottom:6px">' + (cl.contractStatus === "active" ? "Signed and Active" : cl.contractStatus === "pending" ? "Pending Signature" : "Expired") + '</div><div style="font-size:12.5px;color:#6B7280;line-height:1.6">Start: ' + (cl.contractStart || "not set") + (rolling ? (cl.contractEnd && daysUntil(cl.contractEnd) > 0 ? " · First term ends " + cl.contractEnd + ", then month to month" : " · Month to month") : " · End: " + (cl.contractEnd || "not set")) + "</div>" + contractAlert + "</div>"
     // Full agreement, always readable + downloadable by the client (same document
     // the OS renders — shared template in netlify/lib/contract-shared.cjs).
     // 🔴 WHICH OF THE TWO DOCUMENTS THE CLIENT IS LOOKING AT, SAID OUT LOUD.

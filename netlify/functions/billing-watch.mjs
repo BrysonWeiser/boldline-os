@@ -30,6 +30,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, retryQuery, sendEmail, sendSMS } from "../lib/report-shared.mjs";
 import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
+import { rollingTerm } from "../lib/contract-shared.cjs";
 import { latePolicyFor, interestFor, lateStage, isBillingPaused } from "../lib/late-payment.mjs";
 import { pauseClientAds, resumeClientAds } from "../lib/billing-pause.mjs";
 import { runAddOnStarts, isAdsInvoice, adsSubscriptionOf } from "../lib/addon-billing.mjs";
@@ -244,7 +245,9 @@ export default withFailureAlert("billing-watch", async () => {
 
       // ── Renewal reminder email — auto-sent to the CLIENT once, ~30 days out ──
       try {
-        if (!cl.internal && cl.email && cl.contractStatus === "active" && cl.contractEnd) {
+        // 🔴 A v9 agreement never needs renewing (KB complete-plan): after its first term it runs month to month by
+        // itself. Emailing that client "your contract ends soon, renew" would tell them something untrue.
+        if (!cl.internal && cl.email && cl.contractStatus === "active" && cl.contractEnd && !rollingTerm(cl)) {
           const dEnd = Math.ceil((new Date(cl.contractEnd).getTime() - Date.now()) / 864e5);
           const ea = cl.emailAuto || {};
           if (dEnd >= 0 && dEnd <= 30 && ea.renewalForEnd !== cl.contractEnd) {

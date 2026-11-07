@@ -60,8 +60,10 @@ const render = (o) => {
 };
 
 // ── 1. The rule is explained before any number is shown ───────────────────────
+// Sections 1 and 3 describe an agreement WITH a minimum, which since 2026-11-07 means one signed on v8 or before;
+// the new terms (no minimum) have their own block straight after section 3.
 {
-  const b = text(upgradeBlock(render({ adBudget: "$500/mo" })));
+  const b = text(upgradeBlock(render({ adBudget: "$500/mo", contractTermsVersion: 8 })));
   ok("the upgrade section renders at all", b.length > 100, `${b.length} chars`);
   ok("🔴 it says the plan is set by ad budget rather than picked from a list",
     /set by your monthly ad budget\s*,\s*not chosen from a list/i.test(b));
@@ -140,12 +142,20 @@ const render = (o) => {
 
 // ── 3. The money is described the way the contract describes it ───────────────
 {
-  const b = text(upgradeBlock(render({ adBudget: "$3,000/mo", billingPerLead: 50 })));
+  const b = text(upgradeBlock(render({ adBudget: "$3,000/mo", billingPerLead: 50, contractTermsVersion: 8 })));
   ok("the tier figure is labelled a monthly minimum", /\$700 \/mo minimum/i.test(b.replace(/\s+/g, " ")) || /700.*mo minimum/i.test(b));
   ok("🔴 the per-lead alternative is shown beside it",
     /or \$50 per qualified lead, whichever is higher/i.test(b),
     "a minimum shown alone reads as a flat price");
   ok("the one-time build cost is disclosed too", /one-time build/i.test(b));
+}
+{
+  // 🔴 The new terms (KB complete-plan): moving up a tier never adds a monthly fee, and the portal must not say it does.
+  const b = text(upgradeBlock(render({ adBudget: "$3,000/mo", billingPerLead: 50 })));
+  ok("v9: every tier says no monthly fee", /no monthly fee on any tier/i.test(b) && /No monthly fee/.test(b));
+  ok("v9: their per-lead rate carries over", /\$50 per qualified lead, as now/i.test(b));
+  ok("v9: no minimum and no greater-of rule anywhere", !/minimum/i.test(b) && !/whichever is higher/i.test(b));
+  ok("v9: the one-time build cost is still disclosed", /one-time build/i.test(b));
 }
 {
   // A client with no per-lead rate must not be shown a $0 one.

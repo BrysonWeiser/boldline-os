@@ -181,7 +181,8 @@ export default async (req) => {
         {
           price_data: {
             currency: "usd",
-            product_data: { name: `BoldLine Media — ${packageName || "Management"} (monthly minimum)` },
+            // A Complete plan fee is not a minimum (KB complete-plan), so it is named for what it is.
+            product_data: { name: body.productLabel ? `BoldLine Media — ${String(body.productLabel).slice(0, 120)}` : `BoldLine Media — ${packageName || "Management"} (monthly minimum)` },
             unit_amount: dollars(monthly),
             recurring: { interval: "month" },
           },
@@ -359,6 +360,24 @@ export default async (req) => {
     // recurring line item to the new monthly management fee. proration_behavior
     // "none" = the new rate applies from the next invoice, no mid-cycle proration
     // surprise. Charges the management fee ONLY — never ad spend.
+    // ── Renewing an older agreement onto the new terms (KB complete-plan): the monthly MINIMUM stops ──
+    //   { action:"end-minimum", customerId, subscriptionId }
+    // Cancels the ads subscription at the END of the period already paid for, never immediately and never with a
+    // refund: they paid for this month in advance under the old terms and keep it. After that their lead fees are
+    // invoiced monthly to the card already on file (the results-only path), and `sync` reads them as card_on_file.
+    // Only ever the ADS subscription: website care and add-ons are left alone (adsSubscriptionOf).
+    if (action === "end-minimum") {
+      let sub = null;
+      if (body.subscriptionId) { try { sub = await stripe(`subscriptions/${encodeURIComponent(body.subscriptionId)}`, { method: "GET" }); } catch { sub = null; } }
+      if (!sub && body.customerId) {
+        const subs = await stripe(`subscriptions?customer=${encodeURIComponent(body.customerId)}&limit=10&status=all`, { method: "GET" });
+        sub = adsSubscriptionOf(subs.data);
+      }
+      if (!sub || ["canceled", "incomplete_expired"].includes(sub.status)) return json({ ok: true, nothingToStop: true });
+      await stripe(`subscriptions/${encodeURIComponent(sub.id)}`, { body: { cancel_at_period_end: true } });
+      return json({ ok: true, subscriptionId: sub.id, endsAt: sub.current_period_end || null });
+    }
+
     if (action === "update-subscription") {
       const monthly = Number(body.monthlyAmount);
       const packageName = body.packageName;

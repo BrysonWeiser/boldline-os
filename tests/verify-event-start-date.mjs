@@ -49,6 +49,9 @@ const CL = {
   id: "cl-1", name: "Air Suds", contactName: "Constantine", email: "c@airsuds.test",
   packageId: "e-launch", contractStart: "Oct 1, 2026", contractEnd: "Jan 1, 2027",
   contractTermMonths: 3, adBudget: "$1,000/mo",
+  // Pinned to v8: these checks describe the v5 start-date wording on an agreement WITH a minimum and a renewal
+  // menu. The v9 version of the same rules (no minimum, month to month) is checked in its own block below.
+  contractTermsVersion: 8,
 };
 const text = (h) => h.replace(/<style[\s\S]*?<\/style>/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
@@ -98,6 +101,17 @@ for (const v of [1, 2, 3, 4]) {
   ok(`a v${v} agreement keeps the old section 2.1`, /2.1 This Agreement begins on the Start Date and continues for the Committed Term/.test(t));
   ok(`a v${v} agreement's Effective Date is unchanged`, /Effective Date: Oct 1, 2026/.test(t));
   if (v >= 2) ok(`a v${v} delay clause still bills from the Effective Date`, /part month from the Effective Date/.test(t));
+}
+
+// ── 3b. v9 (KB complete-plan): the start date rules are unchanged, the term after it is month to month ──
+{
+  const t = text(makeContractHTML({ ...CL, contractTermsVersion: undefined, billingSpendPct: 15 }, PKG));
+  ok("v9: the Start Date is still the day the ads go live", /Start Date The day the ads go live estimated Oct 1, 2026/.test(t));
+  ok("v9: the first term ends 3 months after it", /Initial Term Ends 3 months after the Start Date estimated Jan 1, 2027/.test(t));
+  ok("v9: nothing accrues before the Start Date", /No fee accrues before the Start Date/.test(t));
+  ok("v9: then month to month, with nothing to renew", /continues month to month on the same terms, with nothing further to sign/.test(t));
+  for (const n of ["2.1", "2.2", "2.3"]) ok(`v9 has exactly one ${n}`, (t.match(new RegExp(`\\s${n.replace(".", "\\.")}\\s`, "g")) || []).length === 1);
+  ok("v9 has no 2.4 (no renewal menu, no holdover)", !/\s2\.4\s/.test(t));
 }
 
 // ── 4. The numbering does not collide ────────────────────────────────────────

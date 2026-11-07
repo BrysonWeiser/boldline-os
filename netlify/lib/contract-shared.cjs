@@ -141,11 +141,12 @@ const monthsLabel = (n) => {
 const TERMS_V2_FROM = Date.UTC(2026, 8, 3);         // 3 Sep 2026
 const TERMS_V6_FROM = Date.UTC(2026, 8, 27, 10, 0); // 27 Sep 2026, 3am Phoenix
 const TERMS_V7_FROM = Date.UTC(2026, 9, 5, 20, 0);  // 5 Oct 2026, 1pm Phoenix: review requests
+const TERMS_V9_FROM = Date.UTC(2026, 10, 8, 0, 0);  // 7 Nov 2026, 5pm Phoenix: the new pricing (KB complete-plan)
 // 🔴 THE NEWEST VERSION, AND IT MUST BE BUMPED WITH EVERY NEW CLAUSE. It was once written as a
 // literal 2, and adding v3 the next day left every new client silently on v2: the clause was
 // in the file, gated correctly, and reached nobody. A default naming a specific version goes
 // stale the moment a version is added, which is exactly when nobody is looking at it.
-const TERMS_CURRENT = 8;
+const TERMS_CURRENT = 9;
 function termsVersionOf(cl) {
   cl = cl || {};
   const v = cl.contractTermsVersion;
@@ -162,7 +163,86 @@ function termsVersionOf(cl) {
   if (first < TERMS_V6_FROM) return 5;
   if (first < TERMS_V7_FROM) return 6;
   if (first < TERMS_V8_FROM) return 7;
+  if (first < TERMS_V9_FROM) return 8;
   return TERMS_CURRENT;
+}
+
+// ── 🔴 v9 (7 Nov 2026): THE NEW PRICING, AND THE COMPLETE PLAN (KB `complete-plan`) ──
+// Bryson, Sat 2026-11-07, all decided: no monthly minimum for anyone (ads are paid per qualified lead,
+// stores a share of ad spend); every agreement starts with a 3-month term, Complete with 12; after that it
+// runs month to month with nothing to renew, and either side ends it with 30 days' notice; the first five
+// clients also get their first month of lead fees free. Complete is $500 a month plus the lead fee: the
+// website built free on the 12-month term (leaving early pays the rest of the $1,500 build, $125 a month
+// left), hosting and care, Google profile care, a blog, past-customer emails and online booking.
+// 🔴 ALL OF IT IS GATED ON v9. A client who signed before keeps exactly what they signed: their minimum,
+// their renewal menu, their exit fee. Moving one onto the new pricing is a new agreement both sides sign
+// ("Replace this agreement"), never a silent change. Mirrored in index.html, pinned by verify-new-pricing.
+const COMPLETE_PLAN = { monthly: 500, termMonths: 12, buildWaived: 1500, exitPerMonth: 125, pages: 5, blogPostsPerMonth: 4, careEdits: 2 };
+const ADS_FIRST_TERM_MONTHS = 3, NOTICE_DAYS = 30, FOUNDING_FREE_DAYS = 30;
+// Has this agreement gone out (or been signed)? Then what it says is frozen. A voided or declined
+// envelope froze nothing, the same rule as everywhere above.
+function contractOut(cl) {
+  cl = cl || {};
+  const dead = !cl.contractSigned && /^(voided|declined)$/i.test(String(cl.docusignStatus || ""));
+  return !!(cl.contractSigned || (cl.docusignSentAt && !dead));
+}
+// No monthly minimum, ever, on v9. The old minimum lives on in `price` only for agreements signed before.
+function noMinimumTerms(cl) { return termsVersionOf(cl) >= 9; }
+// "ads" or "complete". Frozen at send as `contractPlan`, so switching the plan box after sending can never
+// turn a signed ads agreement into a Complete one, or the other way round.
+function planOf(cl) {
+  cl = cl || {};
+  if (termsVersionOf(cl) < 9) return "ads";
+  const p = contractOut(cl) && cl.contractPlan ? cl.contractPlan : cl.plan;
+  return p === "complete" ? "complete" : "ads";
+}
+// The Complete Plan Fee: the client's own (`billingPlanMonthly`, frozen at send as `contractPlanMonthly`),
+// else the standard $500. Zero for anyone not on Complete.
+function planFeeOf(cl) {
+  cl = cl || {};
+  if (planOf(cl) !== "complete") return 0;
+  const has = (v) => v !== null && v !== undefined && String(v).trim() !== "" && Number.isFinite(Number(v));
+  const v = contractOut(cl) && has(cl.contractPlanMonthly) ? cl.contractPlanMonthly : cl.billingPlanMonthly;
+  return has(v) ? Math.max(0, Math.round(Number(v) * 100) / 100) : COMPLETE_PLAN.monthly;
+}
+// The founding client's free first month of lead fees. Ticked per client, frozen at send.
+function foundingFreeMonthOf(cl) {
+  cl = cl || {};
+  if (termsVersionOf(cl) < 9) return false;
+  return !!(contractOut(cl) ? cl.contractFoundingFreeMonth : cl.foundingFreeMonth);
+}
+// What the client owes as a monthly MINIMUM (the floor lead fees are measured against). Zero on v9, zero for
+// a hand-off or a website-only client; before v9 the agreed figure, else the package's standard minimum.
+function minimumOf(cl, pkg) {
+  cl = cl || {};
+  if (!pkg || pkg.pricingModel === "one_time" || pkg.pricingModel === "website") return 0;
+  if (noMinimumTerms(cl)) return 0;
+  const v = cl.billingMonthly;
+  return v !== null && v !== undefined && String(v).trim() !== "" ? (Number(v) || 0) : (Number(pkg.price) || 0);
+}
+// A v9 agreement has no end to renew: after the first term it simply carries on month to month. Every
+// "contract ends soon, renew" reminder asks this first. Not a hand-off (it has no term) and not website-only.
+function rollingTerm(cl, pkg) {
+  cl = cl || {};
+  if (pkg && (pkg.pricingModel === "one_time" || pkg.pricingModel === "website")) return false;
+  return termsVersionOf(cl) >= 9;
+}
+// The first term's length in months: 12 on Complete, 3 otherwise (v9). Before v9, what was agreed.
+function firstTermMonths(cl) {
+  cl = cl || {};
+  if (termsVersionOf(cl) >= 9) return planOf(cl) === "complete" ? COMPLETE_PLAN.termMonths : ADS_FIRST_TERM_MONTHS;
+  return Number(cl.contractTermMonths) || 3;
+}
+// Leaving Complete before its first 12 months: the rest of the waived build, a part month counting whole.
+function completeExitOwed(cl, now) {
+  cl = cl || {};
+  if (planOf(cl) !== "complete" || !cl.contractStart) return 0;
+  const s = new Date(cl.contractStart), n = now ? new Date(now) : new Date();
+  if (isNaN(s.getTime())) return 0;
+  let gone = (n.getFullYear() - s.getFullYear()) * 12 + (n.getMonth() - s.getMonth());
+  if (n.getDate() > s.getDate()) gone += 1;   // into a month already: that month is used, the rest are owed
+  const left = Math.max(0, Math.min(COMPLETE_PLAN.termMonths, COMPLETE_PLAN.termMonths - gone));
+  return left * COMPLETE_PLAN.exitPerMonth;
 }
 
 // ── The late fee: Bryson's per-client setting, frozen into each agreement when it is sent ──
@@ -223,7 +303,7 @@ const TERMS_V8_FROM = Date.UTC(2026, 9, 28, 6, 0);  // 27 Oct 2026, 11pm Phoenix
 const ADD_ONS = { gbp_care: { name: "Google Business Profile Care", monthly: 130 } };
 function addOnsOf(cl) {
   cl = cl || {};
-  if (termsVersionOf(cl) < 8 || cl.packageId === "h-handoff") return [];
+  if (termsVersionOf(cl) < 8 || cl.packageId === "h-handoff" || planOf(cl) === "complete") return [];
   const dead = !cl.contractSigned && /^(voided|declined)$/i.test(String(cl.docusignStatus || ""));
   const out = cl.contractSigned || (cl.docusignSentAt && !dead);
   const list = out ? (Array.isArray(cl.contractAddOns) ? cl.contractAddOns : []) : (Array.isArray(cl.addOns) ? cl.addOns : []);
@@ -247,7 +327,7 @@ function gbpCareClauses(monthly, opts) {
     '<p>(b) <strong>Client&rsquo;s profile.</strong> The profile belongs to Client. ' + A + ' works through manager access that Client gives it and may remove at any time, and will not ask to become an owner of the profile. ' + A + ' will not change Client&rsquo;s business name, address, phone number, hours or categories, remove photos, or ask Google to remove a review, unless Client asks for or approves it. Replies and posts will not state offers, prices or facts about Client&rsquo;s business that Client has not given ' + A + ', and ' + A + ' will change or remove any reply or post Client asks it to.</p>',
     '<p>(c) <strong>Reviews are earned, never bought.</strong> ' + A + ' will never write, buy or post a review for Client, offer anything in return for a review, or ask only the customers likely to leave a good one. Google alone decides what appears on Google. It may remove reviews or posts, change how the profile is shown, or suspend the profile under its own policies, and that is not a breach by ' + A + '. ' + A + ' does not guarantee any ranking, rating, number of reviews or other result. Google is not a party to this Agreement and does not sponsor or endorse ' + A + '.</p>',
     '<p>(d) <strong>Fee.</strong> This service costs <strong>' + m + ' per month</strong>, billed monthly in advance, starting on the day Client gives ' + A + ' manager access to the profile. It is separate from and in addition to ' + (opts.separate || 'every other fee in this Agreement') + '. It is charged to the payment method Client keeps on file with ' + A + ', or invoiced by email when there is none. If a payment for it is unpaid fifteen (15) days after it is due, ' + A + ' may pause the service until it is paid.</p>',
-    '<p>(e) <strong>Ending it.</strong> This service runs month to month' + (opts.term ? ' and is not part of the Committed Term' : '') + '. Either party may end it with thirty (30) days&rsquo; written notice without ending the rest of this Agreement, and no early termination amount applies to it. It also ends when the rest of this Agreement ends. When it ends, ' + A + ' stops managing the profile and removes its own access. Fees for a month already started are not refunded.</p>',
+    '<p>(e) <strong>Ending it.</strong> This service runs month to month' + (opts.term ? ' and is not part of the ' + (opts.term === "initial" ? 'initial term' : 'Committed Term') : '') + '. Either party may end it with thirty (30) days&rsquo; written notice without ending the rest of this Agreement, and no early termination amount applies to it. It also ends when the rest of this Agreement ends. When it ends, ' + A + ' stops managing the profile and removes its own access. Fees for a month already started are not refunded.</p>',
   ];
 }
 
@@ -281,11 +361,14 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   const pl=PER_LEAD[cl.niche];
   const feats=contractFeatureIds(cl).map(fid=>{const f=ALL_FEATURES.find(x=>x.id===fid);return f?'<li>'+f.label+'</li>':''}).join('');
   // Effective monthly = the agreed rate (term-priced at renewal) when set, else the standard package rate.
-  const effMonthly = cl.billingMonthly!=null ? Number(cl.billingMonthly) : ((pkg&&pkg.price)||0);
+  // v9: no monthly minimum, whatever the old field says (KB complete-plan). Before v9, the agreed rate.
+  const v9 = termsVersionOf(cl) >= 9, complete = planOf(cl) === "complete";
+  const planFee = planFeeOf(cl), freeMonth = foundingFreeMonthOf(cl);
+  const effMonthly = v9 ? 0 : (cl.billingMonthly!=null ? Number(cl.billingMonthly) : ((pkg&&pkg.price)||0));
   const stdMonthly = (pkg&&pkg.price) || effMonthly;      // the Standard (3-month) Rate
   // Setup fee honors a manual adjustment (billingSetup), including an explicit $0 waiver.
   const setupFee   = (cl.billingSetup!=null?cl.billingSetup:(pkg&&pkg.setup))||0;
-  const termMo     = cl.contractTermMonths || 3;
+  const termMo     = v9 ? firstTermMonths(cl) : (cl.contractTermMonths || 3);
   const clientName = esc(cl.name), signerName = esc(cl.contactName||"Authorized Signatory");
   // Set only when the OS knows it was signed. `contractSignedAt` is written by the DocuSign
   // watcher from the envelope's own completion time, so it is the real date, not "today".
@@ -411,6 +494,8 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
         nNoG=nBase+3+dAb, nTerm=nBase+4+dAb, nIP=nBase+5+dAb, nConf=nBase+6+dAb,
         nData=nBase+7+dAb, nLiab=nBase+8+dAb, nInd=nBase+9+dAb, nRel=nBase+10+dAb,
         nLaw=nBase+11+dAb, nGen=nBase+12+dAb;
+  // v9 Complete: its own section straight after General (Google profile care is inside it, so never an add-on too).
+  const nComp = nGen+1;
 
   // 🔴 The fee is framed as amounts already earned plus reserved capacity, NOT as a penalty,
   // and that framing is the difference between a clause that holds and one a court strikes
@@ -423,6 +508,8 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +'<p>(b) If Client has not provided them, or does not respond to Agency for fourteen (14) consecutive days, Agency will send a written reminder to the email address on page one. If the outstanding items are still not provided within ten (10) days after that reminder, Agency may end this Agreement immediately by written notice.</p>'
    +(oneTime
      ? '<p>(c) If this Agreement ends under (b), the build fee is earned in full and is not refundable, and any unpaid balance for work already performed remains payable. Agency has reserved build capacity and turned away other work for this engagement, so these amounts reflect that reservation and the work done, not a penalty.</p>'
+     : v9
+     ? '<p>(c) If this Agreement ends under (b), any Setup Fee is earned in full and is not refundable, and fees already accrued remain payable'+(complete?', together with the remaining website build amount under Section '+nComp+'(c)':'')+'. Agency has reserved capacity and turned away other work for this engagement, so these amounts reflect that reservation and the work done, not a penalty.</p>'
      : '<p>(c) If this Agreement ends under (b), the setup fee is earned in full and is not refundable, and the Monthly Minimum remains payable for each month or part month from the '+(termsVersion>=5?'Start Date':'Effective Date')+' to the date this Agreement ends. Agency has reserved capacity and turned away other work for the committed term, so these amounts reflect that reservation and the work done, not a penalty.</p>')
    +'<p>(d) Nothing in this section obliges Agency to end this Agreement. Agency may instead pause work and extend the term by the length of the delay, on written notice. Time lost to Client delay does not count toward any Agency turnaround commitment.</p>'
    +'<p>(e) This section does not apply where the delay is caused by Agency, or by a platform outage or other event outside Client&rsquo;s reasonable control.</p>'
@@ -522,12 +609,33 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   const nAdd = termsVersion >= 8 ? nGen+1 : nBase+13;
   const addOnHTML = !gbpAdd ? "" : (
     '<h2>'+nAdd+'. Add-On Service: Google Business Profile Care</h2>'
-   +gbpCareClauses(gbpAdd.monthly, { agency: "Agency", term: true,
+   +gbpCareClauses(gbpAdd.monthly, { agency: "Agency", term: v9 ? "initial" : true,
       separate: introOnly ? 'every other fee in this Agreement, and is not part of the Performance Fee'
         : hasPerf ? 'every other fee in this Agreement, and does not count toward the Monthly Minimum or the Performance Fee'
         : 'every other fee in this Agreement, and does not count toward the Monthly Minimum' }).join('')
   );
-  const nSpec = termsVersion >= 8 ? nGen+1+(gbpAdd?1:0) : nBase+13;
+  // ── 🔴 v9: THE COMPLETE PLAN (KB complete-plan). One agreement for the ads AND the always-on work, so the client
+  // signs once and pays one bill. The website build is waived on the 12-month term; leaving early pays the rest of
+  // it. Google profile care reuses the add-on's conduct clauses word for word (what Agency does, the client's
+  // profile, reviews earned never bought), so the two can never promise different things.
+  const completeHTML = !complete ? "" : (
+    '<h2>'+nComp+'. The Complete Plan</h2>'
+   +'<p>(a) <strong>What it adds.</strong> In addition to the advertising services above, Agency will provide the following for as long as this Agreement continues:</p>'
+   +'<ul>'
+   +'<li><strong>A website</strong> of up to '+COMPLETE_PLAN.pages+' pages (Home, Services, About, Reviews and Contact), written by Agency from what Client tells it, in a design Client chooses from Agency&rsquo;s designs, with two (2) rounds of changes before it goes live. It goes live only once Client approves it.</li>'
+   +'<li><strong>Hosting and care:</strong> Agency keeps the website online, secure and up to date, and makes up to '+COMPLETE_PLAN.careEdits+' small changes a month (such as text, photos, hours or prices) when Client asks. Larger changes are quoted first.</li>'
+   +'<li><strong>Google Business Profile care,</strong> on the terms in paragraph (e).</li>'
+   +'<li><strong>A blog</strong> on the website with about '+COMPLETE_PLAN.blogPostsPerMonth+' articles a month written by Agency. Client may read, edit or hold any article before it is published.</li>'
+   +'<li><strong>Emails to Client&rsquo;s past customers</strong> inviting them back, sent under Client&rsquo;s business name, only to customers Client provides and confirms it may email, each with an unsubscribe link that Agency honors.</li>'
+   +'<li><strong>Online booking</strong> on the website, with optional deposits paid to Client through Client&rsquo;s own payment account. Agency never holds Client&rsquo;s customers&rsquo; money.</li>'
+   +'</ul>'
+   +'<p>(b) <strong>Complete Plan Fee.</strong> <strong>'+money(planFee)+' per month</strong>, billed monthly in advance from the Start Date. It covers everything in paragraph (a). It is separate from and in addition to the Performance Fee in Section 4, which is charged only for results as set out there, and it never counts toward or against the Performance Fee. After the initial term it continues month to month at the same fee.</p>'
+   +'<p>(c) <strong>The website build fee is waived.</strong> Agency&rsquo;s standard fee to build this website is '+money(COMPLETE_PLAN.buildWaived)+'. Agency builds it at no charge because Client commits to the twelve (12) month initial term. If this Agreement ends before the initial term is complete, for any reason other than Agency&rsquo;s uncured breach or Agency ending it early, Client pays the part of that fee not yet earned: <strong>'+money(COMPLETE_PLAN.exitPerMonth)+' for each month of the initial term remaining</strong>, any part of a month counting as a whole month. Once the initial term is complete, nothing further is owed for the build.</p>'
+   +'<p>(d) <strong>Ownership of the website.</strong> Client&rsquo;s domain stays registered to Client at all times. The words, logo and photos on the website are Client&rsquo;s. If this Agreement ends, Agency will, once any amount owed under paragraph (c) and Section '+nTerm+' is paid, send Client a copy of the website&rsquo;s pages and images to host anywhere, and tell Client which domain settings Agency made, then stop hosting it.</p>'
+   +gbpCareClauses(0, { agency: "Agency" }).slice(0, 3).map(function (p, i) { return p.replace(/^<p>\(([a-c])\)/, '<p>(e)('+['i','ii','iii'][i]+')'); }).join('')
+   +'<p>(f) <strong>Ending the Complete Plan.</strong> The Complete Plan is part of this Agreement and ends with it. To keep only the advertising services, the parties sign a new agreement for them.</p>'
+  );
+  const nSpec = termsVersion >= 8 ? nGen+1+(gbpAdd?1:0)+(completeHTML?1:0) : nBase+13;
   const specClauses = (cl.specialTerms && Array.isArray(cl.specialTerms.clauses) ? cl.specialTerms.clauses : [])
     .map(c => ({ heading: String((c&&c.heading)||"").trim(), text: String((c&&c.text)||"").trim() }))
     .filter(c => c.text);
@@ -541,20 +649,24 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
 
   const metaItem=(l,v)=>'<div class="meta-item"><div class="meta-label">'+l+'</div><div class="meta-value">'+v+'</div></div>';
   const meta =
-    metaItem("Service Package",(pkg&&pkg.name)||"—")
+    metaItem("Service Package",complete?"Complete Plan, with "+((pkg&&pkg.name)||"—")+" advertising":((pkg&&pkg.name)||"—"))
    +metaItem("Advertising Platform",(pkg&&pkg.platform)||"—")
    +(oneTime
       ? metaItem("Total Fee",money(setupFee)+" one time")+metaItem("Ongoing Fees","None")
-      : metaItem("Monthly Minimum",introOnly?"None during the Initial Term":money(effMonthly)+"/mo")
+      : (complete?metaItem("Complete Plan Fee",money(planFee)+"/mo"):"")
+        +metaItem("Monthly Minimum",introOnly?(v9?"None":"None during the Initial Term"):money(effMonthly)+"/mo")
         +metaItem("One-Time Setup Fee",setupFee>0?money(setupFee):"Waived"))
-   +metaItem("Committed Term",oneTime?"None (one-time project)":monthsLabel(termMo))
+   +metaItem(v9?"Initial Term":"Committed Term",oneTime?"None (one-time project)":v9?monthsLabel(termMo)+", then month to month":monthsLabel(termMo))
    +metaItem("Start Date",startCell)
-   +metaItem("End Date",endCell)
+   +metaItem(v9?"Initial Term Ends":"End Date",endCell)
    +metaItem("Optimization Cadence",oneTime?"Two passes during the 30-day settle-in, then none"
        :((pkg&&pkg.optimizationFreq)==="weekly"?"Weekly":"Monthly"))
    +(perLeadFee?metaItem("Performance Fee",money(perLeadFee)+" "+W.per):"")
    +(pctFee?metaItem("Performance Fee",pctFee+"% of monthly ad spend"):"")
-   +(hasPerf?metaItem("How the two combine", introOnly
+   +(freeMonth&&hasPerf?metaItem("Founding Client","No Performance Fee for the first thirty (30) days after the Start Date"):"")
+   +(hasPerf?metaItem("How the two combine", v9
+        ? (complete ? "No minimum. Performance Fees are added to the Complete Plan Fee, never counted against it." : "No minimum. The performance fee is the entire fee.")
+        : introOnly
         ? "Nothing to combine. The performance fee is the entire fee."
         : "Whichever is higher, never both"):"")
    +(gbpAdd?metaItem("Add-On Service","Google Business Profile Care, "+money(gbpAdd.monthly)+"/mo, separate from the fees above"):"")
@@ -578,7 +690,9 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   const perfSection = hasPerf ? (
     (introOnly ? '<h2>4. Performance Fee</h2>' : '<h2>4. Monthly Minimum and Performance Fee</h2>')
    +(introOnly
-      ? '<p>4.1 <strong>How the monthly fee is calculated.</strong> <span class="caps">THERE IS NO MONTHLY MINIMUM DURING THE INITIAL TERM.</span> For each calendar month of the Initial Term, Agency&rsquo;s entire fee is the Performance Fee for that month, calculated as set out below. If the Campaigns produce no '+W.many+' in a month, <strong>Client owes Agency nothing for that month</strong>. From any renewal term onward a Monthly Minimum will apply at the rate quoted by Agency at the time of renewal, and Client is under no obligation to renew.</p>'
+      ? (v9
+        ? '<p>4.1 <strong>How the Performance Fee works.</strong> <span class="caps">THERE IS NO MONTHLY MINIMUM.</span> For each calendar month, Agency&rsquo;s fee for the advertising services is the Performance Fee for that month, calculated as set out below'+(complete?', and it is separate from and in addition to the Complete Plan Fee':'')+'. '+(perLeadFee?'If the Campaigns produce no '+W.many+' in a month, <strong>Client owes no Performance Fee for that month</strong>.':'If there is no advertising spend in a month, <strong>Client owes no Performance Fee for that month</strong>.')+' This applies for the whole of this Agreement, including after the initial term.</p>'
+        : '<p>4.1 <strong>How the monthly fee is calculated.</strong> <span class="caps">THERE IS NO MONTHLY MINIMUM DURING THE INITIAL TERM.</span> For each calendar month of the Initial Term, Agency&rsquo;s entire fee is the Performance Fee for that month, calculated as set out below. If the Campaigns produce no '+W.many+' in a month, <strong>Client owes Agency nothing for that month</strong>. From any renewal term onward a Monthly Minimum will apply at the rate quoted by Agency at the time of renewal, and Client is under no obligation to renew.</p>')
       : '<p>4.1 <strong>How the monthly fee is calculated.</strong> For each calendar month, Agency&rsquo;s fee is the <strong>greater of</strong> (a) the Monthly Minimum stated in the Key Commercial Terms, or (b) the Performance Fee for that month. <span class="caps">THE TWO ARE NEVER CHARGED TOGETHER.</span> If the Performance Fee is less than the Monthly Minimum, Client pays the Monthly Minimum and nothing further. If the Performance Fee is greater, Client pays the Performance Fee and the Monthly Minimum is absorbed into it.</p>')
    +(perLeadFee ? (
       '<p>4.2 <strong>Performance Fee ('+W.per+').</strong> The Performance Fee for a month is the '+W.feeName+' stated above multiplied by the number of '+W.many+' generated by the Campaigns in that month. '+W.defn+'</p>'
@@ -586,11 +700,16 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
       '<p>4.2 <strong>Performance Fee (percentage of ad spend).</strong> The Performance Fee for a month is the percentage stated above of Client&rsquo;s total advertising spend across the Campaigns for that month, as reported by the advertising platforms. Advertising spend is paid by Client directly to the platforms and is never held or advanced by Agency; the percentage is a measure of Agency&rsquo;s fee, not a charge for or markup on ad spend.</p>'
     ))
    +(introOnly
-      ? '<p>4.3 <strong>Billing mechanics.</strong> Nothing is billed in advance. After each month closes, Agency calculates the Performance Fee for that month and it is charged on the next invoice. Client is billed in arrears, for results already delivered.</p>'
+      ? (complete
+        ? '<p>4.3 <strong>Billing mechanics.</strong> The Complete Plan Fee is billed monthly in advance under Section '+nComp+'. Performance Fees are not billed in advance: after each month closes, Agency calculates the Performance Fee for that month and adds it to the next invoice. The two are separate, and neither counts toward or against the other.</p>'
+        : '<p>4.3 <strong>Billing mechanics.</strong> Nothing is billed in advance. After each month closes, Agency calculates the Performance Fee for that month and it is charged on the next invoice. Client is billed in arrears, for results already delivered.</p>')
       : '<p>4.3 <strong>Billing mechanics.</strong> The Monthly Minimum is billed in advance at the start of each billing period. After the month closes, Agency calculates the Performance Fee; if it exceeds the Monthly Minimum already billed, <strong>only the difference</strong> is added to the next invoice. Client will never be invoiced both amounts in full for the same month.</p>')
    +(perLeadFee
       ? '<p>4.4 '+W.countNoun+' are calculated from '+W.countSource+'. If Client believes a '+W.itNoun+' was incorrectly counted, Client must notify Agency in writing within ten (10) days of the invoice date; Agency will review in good faith and credit any '+W.itNoun+' it reasonably determines was not a '+W.one+'. Invoices not disputed within that period are deemed accepted. '+W.warranty+'</p>'
       : '<p>4.4 Ad-spend figures are taken from the advertising platforms&rsquo; own reporting, which is the definitive measurement for this purpose. If Client believes a month&rsquo;s figure is wrong, Client must notify Agency in writing within ten (10) days of the invoice date and Agency will review in good faith. Invoices not disputed within that period are deemed accepted. <strong>Performance Fees compensate campaign management only; Agency does not warrant any particular level of sales, revenue, or return on ad spend.</strong></p>')
+   +(freeMonth
+      ? '<p>4.5 <strong>Founding client: the first month is free.</strong> No Performance Fee is charged for '+(perLeadFee?W.many+' generated':'advertising spend incurred')+' during the first thirty (30) days after the Start Date. This applies once, to the first thirty days only, and Client still pays its advertising spend directly to the platforms.</p>'
+      : '')
   ) : '';
   // Section numbers after the conditional ones stay fixed by rendering both slots
   // (empty string when absent) and numbering the rest from 6 onward.
@@ -659,15 +778,18 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
      ? '<h2>2. Term</h2>'
        +'<p>2.1 This Agreement begins on the Start Date and <strong>ends automatically on completion of handover</strong> under Section 4.3. There is no minimum commitment, no renewal, no holdover, and no notice period, because there is no ongoing service to continue.</p>'
        +'<p>2.2 Client may engage Agency again at any time under a separate agreement. Nothing here obliges either party to do so.</p>'
-     : '<h2>2. Term, Renewal, and Holdover</h2>'
+     : (v9?'<h2>2. Term</h2>':'<h2>2. Term, Renewal, and Holdover</h2>')
    +(termsVersion >= 5
      ? (eventStart
        ? '<p>2.1 <strong>Start Date.</strong> This Agreement takes effect on the Effective Date. The <strong>Start Date</strong> is the date on which the first advertising campaign under this Agreement begins delivering, as recorded by the advertising platform. Any date shown in the Key Commercial Terms above is an estimate for planning and does not itself begin the term. Agency will confirm the Start Date to Client in writing once it occurs. The Committed Term runs from the Start Date.</p>'
        : '<p>2.1 <strong>Start Date.</strong> This Agreement takes effect on the Effective Date. The <strong>Start Date</strong> is the date shown in the Key Commercial Terms above, which the parties have agreed. The Committed Term runs from the Start Date.</p>')
-       +'<p>2.2 The Committed Term is as shown above. <strong>The initial term is a minimum commitment of three (3) months</strong>; Client acknowledges that paid-advertising results require an initial optimization period and the pricing reflects that commitment. No Monthly Minimum accrues before the Start Date.</p>'
+       +(v9
+         ? '<p>2.2 <strong>Initial term.</strong> The initial term is <strong>'+(complete?'twelve (12) months':'three (3) months')+'</strong> from the Start Date. '+(complete?'Agency builds Client&rsquo;s website at no charge in return for this commitment (Section '+nComp+').':'Client acknowledges that paid-advertising results need an initial period to learn and improve, and agrees to give the Campaigns that time.')+' No fee accrues before the Start Date.</p>'
+           +'<p>2.3 <strong>After the initial term.</strong> When the initial term ends, this Agreement continues <strong>month to month</strong> on the same terms, with nothing further to sign and no renewal to agree, until either party ends it under Section '+nTerm+'.</p>'
+         : '<p>2.2 The Committed Term is as shown above. <strong>The initial term is a minimum commitment of three (3) months</strong>; Client acknowledges that paid-advertising results require an initial optimization period and the pricing reflects that commitment. No Monthly Minimum accrues before the Start Date.</p>')
      : '<p>2.1 This Agreement begins on the Start Date and continues for the Committed Term shown above. <strong>The initial term is a minimum commitment of three (3) months</strong>; Client acknowledges that paid-advertising results require an initial optimization period and the pricing reflects that commitment.</p>')
-   +'<p>'+(termsVersion>=5?'2.3':'2.2')+' At the end of any term, the parties may renew for a length of one (1), three (3), six (6), or twelve (12) months. The Monthly Minimum for a renewal depends on the renewal length selected: month-to-month service carries a premium over the standard three-month rate, and longer commitments receive a discounted rate, as quoted by Agency at the time of renewal. The rate for the current term is the Monthly Minimum stated in the Key Commercial Terms.</p>'
-   +'<p>'+(termsVersion>=5?'2.4':'2.3')+' <strong>Holdover.</strong> If the term expires and the parties have neither renewed nor terminated, this Agreement continues on a month-to-month basis at Agency&rsquo;s then-current month-to-month minimum for the same Service Package, until either party terminates under Section '+nTerm+'. This prevents any interruption of live campaigns.</p>'
+   +(v9?'':'<p>'+(termsVersion>=5?'2.3':'2.2')+' At the end of any term, the parties may renew for a length of one (1), three (3), six (6), or twelve (12) months. The Monthly Minimum for a renewal depends on the renewal length selected: month-to-month service carries a premium over the standard three-month rate, and longer commitments receive a discounted rate, as quoted by Agency at the time of renewal. The rate for the current term is the Monthly Minimum stated in the Key Commercial Terms.</p>')
+   +(v9?'':'<p>'+(termsVersion>=5?'2.4':'2.3')+' <strong>Holdover.</strong> If the term expires and the parties have neither renewed nor terminated, this Agreement continues on a month-to-month basis at Agency&rsquo;s then-current month-to-month minimum for the same Service Package, until either party terminates under Section '+nTerm+'. This prevents any interruption of live campaigns.</p>')
      )
    +(oneTime
      ? '<h2>3. Fees and Payment</h2>'
@@ -678,7 +800,9 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
      : '<h2>3. Fees and Payment</h2>'
    +'<p>3.1 <strong>Setup Fee.</strong> Any one-time Setup Fee shown in the Key Commercial Terms is due before campaign build begins and is non-refundable once Agency has commenced work, as it compensates account configuration, research, and build labor actually performed.</p>'
    +(introOnly
-      ? '<p>3.2 <strong>How and when Client is charged.</strong> <span class="caps">THERE IS NO RECURRING SUBSCRIPTION AND NO CHARGE IS TAKEN IN ADVANCE.</span> After each month closes, Agency calculates the Performance Fee for that month and charges it by automatic payment (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe), using the payment method Client places on file. A month that produces no '+W.many+' produces no charge. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
+      ? (complete
+        ? '<p>3.2 <strong>How and when Client is charged.</strong> The Complete Plan Fee is charged monthly in advance by automatic payment (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe), using the payment method Client places on file, and Client authorizes those recurring charges for as long as this Agreement continues. Performance Fees are charged in arrears, on the next invoice after the month in which they are earned. A month that produces no '+W.many+' adds nothing to the Complete Plan Fee. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
+        : '<p>3.2 <strong>How and when Client is charged.</strong> <span class="caps">THERE IS NO RECURRING SUBSCRIPTION AND NO CHARGE IS TAKEN IN ADVANCE.</span> After each month closes, Agency calculates the Performance Fee for that month and charges it by automatic payment (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe), using the payment method Client places on file. '+(perLeadFee?'A month that produces no '+W.many+' produces no charge.':'A month with no advertising spend produces no charge.')+' All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>')
       : '<p>3.2 <strong>Monthly Minimum.</strong> The Monthly Minimum is billed monthly in advance by automatic charge (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe). Client authorizes recurring charges for the duration of this Agreement, including any holdover period. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>')
    +'<p>3.3 <strong>Taxes.</strong> Fees are exclusive of all taxes. Client is responsible for any sales, use, VAT, GST, withholding, or similar taxes arising from the Services in Client&rsquo;s jurisdiction, excluding taxes on Agency&rsquo;s income. International payments must be made without deduction; if withholding is legally required, Client will gross up so Agency receives the full invoiced amount.</p>'
    // 🔴 v6: THREE DAYS, A FLAT FEE, A PAUSE THAT NEVER DELETES, AND AN ENDING THAT IS A CHOICE.
@@ -713,9 +837,15 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +'<p>Client further acknowledges that advertising platforms may at any time change their policies, algorithms, pricing, or features; disapprove ads; restrict, suspend, or terminate accounts; or misreport data. Such platform actions are outside Agency&rsquo;s control and are not a breach by Agency, provided Agency uses commercially reasonable efforts to remediate. Fees remain payable during reasonable remediation periods; if a platform suspension attributable to neither party continues for more than thirty (30) consecutive days, either party may terminate under the section below without an early-termination fee.</p>'
 
    +'<h2>'+nTerm+'. Termination</h2>'
-   +'<p>(a) <strong>By either party at term end.</strong> Either party may elect not to renew by written notice at least thirty (30) days before the End Date.</p>'
+   +(v9
+     ? '<p>(a) <strong>By either party, on notice.</strong> Either party may end this Agreement with effect from the end of the initial term, or at any time after it, by thirty (30) days&rsquo; written notice. Fees accrued up to the date it ends remain payable.</p>'
+     : '<p>(a) <strong>By either party at term end.</strong> Either party may elect not to renew by written notice at least thirty (30) days before the End Date.</p>')
    +(oneTime
      ? '<p>(b) <strong>By Client.</strong> Because this is a one-time project with no committed term, there is no early-termination fee. If Client cancels after Agency has commenced work, fees for work already performed remain payable under Section 3.4.</p>'
+     : v9
+     ? (complete
+        ? '<p>(b) <strong>By Client, during the initial term.</strong> Client may end this Agreement before the initial term ends on thirty (30) days&rsquo; written notice. Client then pays, as liquidated damages and not as a penalty: (i) all fees accrued through the date it ends, plus (ii) the remaining website build amount under Section '+nComp+'(c), which is '+money(COMPLETE_PLAN.exitPerMonth)+' for each month of the initial term remaining after that date, any part of a month counting as a whole month. Any Setup Fee is earned on signing and is not refundable. The parties agree these amounts are a reasonable estimate of Agency&rsquo;s loss, because Agency built the website at no charge in return for the twelve-month commitment.</p>'
+        : '<p>(b) <strong>By Client, during the initial term.</strong> Client may end this Agreement before the initial term ends on thirty (30) days&rsquo; written notice, and owes only the fees accrued through the date it ends. <span class="caps">THERE IS NO EARLY-TERMINATION FEE UNDER THIS AGREEMENT.</span> Any Setup Fee is earned on signing and is not refundable.</p>')
      : (introOnly
         ? '<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date on thirty (30) days&rsquo; written notice, and owes only the fees accrued through the effective termination date. <span class="caps">THERE IS NO EARLY-TERMINATION FEE AND NO RATE CLAWBACK UNDER THIS AGREEMENT.</span> Because Client pays only for results actually delivered during the Initial Term, no discounted rate was given in exchange for the Committed Term and there is nothing to recover.</p>'
         : (hasFullTermExit
@@ -772,6 +902,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
 
    +(cl.replacesAgreement&&cl.replacesAgreement.signedAt?'<p><strong>This Agreement replaces an earlier one.</strong> It replaces the Advertising Services Agreement between the parties signed on '+new Date(cl.replacesAgreement.signedAt).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric",timeZone:"America/Phoenix"})+(cl.replacesAgreement.envelopeId?' (DocuSign envelope '+String(cl.replacesAgreement.envelopeId).replace(/[^A-Za-z0-9-]/g,"")+')':'')+'. When this Agreement is signed, the parties agree that earlier agreement is cancelled and has no further effect, and nothing is owed under it.</p>':'')
 
+   +completeHTML
    +addOnHTML
    +specialHTML
    +'<h2>Signatures</h2>'
@@ -809,4 +940,5 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
 // the emails had no idea the question existed, which is how a store client billed per Qualified
 // Sale was emailed an invoice for "Qualified leads".
 module.exports = { makeContractHTML, resultWords, termsVersionOf, TERMS_CURRENT, contractFeatureIds, omittedFeaturesOf, addOnsOf, gbpCareClauses, ADD_ONS,
+  COMPLETE_PLAN, ADS_FIRST_TERM_MONTHS, NOTICE_DAYS, FOUNDING_FREE_DAYS, contractOut, noMinimumTerms, planOf, planFeeOf, foundingFreeMonthOf, minimumOf, rollingTerm, firstTermMonths, completeExitOwed,
   LATE_FEE_DEFAULT, LATE_FEE_MAX, lateFeeSetting, lateFeeFrozen, agreedLateFee, chargedLateFee, feeWords, lateFeeClause };
