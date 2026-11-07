@@ -526,12 +526,15 @@ eq("site split-testing bullets match splitTesting packages", bulletCount("split-
 //
 // Two price shapes: a managed plan quotes a monthly minimum, a one-time build quotes a
 // single fee. Both are captured so neither can drift unnoticed.
-const CARD_RE = /<h3>([^<]+)<\/h3>[\s\S]{0,400}?class="price">(?:From <b>\$([\d,]+)\/mo<\/b>|<b>\$([\d,]+)<\/b> once)[\s\S]{0,60}?class="pnote">([\s\S]*?)<\/div>[\s\S]{0,240}?Typical ad budget: ([^<]+)</g;
+// 🔴 Since 2026-11-07 (KB complete-plan) a managed plan quotes NO monthly fee at all ("No monthly fee"). The
+// old "From $X/mo" shape is still captured, so if it ever comes back on a card the price check fails.
+const CARD_RE = /<h3>([^<]+)<\/h3>[\s\S]{0,400}?class="price">(?:From <b>\$([\d,]+)\/mo<\/b>|<b>\$([\d,]+)<\/b> once|<b>(No monthly fee)<\/b>)[\s\S]{0,60}?class="pnote">([\s\S]*?)<\/div>[\s\S]{0,240}?Typical ad budget: ([^<]+)</g;
 const cardsIn = (panelName) => [...panelOfSite(panelName).matchAll(CARD_RE)].map((m) => ({
   title: m[1].trim(),
   price: m[2] ? Number(m[2].replace(/,/g, "")) : 0,
   once: m[3] ? Number(m[3].replace(/,/g, "")) : null,
-  perf: m[4].trim(), budget: m[5].trim(),
+  noFee: !!m[4],
+  perf: m[5].trim(), budget: m[6].trim(),
 }));
 // 🔴 THE HAND-OFF IS DELIBERATELY NOT ON THE SITE.
 // Bryson, 2026-08-19: "i dont want to advertise it i just want it as an option for sales
@@ -574,7 +577,11 @@ PUBLIC_PKGS.forEach((p) => {
     eq(`${p.id} one-time fee matches the site`, c.once, p.setup);
     eq(`${p.id} advertises no monthly`, c.price, 0);
   } else {
-    eq(`${p.id} price matches the site`, c.price, p.price);
+    // 🔴 THE SITE IS AHEAD OF BILLING ON PURPOSE, UNTIL THE NO-MINIMUM BUILD LANDS (KB complete-plan, build
+    // plan steps 1 to 3). The catalog's `price` is still the old monthly minimum the OS bills; the public page
+    // already says "No monthly fee". This branch must not reach main until billing, the agreement and Deal
+    // Prep agree with it. Then this check also asserts the catalog price is 0.
+    ok(`${p.id} advertises no monthly fee`, c.noFee && c.price === 0, JSON.stringify(c));
     eq(`${p.id} is not sold as a one-time build`, c.once, null);
   }
   eq(`${p.id} ad budget matches the site`, c.budget.replace(/–|—/g, "-"), String(p.adSpend).replace(/–|—/g, "-"));
@@ -589,8 +596,10 @@ PUBLIC_PKGS.forEach((p) => {
   // comma-joined clause into two sentences, and a single regex pinned to the old punctuation
   // would have forced the copy back rather than the copy forcing the test. What must survive
   // is the MEANING: it is the greater of the two, and they are never charged together.
-  ok(`${p.id} states the greater-of rule on the site`, /whichever is higher/i.test(c.perf), c.perf);
-  ok(`${p.id} says the two fees are never both charged`, /never both/i.test(c.perf), c.perf);
+  // Since 2026-11-07 there is no minimum to compare against, so the old "whichever is higher" must be GONE,
+  // and the card must say what a month with nothing costs.
+  ok(`${p.id} no longer claims a greater-of rule`, !/whichever is higher|never both/i.test(c.perf), c.perf);
+  ok(`${p.id} says a quiet month is not topped up`, /nothing in a month with none|no minimum/i.test(c.perf), c.perf);
   if (isOneTime(p)) { /* no performance half to check */ }
   else if (p.pricingModel === "ad_spend_pct")
     ok(`${p.id} quotes ${p.adSpendPct}% of ad spend on the site`, c.perf.includes(`${p.adSpendPct}% of your ad spend`), c.perf);
@@ -603,7 +612,7 @@ ok("the site no longer advertises a performance bonus", !/performance bonus/i.te
 // The two rules a prospect must not be able to miss.
 ok("the site states the $5,000 combined unlock", /both platforms starts at \$5,000 a month/i.test(site));
 ok("the site states the minimum ad budget", /smallest budget we'?.{0,3}ll take on is \$500 a month/i.test(site));
-ok("the site says the two fees are never added together", /Never both added together/i.test(site));
+ok("the site explains how you pay, with no monthly fee for ads", /There's no monthly fee for ads/i.test(site) && !/Never both added together/i.test(site));
 // The recommender must not be able to recommend a combined system below the unlock.
 ok("the recommender gates combined on the ad-budget band", /COMBO_MIN_BAND/.test(site));
 ok("the recommender no longer offers a combined Launch tier", !/Full System: Launch/.test(site));

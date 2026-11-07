@@ -142,6 +142,22 @@ export const WEBSITE_SIGNATURE = { build: 3500, care: 150, pages: 8, includedExt
 // owning the profile and adds BoldLine as a manager. Monthly, no setup fee.
 export const GOOGLE_PROFILE = { monthly: 130 };
 
+// ─── THE NEW PRICING (decided by Bryson, Sat 2026-11-07, KB `complete-plan`) ─────────────────────────────────
+// 1. No monthly minimum for anyone: ads are paid per qualified lead only (stores: a share of ad spend, no minimum).
+// 2. The first five clients get their first month of LEAD FEES free (their ad spend is still theirs).
+// 3. Every agreement starts with a 3-month term; Complete starts with 12 (it pays back the free website build).
+// 4. After the first term it runs month to month, no renewal to sign, and either side ends it with 30 days' notice.
+// The marketing site reads these; the agreement, Deal Prep and billing follow in the same build.
+export const TERMS = { adsFirstTermMonths: 3, completeFirstTermMonths: 12, noticeDays: 30, afterFirstTerm: "month_to_month" };
+// The Complete plan: one monthly price for everything that is always on, plus the ad lead fee per qualified lead.
+// $500 with the blog included (without the blog it would cost more than the parts bought separately).
+// One ad platform; Google AND Meta together still needs COMBO_MIN_BUDGET of ad budget, the same as Combined.
+// The Standard website build is waived on the 12-month first term; leaving early pays the rest of the build,
+// pro-rated by the months left (build / 12 a month).
+export const COMPLETE_PLAN = { id: "complete", name: "Complete", monthly: 500, platforms: 1,
+  websiteBuildWaived: WEBSITE_OFFER.build, earlyExitPerMonthLeft: Math.round(WEBSITE_OFFER.build / 12),
+  blogPostsPerMonth: WEBSITE_OFFER.blogPostsPerMonth };
+
 export const websitePromptBlock = () => `
 BoldLine ALSO BUILDS WEBSITES, sold to anyone, with or without ads:
 - A ${WEBSITE_OFFER.pages}-page website (Home, Services, About, Reviews, Contact) with modern motion and design, three designs for them to choose from, a contact form that sends them every enquiry, and ${WEBSITE_OFFER.revisionRounds} rounds of changes before launch.

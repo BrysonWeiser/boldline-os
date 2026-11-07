@@ -3,9 +3,9 @@ name: complete-plan
 topic: Pricing
 task: the proposed "do all their marketing" offer (ads per lead with no minimum, websites, Google profile, extra services) and what was decided vs only proposed
 keywords: [complete plan, all in one, done for you marketing, no monthly minimum, pay per lead only, first month free, founding offer, bundle, website plus google profile, $299, speed to lead, missed call text back, customer emails, booking deposits, package redesign]
-status: ALL DECIDED 2026-11-07, READY TO BUILD (nothing built yet except customer emails for clients)
+status: ALL DECIDED + both "confirm" items confirmed 2026-11-07. Step 7 (marketing site) BUILT on the TEST COPY, waiting on his look. Steps 1-6 (agreement, billing, Deal Prep, OS) NOT built yet; the site must not go live before them.
 summary: Bryson, 2026-11-06, floated (1) no monthly minimum for anyone, pay only per qualified lead, first 5 clients get their first month free; (2) a system where a client pays BoldLine to manage all their marketing. Advice given and NOT yet confirmed by him - say "first month of lead fees free" not "completely free" (ad spend stays theirs), keep a ~3-month minimum term, keep the setup fee after the first five; per-lead only for ADS leads, flat monthly for website + Google profile; a "Complete" plan around $299/mo with the website built free on a 12-month term (leave early = pay the rest of the build) plus ad lead fees; skip social media and SEO retainers. Extras recommended - instant lead reply + missed-call text-back (blocked on Twilio upgrade + A2P), bring back past customers emails (BUILT for clients 2026-11-06, KB business-emails), online booking + deposits (already built, just name it).
-verified: 2026-11-06
+verified: 2026-11-07
 ---
 
 ## Meta is part of it
@@ -51,6 +51,34 @@ month-to-month +10%, 6 months -5%, 12 months -10%, KB `contract-renewal-pricing`
   $500 too. (Inferred from the same reasoning; confirm with Bryson when building.)
 - Build impact: the renewal flow on the Contract tab, the renewal email, `TERM_RATE`/term discounts and the contract's
   term wording all change for NEW terms only; clients already signed keep what they signed.
+
+## ✅ CONFIRMED by Bryson, Sat 2026-11-07 ~11:30am Phoenix (the two "confirm with Bryson" items)
+- After the first term, either side ends it with **30 days' notice**.
+- **Complete goes month to month at $500 after its first 12 months**, same notice.
+Both live in `TERMS` in `netlify/lib/pricing-shared.mjs` (with `COMPLETE_PLAN`), which the site already reads.
+
+## 🌐 Step 7 DONE on the test copy (2026-11-07, dev branch, pushed to the test-copy branch)
+- Test copy = Netlify branch deploy of `claude/monday-sept-7-catchup-hyschf` (address in KB two-netlify-sites). The dev
+  branch of the session is pushed there; a commit must touch `marketing-site/` or Netlify skips the build.
+- Pricing page: hero "Pay for leads, not promises."; three choices (Ads "No monthly fee" / Complete $500 featured /
+  Website $1,500); plan finder says "No monthly fee" at every budget and its example month now LIGHTS THE LEADS you
+  pay for (3 slow, 11 busy, `.pf-dots`) instead of the old minimum-vs-fee bars; ad cards "No monthly fee" + "A set fee
+  per qualified lead. Nothing in a month with none."; stores "15%/12% of your ad spend, billed after the month. No
+  minimum."; rewritten how-you-pay box (3 months then month to month, 30 days' notice); new `#complete` section (7
+  parts, each with its stand-alone price from the price list, NO invented total value; terms boxes: 12 months, early
+  exit = $125 per month left of the $1,500 build, one platform, both needs $5,000).
+- Elsewhere: home price tile, Websites tile "or free with Complete", trade pages' price block, /compare/ rows (paid
+  per lead; 3 months then month to month, 30 days), FAQ (cost answer, 30 days' notice, NEW "What counts as a qualified
+  lead?" and "What's in the Complete plan?"), founding banners (home + get-started) add "and so is the first month of
+  lead fees", Google profile eyebrow "Add-on, or included in Complete", ads structured data price 0, llms.txt,
+  recommender's sub-$500 answer no longer mentions a minimum.
+- Tests: NEW `tests/verify-complete-plan-site.mjs` (37 checks, 7 mutations caught); verify-packages section 6,
+  verify-site-matches-packages, verify-marketing-pages, verify-marketing-motion updated to the new model. 186/186.
+- 🔴 KNOWN, DELIBERATE GAP: the catalog's `price` (and the OS, agreement, Deal Prep, `calcMonthlyBill`) still carry the
+  old monthly minimums. verify-packages says so in a comment where it now checks "advertises no monthly fee" instead of
+  "price matches". Do NOT merge the dev branch to main (that would put the new site live) until steps 1-6 land.
+- Still to update with the OS step: `netlify/lib/blog-shared.mjs` (blog writer facts say "whichever is higher"),
+  `client-emails-shared`, `scout-shared`, `lead-fee`, `ads-autopilot`, `deal-research-background`, portal copy.
 
 ## 🔨 BUILD PLAN (recommended to run in a FRESH session; this one's context was huge)
 What already exists (do not rebuild):

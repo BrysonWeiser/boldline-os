@@ -13,7 +13,7 @@ import { renderSite, THEME_IDS, PICK_THEMES, SITE_THEMES, SITE_PAGES as SAMPLE_P
 import { MODE_TOGGLE_CSS, MODE_TOGGLE_HTML, modeToggleJS } from "../netlify/lib/demo-site.mjs";
 import { DEMO, DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT, LANDING_DEMOS } from "./site-showcase-demo.mjs";
 import { renderLandingPage } from "../netlify/functions/landing.mjs";
-import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE, GOOGLE_PROFILE } from "../netlify/lib/pricing-shared.mjs";
+import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE, GOOGLE_PROFILE, COMPLETE_PLAN, TERMS, COMBO_MIN_BUDGET, MIN_AD_BUDGET } from "../netlify/lib/pricing-shared.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "marketing-src");
@@ -90,7 +90,7 @@ const usd = (n) => "$" + Number(n).toLocaleString("en-US");
 const PLAN_DATA = JSON.stringify(PACKAGES.filter((p) => /^(g|c)-/.test(p.id)).map((p) => ({ id: p.id, name: p.name, combined: p.id.startsWith("c-"), price: p.price, min: p.minBudget, max: p.maxBudget, band: p.adSpend })));
 const planFinder = () => `
 <section class="pf-sec"><div class="wrap-x">
-  <div class="x-head reveal"><div><div class="eyebrow">Find your plan</div><h2>Slide to your ad budget.</h2></div></div>
+  <div class="x-head reveal"><div><div class="eyebrow">Find your ad plan</div><h2>Slide to your ad budget.</h2></div></div>
   <div class="pf reveal" data-plans='${PLAN_DATA.replace(/'/g, "&#39;")}'>
     <div class="pf-left">
       <label class="pf-label" for="pfBudget">Your monthly ad budget <span class="pf-hint">(paid straight to Google or Meta, never to us)</span></label>
@@ -99,7 +99,7 @@ const planFinder = () => `
       <div class="pf-ticks" aria-hidden="true"><span style="left:0">$500</span><span style="left:41.667%">$2,500</span><span style="left:75%">$10,000</span><span style="left:100%">$30,000+</span></div>
       <div class="pf-result" id="pfResult" aria-live="polite">
         <div class="pf-plan"><span class="pf-name">Launch System</span><span class="pf-plat">Google or Meta, same price</span></div>
-        <div class="pf-min"><b>${usd(400)}/mo</b> minimum, or a fee per qualified lead, whichever is higher.</div>
+        <div class="pf-min"><b>No monthly fee.</b> You pay a set fee for each qualified lead we deliver.</div>
         <div class="pf-also"></div>
       </div>
     </div>
@@ -108,14 +108,88 @@ const planFinder = () => `
         <button type="button" class="on" data-month="slow" role="tab" aria-selected="true">A slow month</button>
         <button type="button" data-month="busy" role="tab" aria-selected="false">A busy month</button>
       </div>
-      <div class="pf-bars" data-month="slow">
-        <div class="pf-bar pf-bar-min"><div class="pf-fill"></div><span class="pf-cap">Your plan's minimum</span></div>
-        <div class="pf-bar pf-bar-lead"><div class="pf-fill"></div><span class="pf-cap">Qualified leads × your lead fee</span></div>
-      </div>
-      <p class="pf-say" data-for="slow">Fewer leads came in, so the lead fee stays under your minimum. <b>You pay the minimum.</b></p>
-      <p class="pf-say" data-for="busy" hidden>More qualified leads came in, so the lead fee is higher. <b>You pay the lead fee instead.</b> Never both.</p>
-      <p class="pf-small">An example to show how it works. Your lead fee is agreed on the call and written into your agreement.</p>
+      <div class="pf-dots" data-month="slow" aria-hidden="true">${Array.from({ length: 12 }, (_, i) => `<i class="${[i < 3 ? "s" : "", i < 11 ? "b" : ""].filter(Boolean).join(" ")}" style="--i:${i}"></i>`).join("")}</div>
+      <div class="pf-tally" aria-hidden="true"><span data-for="slow">3 qualified leads</span><span data-for="busy" hidden>11 qualified leads</span><small>&times; your lead fee = your bill</small></div>
+      <p class="pf-say" data-for="slow">Three qualified leads came in. <b>You pay for three.</b> No monthly fee gets added on top.</p>
+      <p class="pf-say" data-for="busy" hidden>Eleven qualified leads came in. <b>You pay for eleven.</b> Your bill only goes up when your phone rings more.</p>
+      <p class="pf-small">A month with no qualified leads costs you nothing from us. An example to show how it works: your lead fee is agreed on the call and written into your agreement.</p>
     </div>
+  </div>
+</div></section>
+`;
+// ── The three ways to work with us (Bryson, 2026-11-07, KB complete-plan). Every figure comes from the price list.
+const firstTerm = (m) => m === 12 ? "12 months" : `${m === 3 ? "3" : m} months`;
+const choices = () => `
+<section class="ch-sec" id="choices"><div class="wrap-x">
+  <div class="ch-grid reveal">
+    <div class="ch-card">
+      <div class="ch-k">Ads</div>
+      <div class="ch-v">No monthly fee</div>
+      <p class="ch-sub">A set fee for each qualified lead. A month with none costs you nothing.</p>
+      <ul class="ch-list">
+        <li>Google or Meta ads, planned and run for you</li>
+        <li>A landing page built for your ads</li>
+        <li>Every call and form traced to the ad</li>
+        <li>${firstTerm(TERMS.adsFirstTermMonths)} to start, then month to month</li>
+      </ul>
+      <a class="ch-go" href="#services">See the ad plans <span>&rarr;</span></a>
+    </div>
+    <div class="ch-card ch-main">
+      <span class="ch-tag">Everything, one bill</span>
+      <div class="ch-k">Complete</div>
+      <div class="ch-v">${usd(COMPLETE_PLAN.monthly)}<small>/mo</small></div>
+      <p class="ch-sub">Plus your lead fee for each qualified lead from the ads.</p>
+      <ul class="ch-list">
+        <li><b>Your website, built free</b></li>
+        <li>Your ads, run the same way as the Ads plan</li>
+        <li>Hosting and care, your Google profile and a blog</li>
+        <li>Emails that bring past customers back, and online booking</li>
+      </ul>
+      <a class="ch-go" href="#complete">What's included <span>&rarr;</span></a>
+    </div>
+    <div class="ch-card">
+      <div class="ch-k">Website</div>
+      <div class="ch-v">${usd(WEBSITE_OFFER.build)}<small> to build</small></div>
+      <p class="ch-sub">Then ${usd(WEBSITE_OFFER.care)} a month for hosting, security and small edits.</p>
+      <ul class="ch-list">
+        <li>${WEBSITE_OFFER.pages} pages, written for you</li>
+        <li>Three designs to choose from</li>
+        <li>Every enquiry sent to you the moment it comes in</li>
+        <li>Your domain stays in your name</li>
+      </ul>
+      <a class="ch-go" href="#website-pricing">Website pricing <span>&rarr;</span></a>
+    </div>
+  </div>
+  <p class="ch-foot reveal">Your ad budget is never part of any of these. It goes straight to Google or Meta on your own card, and we never hold it or mark it up.</p>
+</div></section>
+`;
+const COMPLETE_ITEMS = [
+  ["Google or Meta ads, run for you", "Planned, built and tuned every week, with a landing page and every call and form traced to the ad.", "Your lead fee per qualified lead"],
+  [`A ${WEBSITE_OFFER.pages} page website`, "Written for you in the design you pick, with two rounds of changes before it goes live.", `Built free (${usd(WEBSITE_OFFER.build)} on its own)`],
+  ["Hosting and care", `Kept online, secure and up to date, with up to ${WEBSITE_OFFER.carePlanEdits} small edits a month.`, `${usd(WEBSITE_OFFER.care)}/mo on its own`],
+  ["Your Google profile, kept busy", "Every review answered and a fresh post every week.", `${usd(GOOGLE_PROFILE.monthly)}/mo on its own`],
+  ["A blog on your website", `About ${COMPLETE_PLAN.blogPostsPerMonth} articles a month, and you can read, edit or hold each one first.`, `${usd(WEBSITE_OFFER.blogMonthly)}/mo on its own`],
+  ["Emails that bring past customers back", "A friendly note to people who already bought from you, sent from your own business.", "Only in Complete"],
+  ["Online booking with deposits", "Customers pick a time on your website and can pay a deposit to hold it.", "Only in Complete"],
+];
+const completeSection = () => `
+<section class="cp-sec" id="complete"><div class="wrap-x">
+  <div class="cp reveal">
+    <div class="cp-head">
+      <div class="eyebrow">The Complete plan</div>
+      <h2>Your ads, your website and the rest, <em>on one bill.</em></h2>
+      <p>One team looks after all of it. ${usd(COMPLETE_PLAN.monthly)} a month for everything that's always on, plus your lead fee for each qualified lead the ads bring in. Same as the Ads plan, there's no monthly fee for the ads themselves.</p>
+      <div class="cp-price"><span class="cp-v">${usd(COMPLETE_PLAN.monthly)}<small>/mo</small></span><span class="cp-n">+ your lead fee per qualified lead</span></div>
+      ${book("btn", "Book a Call")}
+    </div>
+    <ul class="cp-list">
+      ${COMPLETE_ITEMS.map(([h, p, v]) => `<li><div><b>${h}</b><span>${p}</span></div><em>${v}</em></li>`).join("\n      ")}
+    </ul>
+  </div>
+  <div class="cp-terms reveal">
+    <div><b>${firstTerm(TERMS.completeFirstTermMonths)} to start.</b> That's what lets us build your website free. After that it's month to month at ${usd(COMPLETE_PLAN.monthly)}, and either of us can stop with ${TERMS.noticeDays} days' notice.</div>
+    <div><b>Leaving early?</b> You'd pay what's left of the ${usd(WEBSITE_OFFER.build)} build, ${usd(COMPLETE_PLAN.earlyExitPerMonthLeft)} for each month left, and the website is yours to keep.</div>
+    <div><b>One ad platform included.</b> Google and Meta together starts at ${usd(COMBO_MIN_BUDGET)} a month in ad budget, the same as our other plans.</div>
   </div>
 </div></section>
 `;
@@ -130,7 +204,7 @@ const webPricing = () => `
   </div>
   <div class="wp-sig reveal"><div class="wp-sig-l"><div class="wp-k">Signature website</div><div class="wp-v">${usd(WEBSITE_SIGNATURE.build)}</div></div>
     <p>Designed around your brand instead of one of our designs: your colours and fonts, sections and a layout made for your business, ${WEBSITE_SIGNATURE.pages} pages and ${WEBSITE_SIGNATURE.revisionRounds} rounds of changes. Then ${usd(WEBSITE_SIGNATURE.care)}/mo care with up to ${WEBSITE_SIGNATURE.carePlanEdits} edits a month.</p></div>
-  <p class="wp-foot reveal">Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>, or <a href="${CAL_WEB}" target="_blank" rel="noopener noreferrer">book a website call</a>.</p>
+  <p class="wp-foot reveal">Running ads with us too? <a href="#complete">Complete</a> builds the website free, on a ${firstTerm(TERMS.completeFirstTermMonths)} plan. Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>, or <a href="${CAL_WEB}" target="_blank" rel="noopener noreferrer">book a website call</a>.</p>
 </div></section>
 `;
 
@@ -142,7 +216,7 @@ const gbpSection = () => `
 <section class="gp-sec" id="google-profile"><div class="wrap-x">
   <div class="gp reveal">
     <div class="gp-copy">
-      <div class="eyebrow">Add-on, with any plan or website</div>
+      <div class="eyebrow">Add-on, or included in Complete</div>
       <h2>Your Google profile, <em>kept busy.</em></h2>
       <p class="gp-lead">Most people find a business on Google Maps before they ever see its website. We keep your Google Business Profile active, so it looks cared for and gives people a reason to call.</p>
       <ul class="gp-list">
@@ -171,7 +245,6 @@ const gbpSection = () => `
 
 // ── Trade pages (Bryson, 2026-10-07: car detailers, handymen and similar). One per trade, each pointing at a
 // sample website for a made-up business in that trade. Plan numbers come from the one price list. ───────────────
-const launch = PACKAGES.find((p) => p.id === "g-launch");
 const TRADES = [
   { slug: "car-detailing", label: "Car detailers", sampleLabel: "detailing", sample: "car-detailing", photo: "/img/sample/detail-6873123.jpg",
     h1: "More booked details, <em>fewer slow weeks.</em>",
@@ -225,8 +298,8 @@ const tradePage = (t) => `
 
 <section class="x-sec" style="padding-top:10px"><div class="wrap-x">
   <div class="tr-price reveal">
-    <div><div class="eyebrow">What it costs</div><h2>Most ${t.label.toLowerCase()} start at ${usd(launch.price)} a month.</h2>
-      <p>That's the minimum on our Launch plan, or a fee per qualified lead, whichever is higher. Never both. Your ad budget, from $500 a month, goes straight to Google or Meta on your own card.</p></div>
+    <div><div class="eyebrow">What it costs</div><h2>No monthly fee. You pay for the leads.</h2>
+      <p>A set fee for each qualified lead we deliver, agreed before you start, so a slow month costs you less. Your ad budget, from ${usd(MIN_AD_BUDGET)} a month, goes straight to Google or Meta on your own card. Want the website handled too? Complete is ${usd(COMPLETE_PLAN.monthly)} a month with the website built free.</p></div>
     <div class="hero-ctas"><a class="btn" href="/pricing/">See all pricing</a><a class="btn btn-ghost" href="/websites/">Need a website too?</a></div>
   </div>
 </div></section>
@@ -255,8 +328,8 @@ ${ctaBand()}
 // ── BoldLine vs a typical agency. Every BoldLine line is something the contract and pricing already promise; the
 // other column describes the common retainer setup in hedged words and names no one. ──────────────────────────────
 const CMP = [
-  ["How they get paid", "A flat monthly retainer, paid whether your phone rings or not.", "Your plan's minimum or a fee per qualified lead, whichever is higher. We only earn more when you get more."],
-  ["How long you're locked in", "Often 6 to 12 months, agreed up front.", "90 days, then month to month."],
+  ["How they get paid", "A flat monthly retainer, paid whether your phone rings or not.", "No monthly fee for ads. A set fee per qualified lead, so a month with no leads costs you nothing."],
+  ["How long you're locked in", "Often 6 to 12 months, agreed up front.", `${TERMS.adsFirstTermMonths} months for ads, then month to month. Either of us can stop with ${TERMS.noticeDays} days' notice.`],
   ["Who owns the ad account", "Sometimes the agency's own account, so your history stays with them if you leave.", "Always yours, in your name and on your card. We only have manager access."],
   ["Your ad budget", "Some pay Google for you and bill you back with a markup.", "Goes straight to Google or Meta on your own card. We never hold it or mark it up."],
   ["Where the clicks go", "Usually your homepage.", "A landing page built for the ad, included on every plan."],
@@ -346,13 +419,13 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
       </div>
     </a>
     <a class="b-card b-web" style="--k:1" href="/websites/">
-      <h3>Websites</h3><p>Three modern designs with real motion, still fast on a phone. From $1,500 to build.</p>
+      <h3>Websites</h3><p>Three modern designs with real motion, still fast on a phone. $1,500 to build, or free with Complete.</p>
       <div class="b-thumbs" aria-hidden="true"><img src="/img/design-editorial.jpg" width="1440" height="900" alt="" loading="lazy" decoding="async"><img src="/img/design-cinematic.jpg" width="1440" height="900" alt="" loading="lazy" decoding="async"><img src="/img/design-showcase.jpg" width="1440" height="900" alt="" loading="lazy" decoding="async"></div>
       <span class="b-go">See the designs <i>&rarr;</i></span>
     </a>
     <a class="b-card b-price" style="--k:2" href="/pricing/">
-      <div class="b-big">You pay one number, never two.</div>
-      <p>Each month it's your plan's minimum or the fee for the qualified leads we delivered, whichever is higher. Your ad budget goes straight to Google and Meta.</p>
+      <div class="b-big">No monthly fee. You pay for leads.</div>
+      <p>A set fee for each qualified lead we deliver, so a month with none costs you nothing. Your ad budget goes straight to Google and Meta.</p>
       <span class="b-go">See pricing <i>&rarr;</i></span>
     </a>
     <a class="b-card b-check" style="--k:3" href="/free-check/">
@@ -401,9 +474,9 @@ const PAGES = [
     body: promote(part("websites.html")) + gbpSection() + webFaq() + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business.", CAL_WEB), ld: ["ld-org.html", "ld-service.html"] },
   { id: "pricing", path: "/pricing/", file: "pricing/index.html",
     title: "Pricing | BoldLine Media",
-    desc: "Ad plans for Google and Meta, and website pricing. For ads you pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.",
-    body: pageHero("Pricing", "One number, <em>never two.</em>", "Each month you pay your plan's minimum or the fee for the qualified leads we delivered, whichever is higher. Your ad budget is separate and goes straight to Google and Meta on your own card.")
-      + planFinder() + part("services.html") + compareNudge() + webPricing() + gbpSection() + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
+    desc: "No monthly fee for ads: you pay a set fee per qualified lead. The Complete plan adds your website, built free, and the rest for $500 a month. Websites from $1,500.",
+    body: pageHero("Pricing", "Pay for leads, <em>not promises.</em>", "No monthly fee for ads. You pay a set fee for each qualified lead we deliver, so a month with no leads costs you nothing. Your ad budget is separate and goes straight to Google or Meta on your own card.")
+      + choices() + planFinder() + part("services.html") + completeSection() + compareNudge() + webPricing() + gbpSection() + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
   { id: "how", path: "/how-it-works/", file: "how-it-works/index.html",
     title: "How It Works | BoldLine Media",
     desc: "The same structure every time: discovery, build, launch and weekly optimization. Who we work with, and the questions people ask first.",
