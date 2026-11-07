@@ -12,6 +12,18 @@ verified: 2026-11-06
 Meta was approved 2026-09-14 (KB meta-marketing-api): Complete and every offer include Google AND Meta ads.
 Never describe Meta as pending or coming soon.
 
+## DECIDED by Bryson, Sat 2026-11-07 (answers to the five questions)
+1. ✅ No monthly minimum for anyone: clients pay only per qualified lead (ads). Replaces the "greater of" minimum.
+2. ✅ First five clients get their first month of LEAD FEES free (ad spend stays theirs, say it that way).
+3. ✅ Every agreement has a 3-month minimum.
+4. ⏸ Setup fee for client six onward: NOT decided, "we can reevaluate when we get there". First five stay waived.
+5. 💬 Complete price: Bryson proposed **$500/mo** ("that would be about $2000 worth of value"). Recommendation given:
+   $500 works ONLY with the blog included (4 articles/mo, normally $150/mo). Without it Complete costs more than the
+   parts bought separately (~$355/mo: build $1,500/12 + care $100 + Google profile $130); with it the parts are ~$505/mo
+   plus emails, review requests and booking that aren't sold alone. Don't advertise a "$2,000 value" figure; show the
+   itemised list. AWAITING his yes on "$500 with the blog included" before building.
+Build order once he says yes: marketing site on the TEST COPY first (his OK), then agreement terms, Deal Prep, billing.
+
 ## Status
 - Pricing changes (no minimum for all, free first month, Complete plan) are ONLY PROPOSED. He has not confirmed the
   three conditions or the $299. Do not change the site, Deal Prep, agreements or billing until he does.
