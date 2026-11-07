@@ -20,6 +20,7 @@
 // because the archive also sits in a PUBLIC bucket.
 
 import assert from "node:assert/strict";
+import { chromiumPath } from "../scripts/chromium-path.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -410,7 +411,7 @@ t("🔴 the saved page is served as HTML by our own route, not by Supabase", () 
     let chromium = null, exe = "";
     try {
       ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
-      exe = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+      exe = chromiumPath();
     } catch { /* no browser here */ }
     if (chromium) {
       const browser = await chromium.launch({ executablePath: exe });
@@ -449,7 +450,7 @@ t("🔴 the saved page is served as HTML by our own route, not by Supabase", () 
     let chromium = null, exe = "";
     try {
       ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
-      exe = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+      exe = chromiumPath();
     } catch { return; }
 
     const cid = uid();

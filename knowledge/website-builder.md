@@ -364,7 +364,7 @@ Emails tab, labelled automatic, website footer "Websites built and looked after 
   `buildClientCtx` (and the OS `buildCtx` mirror) now sets `resultKind:"enquiry"` for `packageId "w-site"`;
   `emailWords` has an enquiry variant ("10 enquiries from your website") and the review ask opens with the
   website, and every email to them carries the website footer.
-- Website-only clients also get the review ask once, 45 days after going live, care plan not past due
+- Website-only clients also get the review ask once, 30 days after going live (was 45 until 2026-11-06), care plan not past due; rules in KB `client-review-ask`
   (client-nurture step 4b). They never get the ads welcome / access / nudges / renewal: those need
   `contractSigned`, which website deals never set.
 - OS Emails tab filters by client: website-only sees the website emails + milestone, review ask, thank-you;

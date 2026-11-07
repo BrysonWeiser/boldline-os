@@ -9,11 +9,12 @@
 //     once, and two overlapping styles once stretched the "New enquiry" bubble over the whole picture.
 //  4. No sideways scrolling at the four standard widths, motion on or off.
 import { serveSite, readPage } from "./helpers/marketing-site.mjs";
+import { chromiumPath } from "../scripts/chromium-path.mjs";
 
 let chromium = null, exe = "";
 try {
   ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
-  exe = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+  exe = chromiumPath();
 } catch { /* no browser in this environment */ }
 
 let pass = 0; const fails = [];

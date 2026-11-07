@@ -9,7 +9,8 @@
 //   3. Results milestone  — a celebratory email when a client crosses
 //      10/25/50/100/… leads, or recorded sales for a store client. Seeded on first sight so existing clients are never
 //      spammed about counts they already had; only FUTURE crossings email.
-//   4. Review request     — once, after a client has had a genuinely good month.
+//   4. Review request     — once, a month after they bought something from us (ads with leads coming in, a
+//      website live, or a website bought outright). Rules in lib/review-ask.mjs.
 //
 // Every step is gated on a cl.emailAuto flag, so each fires once per client and a
 // re-run is a no-op. Milestones apply to every active client.
@@ -19,17 +20,14 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, retryQuery } from "../lib/report-shared.mjs";
 import { withFailureAlert } from "../lib/alerts-shared.mjs";
 import { autoSendClientEmail, isWebsiteOnly } from "../lib/client-email-auto.mjs";
-import { hasAdActivity, liveStats } from "../lib/report-shared.mjs";
+import { liveStats } from "../lib/report-shared.mjs";
+import { reviewAskDue, boldlineReviewUrlFrom } from "../lib/review-ask.mjs";
 
 const DAY = 864e5;
 const MILESTONES = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
 const daysSince = (iso) => (iso ? (Date.now() - new Date(iso).getTime()) / DAY : null);
 const ONBOARD_STEPS = [{ id: "d2", after: 2 }, { id: "d5", after: 5 }];
-// A review is worth asking for only once there is something to review. Ten leads is the
-// first milestone, so it is already the point at which the OS considers a client to be
-// getting somewhere; six weeks is long enough to have an opinion worth writing down.
-const REVIEW_MIN_LEADS = 10;
-const REVIEW_MIN_DAYS = 45;
+// When to ask for a review moved to lib/review-ask.mjs (2026-11-06: one month, every way a client buys from us).
 
 export default withFailureAlert("client-nurture", async () => {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -40,6 +38,8 @@ export default withFailureAlert("client-nurture", async () => {
   const { data: rows, error } = await retryQuery(() => supabase.from("clients").select("id, data"), { job: "client-nurture", step: "clients load" });
   if (error) { console.error("client-nurture: clients load failed:", error.message); return new Response("db error", { status: 200 }); }
 
+  // BoldLine's own Google "write a review" link, from the house account's connected profile (KB google-listing).
+  const reviewGoogleUrl = boldlineReviewUrlFrom(rows);
   let checked = 0, sent = 0;
   for (const row of rows || []) {
     const cl = row.data || {};
@@ -123,41 +123,16 @@ export default withFailureAlert("client-nurture", async () => {
           if (r.sent) { ea.milestonesSent = [...ea.milestonesSent, ...crossed]; logs.push(r.logEntry); changed = true; crossedMilestone = true; }
         }
       }
-      // 🔴 4. ASK FOR A REVIEW, ONCE, AFTER A GOOD STRETCH. Added 2026-09-07.
-      //
-      // The review system was fully built and nothing ever asked anybody. A review wall
-      // nobody is invited to fill in stays empty forever, and no social proof is the single
-      // biggest weakness in the sales conversation while BoldLine has one client.
-      //
-      // The conditions are deliberately conservative, because a badly timed ask is worse
-      // than no ask: it has to be a real client, their ads have to have actually run (not
-      // merely be signed up), they need enough delivered leads to have an opinion, and
-      // enough time to have formed it. `!crossedMilestone` keeps this out of the same run
-      // as a celebration email, so nobody gets two of ours in one morning.
-      //
-      // Once per client, ever. There is no second ask: a client who ignored it once has
-      // answered, and chasing a favour is how a favour becomes an imposition.
-      const contractAgeDays = daysSince(cl.contractStart);
-      if (!ea.reviewAsked && ea.welcome && !crossedMilestone
-          && cl.contractStatus === "active"
-          && hasAdActivity(cl)
-          && leads >= REVIEW_MIN_LEADS
-          && contractAgeDays != null && contractAgeDays >= REVIEW_MIN_DAYS) {
-        const r = await autoSendClientEmail(cl, "review_request");
-        if (r.sent) { ea.reviewAsked = true; ea.reviewAskedAt = new Date().toISOString(); logs.push(r.logEntry); changed = true; }
-      }
-      // 🔴 4b. THE SAME ASK FOR A WEBSITE-ONLY CLIENT (2026-10-06). The rule above can never fire for
-      // them: they have no ads, no `welcome` and no ads contract. Their good stretch is the site having
-      // been live for the same six weeks with the care plan in good standing. The email reads in website
-      // terms for them (`resultKind: "enquiry"`), never about campaigns.
-      const w = cl.websiteDeal || {};
-      const liveDays = daysSince(w.launchedAt);
-      if (!ea.reviewAsked && !crossedMilestone && isWebsiteOnly(cl)
-          && cl.website && cl.website.published
-          && liveDays != null && liveDays >= REVIEW_MIN_DAYS
-          && !(w.careSub && w.careSub.status === "past_due")) {
-        const r = await autoSendClientEmail(cl, "review_request");
-        if (r.sent) { ea.reviewAsked = true; ea.reviewAskedAt = new Date().toISOString(); logs.push(r.logEntry); changed = true; }
+      // 🔴 4. ASK FOR A REVIEW, ONCE, A MONTH AFTER THEY BOUGHT SOMETHING FROM US. Added 2026-09-07 (45 days and 10
+      // leads, ads and hosted websites only); since 2026-11-06 one month, on every path, including a website bought
+      // outright (Bryson: "after a month of running ads or selling a website or service etc"). The rules, and why an
+      // ads client with almost no leads is not asked yet, are in lib/review-ask.mjs.
+      // `!crossedMilestone` keeps it out of the same run as a celebration email, so nobody gets two of ours in one
+      // morning. Once per client, ever: a client who ignored it once has answered.
+      const ask = !crossedMilestone ? reviewAskDue(cl, ea) : { due: false };
+      if (ask.due) {
+        const r = await autoSendClientEmail(cl, "review_request", { reviewGoogleUrl, reviewWhy: ask.path });
+        if (r.sent) { ea.reviewAsked = true; ea.reviewAskedAt = new Date().toISOString(); ea.reviewAskedFor = ask.path; logs.push(r.logEntry); changed = true; }
       }
     } catch (e) { console.error(`client-nurture: ${cl.name || row.id} failed:`, e.message); }
 

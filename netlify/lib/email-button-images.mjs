@@ -21,6 +21,11 @@ export const EMAIL_BUTTON_IMAGES = {
     "w": 235,
     "h": 44
   },
+  "Leave a Google Review": {
+    "file": "leave-a-google-review.png",
+    "w": 238,
+    "h": 44
+  },
   "Leave a Review": {
     "file": "leave-a-review.png",
     "w": 186,

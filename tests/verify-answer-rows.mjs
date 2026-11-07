@@ -16,13 +16,14 @@
 // every chip is the SAME WIDTH, and the only chip allowed to span the full row is an odd
 // last one (the 5th of five, which would otherwise strand itself in the left column).
 import { fileURLToPath } from "node:url";
+import { chromiumPath } from "../scripts/chromium-path.mjs";
 import { dirname, join } from "node:path";
 import { serveSite } from "./helpers/marketing-site.mjs";
 
 let chromium = null, exe = "";
 try {
   ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
-  exe = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+  exe = chromiumPath();
 } catch { /* no browser in this environment */ }
 if (!chromium) { console.log("verify-answer-rows: skipped, no browser in this environment"); process.exit(0); }
 

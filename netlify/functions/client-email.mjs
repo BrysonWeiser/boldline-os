@@ -7,6 +7,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail } from "../lib/report-shared.mjs";
 import { EMAIL_TYPES, renderClientEmail } from "../lib/client-emails-shared.mjs";
+import { boldlineReviewUrl } from "../lib/review-ask.mjs";
 import { dispatchAlert } from "../lib/alerts-shared.mjs";
 
 const json = (body, status = 200) =>
@@ -37,7 +38,11 @@ export default async (req) => {
 
     if (action === "render") {
       if (!body.type) return json({ ok: false, error: "type required" }, 400);
-      const { subject, html } = renderClientEmail(body.type, body.ctx || {});
+      // The review ask points at BoldLine's own Google profile, which only the server knows (lib/review-ask.mjs), so a
+      // preview or a send by hand reads exactly like the automatic one.
+      const ctx = { ...(body.ctx || {}) };
+      if (body.type === "review_request" && !ctx.reviewGoogleUrl) ctx.reviewGoogleUrl = await boldlineReviewUrl(supabase);
+      const { subject, html } = renderClientEmail(body.type, ctx);
       return json({ ok: true, action, subject, html });
     }
 

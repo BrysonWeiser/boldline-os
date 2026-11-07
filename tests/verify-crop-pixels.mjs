@@ -7,13 +7,14 @@
 // setBusy, setErr, onDone, fetch) are supplied as plain variables, so the code under test is
 // the file's own, character for character.
 import { readFileSync, writeFileSync } from "node:fs";
+import { chromiumPath } from "../scripts/chromium-path.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 let chromium = null, exe = "";
 try {
   ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
-  exe = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+  exe = chromiumPath();
 } catch { /* no browser in this environment */ }
 if (!chromium) {
   console.log("verify-crop-pixels: skipped, no browser in this environment");

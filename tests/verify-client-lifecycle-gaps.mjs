@@ -77,15 +77,18 @@ ok("the OS no longer tells Bryson the welcome is sent 'when they pay'",
 ok("a review request template exists", typeof renderClientEmail === "function"
   && !!EMAIL_TYPES.find((t) => t.id === "review_request"));
 ok("and the daily job actually sends it",
-  /autoSendClientEmail\(cl, "review_request"\)/.test(NURTURE),
+  /autoSendClientEmail\(cl, "review_request"[,)]/.test(NURTURE),
   "a template nothing sends is the exact gap this was written to close");
 ok("🔴 it asks once per client, ever",
-  /!ea\.reviewAsked/.test(NURTURE) && /ea\.reviewAsked = true/.test(NURTURE),
+  /if \(ea\.reviewAsked\) return no\("already asked"\);/.test(readFileSync(new URL("../netlify/lib/review-ask.mjs", import.meta.url), "utf8")) && /ea\.reviewAsked = true/.test(NURTURE),
   "chasing a favour is how a favour becomes an imposition");
+// The timing moved to lib/review-ask.mjs on 2026-11-06 (one month, every way a client buys from us); its full
+// behaviour is pinned in tests/verify-review-ask.mjs.
+const RA = readFileSync(new URL("../netlify/lib/review-ask.mjs", import.meta.url), "utf8");
 ok("it will not ask a client whose ads never ran",
-  /reviewAsked[\s\S]{0,400}hasAdActivity\(cl\)/.test(NURTURE));
+  /const ask = !crossedMilestone \? reviewAskDue\(cl, ea\)/.test(NURTURE) && /if \(!hasAdActivity\(cl\)\) return no\("ads haven't run"\);/.test(RA));
 ok("it waits for real delivered leads and real elapsed time",
-  /leads >= REVIEW_MIN_LEADS/.test(NURTURE) && /contractAgeDays >= REVIEW_MIN_DAYS/.test(NURTURE));
+  /liveStats\(cl\)\.leads < REVIEW_MIN_LEADS/.test(RA) && /age < REVIEW_AFTER_DAYS/.test(RA));
 ok("🔴 and never lands in the same run as a celebration email",
   /!crossedMilestone/.test(NURTURE),
   "two of ours in one morning reads as automated, which is the one thing it must not");
