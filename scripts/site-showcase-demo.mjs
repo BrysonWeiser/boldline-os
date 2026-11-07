@@ -119,10 +119,15 @@ export const LANDING_DEMOS = [
     faqs: [{ q: "How long does paint protection film take?", a: "A full front usually takes one day." }] }, "aurora") },
 ];
 
+// Every sample website on boldlinemedia.com (and the pictures of them) OPENS in this mode, so the designs sit side by
+// side as one set and match the site around them. A visitor can still flip any sample to light from its top bar.
+// Bryson, 2026-11-07: "lets either have all of the previews start in dark mode or light mode im thinking dark".
+export const SAMPLE_MODE = "dark";
+
 // Writes the three designs as HTML into `outDir`, for scripts/build-site-showcase.cjs to photograph.
 export function writeDemoPages(outDir) {
   const base = "https://saguaropools.example";
-  for (const th of THEME_IDS) writeFileSync(`${outDir}/demo-${th}.html`, renderSite(DEMO, "home", { base, theme: th, noindex: true }));
+  for (const th of THEME_IDS) writeFileSync(`${outDir}/demo-${th}.html`, renderSite(DEMO, "home", { base, theme: th, noindex: true, mode: SAMPLE_MODE }));
   return THEME_IDS;
 }
 // Only when run directly: the marketing site build imports DEMO and must not write anything here.

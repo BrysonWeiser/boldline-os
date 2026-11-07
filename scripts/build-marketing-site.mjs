@@ -11,7 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { renderSite, THEME_IDS, PICK_THEMES, SITE_THEMES, SITE_PAGES as SAMPLE_PAGES } from "../netlify/lib/site-render.mjs";
 import { MODE_TOGGLE_CSS, MODE_TOGGLE_HTML, modeToggleJS } from "../netlify/lib/demo-site.mjs";
-import { DEMO, DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT, LANDING_DEMOS } from "./site-showcase-demo.mjs";
+import { DEMO, DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT, LANDING_DEMOS, SAMPLE_MODE } from "./site-showcase-demo.mjs";
 import { renderLandingPage } from "../netlify/functions/landing.mjs";
 import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE, GOOGLE_PROFILE, COMPLETE_PLAN, TERMS, COMBO_MIN_BUDGET, MIN_AD_BUDGET } from "../netlify/lib/pricing-shared.mjs";
 
@@ -625,7 +625,7 @@ const samplePath = (slug, page) => `examples/${slug}/${page.path ? page.path + "
 const SAMPLE_PHOTOS = existsSync(join(OUT, "img", "sample")) ? readdirSync(join(OUT, "img", "sample")) : [];
 function samplePage(sm, page) {
   const root = `/examples/${sm.slug}`;
-  let html = renderSite(sm.demo, page.id, { base: SAMPLE_ORIGIN + root, theme: sm.theme, noindex: true });
+  let html = renderSite(sm.demo, page.id, { base: SAMPLE_ORIGIN + root, theme: sm.theme, noindex: true, mode: SAMPLE_MODE });
   // Its own pages link within the sample, wherever the site is being served from (the test copy included).
   html = html.split(SAMPLE_ORIGIN + root).join(root).split(SAMPLE_ORIGIN + "/img/").join("/img/");
   // The builder describes the business to search engines; this one is made up, so that goes.
