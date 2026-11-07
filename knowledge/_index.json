@@ -27554,7 +27554,7 @@
         "daily check",
         "publishable key"
       ],
-      "status": "CODE LIVE 2026-11-05; the Supabase switch is Bryson's (10pm reminder)",
+      "status": "CLOSED 2026-11-06 (Bryson switched sign-ups off; verified live disable_signup true)",
       "summary": "Found 2026-11-05 while checking that a demo link can't reach the OS. Supabase still had public sign-ups ON (disable_signup false, email provider on), and the OS page carries the public database key, so anyone who read the page could create their own login, confirm it by email, and pass every \"is this a signed-in user?\" check in ~49 OS functions plus every table policy granted to signed-in users. Nothing in the OS creates users, so turning sign-ups off breaks nothing. The daily check now fails (red alert) while sign-ups are on, and names any login created in the last 26 hours.",
       "verified": "2026-11-05",
       "terms": {

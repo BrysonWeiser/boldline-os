@@ -3,7 +3,7 @@ name: os-signup-lockdown
 topic: Security
 task: make sure nobody but Bryson can get into the OS (sign-ups, new logins, who a demo link can reach)
 keywords: [security, sign up, signup, sign-ups, disable signup, allow new users to sign up, supabase auth, new login, rogue account, who can access the os, os access, login lockdown, auth settings, auth/v1/settings, listUsers, daily check, publishable key]
-status: CODE LIVE 2026-11-05; the Supabase switch is Bryson's (10pm reminder)
+status: CLOSED 2026-11-06 (Bryson switched sign-ups off; verified live disable_signup true)
 summary: Found 2026-11-05 while checking that a demo link can't reach the OS. Supabase still had public sign-ups ON (disable_signup false, email provider on), and the OS page carries the public database key, so anyone who read the page could create their own login, confirm it by email, and pass every "is this a signed-in user?" check in ~49 OS functions plus every table policy granted to signed-in users. Nothing in the OS creates users, so turning sign-ups off breaks nothing. The daily check now fails (red alert) while sign-ups are on, and names any login created in the last 26 hours.
 verified: 2026-11-05
 ---
@@ -32,3 +32,8 @@ Verify: `curl -s <supabase>/auth/v1/settings -H "apikey: <publishable key from i
 ## Related
 - Demo links moved off the OS's address the same day (KB `demo-sites`, "Demo host").
 - Sign-ins from a new place already alert (KB `suspicious-login-alert`).
+
+## Done (Fri 2026-11-06 evening, Phoenix)
+Bryson: "supabase is done". Verified from outside the same evening: `auth/v1/settings` answers `"disable_signup":true`.
+He did not report any unexpected login in the Users list. The daily check's sign-up row should now pass; the
+new-login row keeps watching.
