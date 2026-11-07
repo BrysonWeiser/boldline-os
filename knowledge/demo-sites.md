@@ -194,7 +194,7 @@ wellnesses website and it didn't work".
   would have hidden them. The Brand kit still wins over everything.
 - Found on the way: Supabase sign-ups were open. See KB `os-signup-lockdown`.
 - **Their own photos and videos from social media (asked same evening):** not pulled automatically (login walls; going
-  round them breaks the platforms' rules and risks BoldLine's Meta app). Official Instagram route parked behind Meta
+  round them breaks the platforms' rules and risks BoldLine's Meta app). Official Instagram route (Business Discovery) needs Instagram permissions of its own,
   approval (KB `meta-parked-work` item 5). Bryson said yes to the upload instead, built and LIVE 2026-11-05:
   - **Website demos card > "Their photos and videos" > + Add photos or videos** (every finished demo and client pitch
     preview card; NOT on Outreach's DemoSiteBox). Several at once from the phone. `DemoMediaRow` in index.html.

@@ -8,6 +8,10 @@ summary: Bryson, 2026-11-06, floated (1) no monthly minimum for anyone, pay only
 verified: 2026-11-06
 ---
 
+## Meta is part of it
+Meta was approved 2026-09-14 (KB meta-marketing-api): Complete and every offer include Google AND Meta ads.
+Never describe Meta as pending or coming soon.
+
 ## Status
 - Pricing changes (no minimum for all, free first month, Complete plan) are ONLY PROPOSED. He has not confirmed the
   three conditions or the $299. Do not change the site, Deal Prep, agreements or billing until he does.
