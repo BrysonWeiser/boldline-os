@@ -70,7 +70,7 @@ to start the Twilio upgrade + A2P registration as part of the all-in-one offer (
 replies and missed-call text-back. Walkthrough given (upgrade with BoldLine Media LLC + card + $20 credit; register
 the brand as Low Volume Standard with the EIN; campaign Customer Care, opt-in = the form consent box, KB sms-consent)
 and put in that night's 10pm reminder (trig via send_later, 22:00 Phoenix = 05:00 UTC Sat). Approval takes days to a
-few weeks. NOT YET CONFIRMED DONE. When approved: raise the parked list below, and SMS_ENABLED=1 in Netlify goes in a
+few weeks. NOT YET CONFIRMED DONE (10pm reminder sent Fri 2026-11-06; he had not said it was done). When approved: raise the parked list below, and SMS_ENABLED=1 in Netlify goes in a
 10pm reminder. Each CLIENT still needs its own brand registration (their legal name + EIN), KB client-text-back.
 
 ## 🔴 PARKED UNTIL TWILIO IS UPGRADED — the list, so it resurfaces instead of being rediscovered
