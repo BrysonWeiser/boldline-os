@@ -10,6 +10,7 @@ import { BRAND_READ_PROMPT, BRAND_FILE_TYPES, parseBrandRead } from "../lib/bran
 import { humanize } from "../lib/humanize.mjs";
 import { SUPABASE_URL, sendEmail } from "../lib/report-shared.mjs";
 import { isOwned } from "../lib/owned.mjs";
+import { customerEmailsSetupAllowed, customerEmailsHealthBlocked } from "../lib/biz-email.mjs";
 import { bookingConfirmEmail } from "../lib/booking.mjs";
 import { bizEmailHTML, bizEmailText } from "../lib/biz-email-shell.mjs";
 import { EMAIL_RE, brandFromHTML, safePublicUrl, buildCustomerEmail, sendAsBusiness, customerEmailsOf } from "../lib/biz-email.mjs";
@@ -56,8 +57,13 @@ export default async (req) => {
 
   const { data: row, error } = await db.from("clients").select("id, data").eq("id", String(body.clientId || "")).maybeSingle();
   if (error || !row || !row.data) return json({ ok: false, error: "That business could not be found." }, 404);
-  // Reading a brand file works for every client's Brand kit; the customer-email actions are his own businesses only.
-  if (body.action !== "read-brand" && !isOwned(row.data)) return json({ ok: false, error: "That business could not be found." }, 404);
+  // Reading a brand file works for every client's Brand kit. The customer-email actions are his own businesses, and
+  // since 2026-11-06 clients whose website takes bookings (never a health business: lib/biz-email.mjs).
+  if (body.action !== "read-brand" && !customerEmailsSetupAllowed(row.data)) {
+    const cl0 = row.data || {};
+    if (customerEmailsHealthBlocked(cl0)) return json({ ok: false, error: "Customer emails are off for health businesses: a patient's email needs a signed privacy agreement first." }, 403);
+    return json({ ok: false, error: "That business could not be found." }, 404);
+  }
   const cl = { ...row.data, id: row.data.id || row.id };
   const owner = process.env.OWNER_EMAIL;
   if (!owner) return json({ ok: false, error: "OWNER_EMAIL is not set, so there is nowhere to send it." }, 500);

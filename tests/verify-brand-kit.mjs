@@ -109,7 +109,9 @@ ok("a brand file is uploaded but never added to the photo library", /bkUpload\(c
 // 5. His businesses first
 ok("🔴 the card is on his businesses' Overview tab, and every client's Assets tab (2026-10-09: \"add it for the client side now\")", /\{isOwned\(client\)&&<BrandKitCard client=\{client\} onUpdate=\{onUpdate\} onOpenAssets=\{\(\)=>setTab\("portal"\)\}\/>\}/.test(UI)
   && /\{!client\.internal&&<BrandKitCard client=\{client\} onUpdate=\{onUpdate\}/.test(UI) && (UI.match(/<BrandKitCard /g) || []).length === 2 && !/\{client\.internal&&!client\.owned&&<BrandKitCard/.test(UI));
-ok("reading a brand file works for every client; the customer-email actions stay his own businesses' only", /if \(body\.action !== "read-brand" && !isOwned\(row\.data\)\)/.test(src("netlify/functions/biz-email.mjs")));
+// Since 2026-11-06 the customer-email actions also open to clients whose website takes bookings (never health), per
+// customerEmailsSetupAllowed; pinned in tests/verify-client-customer-emails.mjs.
+ok("reading a brand file works for every client; the customer-email actions follow the customer-email rules", /if \(body\.action !== "read-brand" && !customerEmailsSetupAllowed\(row\.data\)\)/.test(src("netlify/functions/biz-email.mjs")));
 ok("no emojis in the card", !/[\u{1F300}-\u{1FAFF}]/u.test(UI.slice(UI.indexOf("function BrandKitCard("), UI.indexOf("// ─── CUSTOMER EMAILS"))));
 
 if (fails.length) console.log(fails.map((f) => "  FAIL  " + f).join("\n"));
