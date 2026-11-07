@@ -40,6 +40,18 @@ Build order once he says yes: marketing site on the TEST COPY first (his OK), th
 - With 1-4 above (no minimum for anyone, first month of lead fees free for the first five, 3-month minimum, setup fee
   for client six undecided).
 
+## ✅ RENEWALS: MONTH TO MONTH ONLY (Bryson, Sat 2026-11-07)
+"for renewals after the first 3 months will only be month to month because there is no reason for a client to sign
+for more than a month at a time anymore". With no monthly fee for ads, the old renewal menu (1/3/6/12 months with
+month-to-month +10%, 6 months -5%, 12 months -10%, KB `contract-renewal-pricing`) has nothing left to discount, so:
+- After the 3-month initial term, the agreement simply continues **month to month**. No renewal to sign, no term
+  choice, no +10% month-to-month premium. Either side can end it with notice (the agreement already uses thirty days'
+  written notice for add-ons; use the same unless Bryson says otherwise, and confirm it with him in the build).
+- **Complete**: its first term is 12 months (that pays back the free website build); after that, month to month at
+  $500 too. (Inferred from the same reasoning; confirm with Bryson when building.)
+- Build impact: the renewal flow on the Contract tab, the renewal email, `TERM_RATE`/term discounts and the contract's
+  term wording all change for NEW terms only; clients already signed keep what they signed.
+
 ## 🔨 BUILD PLAN (recommended to run in a FRESH session; this one's context was huge)
 What already exists (do not rebuild):
 - Results-only billing: card on file via Checkout mode "setup", each approved lead batch charged as its own invoice
@@ -56,7 +68,7 @@ Steps:
 2. **Stores**: 15% (12% top) of ad spend, no minimum; same terms version.
 3. **Founding (first five)**: setup waived (as now) + **first month of lead fees free** = leads delivered in the first
    30 days after go-live (contractStart, KB campaign-live) are not charged; clause in the agreement; Deal Prep + banner.
-4. **3-month minimum** stays for ads-only (already clause 2.2). **Complete = 12 months**.
+4. **3-month minimum** stays for ads-only (already clause 2.2), then MONTH TO MONTH (see Renewals above). **Complete = 12 months**, then month to month.
 5. **Complete package** (new id): $500/mo Stripe subscription; one ad platform (both = Combined rules, $5k budget);
    Standard 5-page website with the $1,500 build WAIVED on the 12-month term, early exit = the rest of the build
    pro-rated; hosting/care, Google profile care, blog (4/mo), customer emails (still per-client consent + own sender),

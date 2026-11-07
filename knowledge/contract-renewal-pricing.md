@@ -191,3 +191,9 @@ the standard one, and that mismatch surfaces only when a client compares their i
 against their contract.
 
 A per-lead client never gets a percentage written onto them, and vice versa.
+
+## 🔴 SUPERSEDED FOR NEW TERMS (Bryson, 2026-11-07)
+With no monthly fee for ads (KB `complete-plan`), renewals become MONTH TO MONTH ONLY after the 3-month initial term
+(Complete: after its 12-month first term). No 1/3/6/12 choice, no discounts, no +10% premium. Clients already signed
+keep their terms. To be built with the Complete plan.
+
