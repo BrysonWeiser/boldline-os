@@ -57,6 +57,16 @@ detailing business first, then clients as the Google profile add-on (about $150 
    That's **Corvane Auto Detailing**. Not yet as of 2026-10-27: the business and its Google profile aren't set up.
    He's connecting BoldLine's own profile first, from My Ads, then the Overview tab.
 
+## Setup progress, checked with Bryson Fri 2026-11-06 evening (Phoenix)
+- Cloud steps 1 and 2 done (he confirmed). Google Auth Platform: Audience **In production**, External, 0/100 user cap.
+- OAuth client **"BoldLine OS listing"** (Web application) exists, made Oct 27 2026; redirect URI is exactly
+  `https://os.boldlinemedia.com/gbp-connect/done`; one secret, enabled. Google no longer shows or downloads secrets
+  after creation, so a lost secret means **Add secret** on that client (then put the new one in Netlify).
+- The client shows "Last used November 3, 2026", so the OS has used it at least once: the Netlify keys are very
+  likely already in place. Next: the Google listing card (My Ads > Overview) tells which state it is in
+  ("Not switched on yet" = Netlify keys missing; "Connect Google" = keys in, not connected; numbers = connected).
+- The yellow "requires verification" banners are expected: unverified is fine for our own use (100-user cap).
+
 ## Tests
 `tests/verify-google-listing.mjs` (59 checks) runs the real functions with Supabase, Google and Anthropic stubbed.
 The card was driven in the real OS at 390, 768, 1280 and 1600 wide.
