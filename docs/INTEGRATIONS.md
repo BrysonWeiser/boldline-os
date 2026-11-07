@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 241 task-keyed entries under `knowledge/`. They surface automatically via the
+> 242 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**241 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**242 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -198,6 +198,9 @@
 - **[approval-chase](../knowledge/approval-chase.md)** &mdash; &#9989; verified &middot; 2026-09-09  
   A client sitting on an approval used to produce ONE yellow alert to Bryson on day 3 and nothing ever again, and the client themselves was never contacted by the OS at all. Now the OS emails the client on days 3, 7 and 14, in reminder-flavoured copy that names how long it has been waiting and invites the real objection, then STOPS and raises one red hand-off telling Bryson to phone them. Never chases a client who asked for changes, the demo client, the house account, or anyone with no portal to open. The chase is recorded only after the send succeeds. 65 checks, 18 mutations caught.  
   <sub>*task:* understand or change what happens when a client goes quiet on something sent for their approval &nbsp;|&nbsp; *keywords:* client not responding, silent client, chase client, nudge client, stale approval, unanswered approval, approval reminder, APPROVAL_CHASE_DAYS, chaseDue, chaseable, chasesSent, handedOffAt, alerts-watch, follow up automation, client went quiet, no reply, reminder email, escalation</sub>
+- **[client-delete-voids](../knowledge/client-delete-voids.md)** &mdash; &#9989; verified &middot; 2026-11-06  
+  Bryson, 2026-11-06 - "if i delete a client that I am onboarding but they havent signed the agreement yet ... any agreements that are still sent but not signed yet are automatically voided". Deleting used to remove the record straight from the browser and leave the DocuSign envelope live. Now the delete goes through a server step that checks every agreement on the record with DocuSign (ads, website, earlier ones), voids the ones still signable (sent / delivered / correct), and only then deletes. If DocuSign can't be reached or refuses a void, the client is NOT deleted and the OS says why.  
+  <sub>*task:* delete a client safely, cancelling any DocuSign agreement still waiting for their signature first &nbsp;|&nbsp; *keywords:* delete client, deleting a client, void agreement, void envelope, cancel agreement, unsigned agreement, docusign void, voidedReason, client-delete, deleteClientWithAgreements, agreementsOf, onboarding client deleted</sub>
 - **[client-review-ask](../knowledge/client-review-ask.md)** &mdash; &#9989; verified &middot; 2026-11-06  
   Bryson, 2026-11-06 - "automatically send something to our clients after a month of running ads or selling a website or service etc to them for them to give us a review". The ask existed since 2026-09-07 (45 days, 10 leads, ads and hosted sites only, and it never linked to Google). Now one month on every path - ads (a month from go-live, ads really delivered, at least 3 leads; fewer waits), a website we host (live a month, plan not past due), a website bought outright (a month after paid in full). Once per client ever, never the same morning as a milestone email. The main button is BoldLine's own Google "write a review" page from the connected Business Profile; the website form is the other choice.  
   <sub>*task:* automatically ask clients for a review of BoldLine a month after they buy (ads, website, website bought outright), and where the ask points &nbsp;|&nbsp; *keywords:* review request, ask for a review, client review, google review for boldline, review_request, reviewAsked, review-ask.mjs, reviewAskDue, client-nurture, one month, 30 days, write a review link, placeid, writereview, testimonial, social proof</sub>
