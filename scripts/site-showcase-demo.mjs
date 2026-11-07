@@ -121,8 +121,8 @@ export const LANDING_DEMOS = [
 
 // Every sample website on boldlinemedia.com (and the pictures of them) OPENS in this mode, so the designs sit side by
 // side as one set and match the site around them. A visitor can still flip any sample to light from its top bar.
-// Bryson, 2026-11-07: "lets either have all of the previews start in dark mode or light mode im thinking dark".
-export const SAMPLE_MODE = "dark";
+// Bryson, 2026-11-07, after seeing both side by side: "lets do light to start off with and then they can change it".
+export const SAMPLE_MODE = "light";
 
 // Writes the three designs as HTML into `outDir`, for scripts/build-site-showcase.cjs to photograph.
 export function writeDemoPages(outDir) {
