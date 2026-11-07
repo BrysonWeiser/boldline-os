@@ -22,6 +22,13 @@ Never describe Meta as pending or coming soon.
    parts bought separately (~$355/mo: build $1,500/12 + care $100 + Google profile $130); with it the parts are ~$505/mo
    plus emails, review requests and booking that aren't sold alone. Don't advertise a "$2,000 value" figure; show the
    itemised list. AWAITING his yes on "$500 with the blog included" before building.
+Preview shown 2026-11-07 (an HTML mock of the pricing page, the list of every page that changes, and the OS flow),
+sent as a file only, not published. Open questions put to him in it: (1) $500 WITH the blog; (2) store plans: keep 15%
+of ad spend with no minimum (recommended) or a fee per sale; (3) Complete includes ONE ad platform, both still needs
+$5,000/mo ad budget. Pages that mention the old pricing: pricing (19 mentions), home, ads, websites, the four industry
+pages, compare, about, get-started, llms.txt. OS work: a Complete package that switches on ads + website + Google
+profile + blog + customer emails + booking; ONE agreement (today ads and website are separate); billing = $500/mo
+subscription + approved lead fees on the same bill, founding first month of lead fees skipped automatically.
 Build order once he says yes: marketing site on the TEST COPY first (his OK), then agreement terms, Deal Prep, billing.
 
 ## Status
