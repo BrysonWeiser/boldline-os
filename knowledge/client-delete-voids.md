@@ -23,8 +23,12 @@ verified: 2026-11-06
   cancelled in DocuSign first."). The Edit client > Delete confirm box says the unsigned agreement will be cancelled.
 - Nothing else deletes clients (the browser `from("clients").delete()` call is gone and a test bans it).
 
-## Not covered (offered, not built)
-- Unpaid Stripe invoices sent before signing (website deposit / first invoice) are not voided on delete.
+## Decided: invoices are NOT cancelled on delete (Bryson, 2026-11-06)
+"no any invoice sent out still needs to be paid if they got the service". Deleting a client cancels unsigned
+AGREEMENTS only; every invoice already sent stays open and payable. Do not add invoice voiding to the delete.
+
+## Not covered
+- (See above: unpaid invoices stay payable on purpose.)
 - Resending an ads agreement while an older one is unsigned overwrites `docusignEnvelopeId`, so that older envelope is
   not tracked (pre-existing; the send button is meant to be blocked while one is awaiting).
 
