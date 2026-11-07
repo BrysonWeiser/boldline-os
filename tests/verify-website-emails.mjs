@@ -151,9 +151,15 @@ ok("🔴 it runs on the 1st at 9:10am Arizona time (16:10 UTC)", /\[functions\."
 // ── 5. 🔴 A website-only client never gets an ads email ─────────────────────────────────
 const NU = src("netlify/functions/client-nurture.mjs");
 ok("🔴 the ads welcome (and everything that waits on it) needs an ads contract, which a website deal never sets", /if \(!ea\.welcome && \(cl\.contractSigned \|\| cl\.contractStatus === "active"\)\)/.test(NU));
-const wrev = NU.slice(NU.indexOf("4b. THE SAME ASK"), NU.indexOf("} catch (e) { console.error(`client-nurture"));
-ok("🔴 a website-only client is asked for a review once, six weeks after going live, not while a payment is failing",
-  /!ea\.reviewAsked && !crossedMilestone && isWebsiteOnly\(cl\)/.test(wrev) && /liveDays >= REVIEW_MIN_DAYS/.test(wrev) && /careSub\.status === "past_due"/.test(wrev) && /ea\.reviewAsked = true/.test(wrev));
+// Since 2026-11-06 the timing lives in lib/review-ask.mjs: one month, not six weeks (tests/verify-review-ask.mjs).
+const { reviewAskDue } = await import("../netlify/lib/review-ask.mjs");
+{
+  const NOW = Date.parse("2026-11-06T16:00:00Z"), ago = (d) => new Date(NOW - d * 864e5).toISOString();
+  const site = (extra = {}) => ({ packageId: "w-site", email: "a@b.co", website: { published: true }, websiteDeal: { launchedAt: ago(31), ...extra } });
+  ok("🔴 a website-only client is asked for a review once, a month after going live, not while a payment is failing",
+    reviewAskDue(site(), {}, NOW).due && !reviewAskDue(site({ launchedAt: ago(20) }), {}, NOW).due && !reviewAskDue(site({ careSub: { status: "past_due" } }), {}, NOW).due
+    && !reviewAskDue(site(), { reviewAsked: true }, NOW).due && /ea\.reviewAsked = true/.test(NU));
+}
 
 // ── 6. The OS Emails tab offers the right set ─────────────────────────────────────────
 {
@@ -199,7 +205,7 @@ ok("🔴 a website-only client is asked for a review once, six weeks after going
     ok(`🔴 the ads email ${id} says nothing about us building them a website`, !/new website|your website is|website build|care plan|blog article/i.test(text(r.html) + r.subject));
   }
   const NW = src("netlify/functions/client-nurture.mjs");
-  ok("🔴 the website review ask is for website-only clients", /!ea\.reviewAsked && !crossedMilestone && isWebsiteOnly\(cl\)/.test(NW));
+  ok("🔴 the website review ask is for website-only clients", /if \(!isWebsiteOnly\(cl\)\) \{/.test(src("netlify/lib/review-ask.mjs")) && /reviewAskDue\(cl, ea\)/.test(NW));
   const { blogActive } = await import("../netlify/lib/site-blog.mjs");
   ok("🔴 blog articles are only written for a client paying for the blog", !blogActive(adsCl) && !blogActive({ ...adsCl, website: { published: true, blogOn: true } })
     && !blogActive({ ...adsCl, websiteDeal: { agreement: { status: "completed", terms: { ...T, blog: false } }, launchedAt: "2026-09-01T00:00:00Z" } }));

@@ -8,6 +8,7 @@
 //  2. The demo page being able to send anything else (the open ping must not weaken the send-nothing guard).
 //  3. A company built from the new screen that is lost to follow-up (it must land in Outreach).
 import { readFileSync } from "node:fs";
+import { chromiumPath } from "../scripts/chromium-path.mjs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
@@ -77,7 +78,7 @@ ok("the preview-robot list knows the usual texting and social apps", ["facebooke
   else {
     const fs = require("fs"), path = require("path");
     const dir = fs.readdirSync("/opt/pw-browsers").find((x) => /^chromium-\d+$/.test(x));
-    const b = await chromium.launch({ executablePath: path.join("/opt/pw-browsers", dir, "chrome-linux/chrome"), args: ["--no-sandbox"] });
+    const b = await chromium.launch({ executablePath: chromiumPath(), args: ["--no-sandbox"] });
     const visit = async (q, act, human = true) => {
       const pg = await b.newPage({ viewport: { width: 390, height: 800 } });
       if (human) await pg.addInitScript(() => Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false }));

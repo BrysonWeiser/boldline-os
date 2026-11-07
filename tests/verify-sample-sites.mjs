@@ -9,6 +9,7 @@
 //  2. They are labelled as a sample on every page and at every width, never indexed by search engines,
 //     never described to them as a real business, and never point at a domain someone else could own.
 import { readFileSync, existsSync } from "node:fs";
+import { chromiumPath } from "../scripts/chromium-path.mjs";
 import { join } from "node:path";
 import { MK, serveSite } from "./helpers/marketing-site.mjs";
 
@@ -93,7 +94,7 @@ for (const f of LANDING_FILES) {
 let chromium = null, exe = "";
 try {
   ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
-  exe = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+  exe = chromiumPath();
 } catch { /* no browser here */ }
 if (chromium) {
   const server = await serveSite();

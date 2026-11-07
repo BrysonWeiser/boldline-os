@@ -4,7 +4,7 @@ const path = require("path"), fs = require("fs"), os = require("os");
 const { chromium } = require("playwright");
 const ROOT = path.join(__dirname, "..");
 const OUT = path.join(ROOT, "marketing-site/img");
-const chrome = () => { const r = "/opt/pw-browsers"; const d = fs.existsSync(r) && fs.readdirSync(r).find((x) => /^chromium-\d+$/.test(x)); return d ? path.join(r, d, "chrome-linux/chrome") : undefined; };
+const chrome = () => { const r = "/opt/pw-browsers"; const d = fs.existsSync(r) && fs.readdirSync(r).find((x) => /^chromium-\d+$/.test(x)); return d ? (fs.existsSync(path.join(r, d, "chrome-linux64/chrome")) ? path.join(r, d, "chrome-linux64/chrome") : path.join(r, d, "chrome-linux/chrome")) : undefined; };
 (async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "showcase-"));
   const { writeDemoPages } = await import(path.join(ROOT, "scripts/site-showcase-demo.mjs"));

@@ -446,15 +446,26 @@ const T = {
   // actually do: two sentences, not a form. Both routes are offered because they do
   // different jobs, the site one becomes a testimonial he controls, the Google one is a
   // public star rating that helps the business get found.
-  review_request: (c) => { const W = emailWords(c); return {
+  //
+  // 🔴 2026-11-06: the main button is BoldLine's own Google "write a review" page when the profile is connected
+  // (`reviewGoogleUrl`, lib/review-ask.mjs), with the website form as the other choice. The old line said a Google
+  // review "helps you get found too", which was wrong (it helps BoldLine), and gave no Google link at all.
+  // `reviewWhy: "owned"` (a website bought outright) never says the site is live: they host it, we can't know.
+  review_request: (c) => { const W = emailWords(c); const google = /^https:\/\/search\.google\.com\//.test(String(c.reviewGoogleUrl || "")) ? c.reviewGoogleUrl : "";
+    const biz = b(escapeHTML(c.businessName || "your business"));
+    const open = c.reviewWhy === "owned" ? `${biz}'s new website has been yours for about a month now, so I wanted to ask a favour while it's fresh.` : W.reviewOpen(biz);
+    return {
     subject: `Quick favour, ${c.businessName || "one moment"}?`,
     preheader: "Two minutes, and it genuinely helps us more than you'd think.",
     bodyHtml:
       h1("Would you mind saying how it's going?") +
-      p(`Hi ${escapeHTML(firstName(c.contactName))}, ${W.reviewOpen(b(escapeHTML(c.businessName || "your business")))}`) +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, ${open}`) +
       p("Would you write a couple of lines about how it's gone? Honest is better than glowing. It takes about two minutes and it helps the next business owner decide whether this is worth a try.") +
-      button("Leave a Review", REVIEW_URL) +
-      small("If you'd rather leave it on Google instead, that works just as well, and it helps you get found too. And if anything is not going the way you hoped, reply to this instead and tell me. I would much rather fix it than be reviewed on it.") +
+      (google
+        ? button("Leave a Google Review", google) +
+          small(`Rather not use Google? You can <a href="${REVIEW_URL}" style="color:inherit;text-decoration:underline">write it on our website</a> instead. And if anything is not going the way you hoped, reply to this instead and tell me. I would much rather fix it than be reviewed on it.`)
+        : button("Leave a Review", REVIEW_URL) +
+          small("You can leave one on Google instead if you prefer. And if anything is not going the way you hoped, reply to this instead and tell me. I would much rather fix it than be reviewed on it.")) +
       signoff(),
   }; },
 
@@ -661,7 +672,7 @@ export const EMAIL_TYPES = [
   { id: "website_past_due", label: "Website: Payment Failed", icon: "\u23F0", auto: "when a website payment fails", desc: "Polite heads-up with an update link. For the care plan it explains the 15-day rule in their agreement." },
   { id: "blog_scheduled", label: "Website: Blog Article Ready", icon: "\u270D\uFE0F", auto: "each time an article is written", desc: "Tells them a new article is written and when it goes out, so they can read, edit or hold it in their portal." },
   { id: "website_monthly", label: "Website: Monthly Summary", icon: "\u{1F4C8}", auto: "on the 1st of each month, once the site is live", desc: "Visitors, enquiries, where people came from and new articles, for last month." },
-  { id: "review_request", label: "Review Request", icon: "\u2B50", auto: "once, after a good first stretch", desc: "Asks a happy client for a short review, on the site or on Google. Sends once per client, ever." },
+  { id: "review_request", label: "Review Request", icon: "\u2B50", auto: "once, a month after ads go live (with a few leads in), a website goes live, or a website is bought outright", desc: "Asks the client for a short review of BoldLine, on Google (your profile's review page) or on the website. Sends once per client, ever." },
 ];
 
 // ── 🔴 WHAT A HAND-SENT EMAIL HAS TO RECORD ──────────────────────────────────

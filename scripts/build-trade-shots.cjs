@@ -9,7 +9,7 @@ const SHOTS = ["car-detailing", "handyman", "epoxy-floors", "window-tint"].map((
 const types = { ".css": "text/css", ".js": "text/javascript", ".html": "text/html", ".jpg": "image/jpeg", ".png": "image/png", ".woff2": "font/woff2" };
 const srv = http.createServer((q, r) => { let p = decodeURIComponent(q.url.split("?")[0]); if (p.endsWith("/")) p += "index.html"; const f = path.join(ROOT, p);
   if (f.startsWith(ROOT) && fs.existsSync(f) && fs.statSync(f).isFile()) { r.writeHead(200, { "content-type": types[path.extname(f)] || "application/octet-stream" }); r.end(fs.readFileSync(f)); } else { r.writeHead(404); r.end(); } });
-const exe = (() => { const r = "/opt/pw-browsers"; const d = fs.existsSync(r) && fs.readdirSync(r).find((x) => /^chromium-\d+$/.test(x)); return d ? path.join(r, d, "chrome-linux/chrome") : undefined; })();
+const exe = (() => { const r = "/opt/pw-browsers"; const d = fs.existsSync(r) && fs.readdirSync(r).find((x) => /^chromium-\d+$/.test(x)); return d ? (fs.existsSync(path.join(r, d, "chrome-linux64/chrome")) ? path.join(r, d, "chrome-linux64/chrome") : path.join(r, d, "chrome-linux/chrome")) : undefined; })();
 const { execFileSync } = require("child_process");
 const fontCache = new Map();
 const serveFont = async (route) => {

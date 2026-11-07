@@ -13,7 +13,7 @@ const VERSION = "v1";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "marketing-site", "email", VERSION);
 const { chromium } = createRequire(import.meta.url)("playwright");
-const exe = (() => { const r = "/opt/pw-browsers"; const d = existsSync(r) && readdirSync(r).find((x) => /^chromium-\d+$/.test(x)); return d ? join(r, d, "chrome-linux/chrome") : undefined; })();
+const exe = (() => { const r = "/opt/pw-browsers"; const d = existsSync(r) && readdirSync(r).find((x) => /^chromium-\d+$/.test(x)); return d ? (existsSync(join(r, d, "chrome-linux64/chrome")) ? join(r, d, "chrome-linux64/chrome") : join(r, d, "chrome-linux/chrome")) : undefined; })();
 
 export const slugOf = (label) => label.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 

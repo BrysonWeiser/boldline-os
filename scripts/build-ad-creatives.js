@@ -31,7 +31,7 @@ fs.mkdirSync(OUT, { recursive: true });
 function findChrome() {
   const root = "/opt/pw-browsers";
   const dir = fs.readdirSync(root).find((d) => /^chromium-\d+$/.test(d));
-  const p = dir && path.join(root, dir, "chrome-linux/chrome");
+  const p = dir && (fs.existsSync(path.join(root, dir, "chrome-linux64/chrome")) ? path.join(root, dir, "chrome-linux64/chrome") : path.join(root, dir, "chrome-linux/chrome"));
   return p && fs.existsSync(p) ? p : undefined;
 }
 

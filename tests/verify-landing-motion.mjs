@@ -25,6 +25,7 @@
 // or because a later rule of equal weight quietly wins.
 
 import { renderLandingPage } from "../netlify/functions/landing.mjs";
+import { chromiumPath } from "../scripts/chromium-path.mjs";
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => {
@@ -567,7 +568,7 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
   let chromium = null, exe = "";
   try {
     ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
-    exe = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+    exe = chromiumPath();
   } catch { /* no browser here */ }
   if (!chromium) {
     console.log("  (skipped the no-JS render check: no browser in this environment)");

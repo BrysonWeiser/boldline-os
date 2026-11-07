@@ -2,7 +2,7 @@
 // Run: NODE_PATH=<dir with playwright> node scripts/build-og-image.cjs [outfile]
 const path = require("path"), fs = require("fs");
 const { chromium } = require("playwright");
-const exe = (() => { const r = "/opt/pw-browsers"; const d = fs.existsSync(r) && fs.readdirSync(r).find((x) => /^chromium-\d+$/.test(x)); return d ? path.join(r, d, "chrome-linux/chrome") : undefined; })();
+const exe = (() => { const r = "/opt/pw-browsers"; const d = fs.existsSync(r) && fs.readdirSync(r).find((x) => /^chromium-\d+$/.test(x)); return d ? (fs.existsSync(path.join(r, d, "chrome-linux64/chrome")) ? path.join(r, d, "chrome-linux64/chrome") : path.join(r, d, "chrome-linux/chrome")) : undefined; })();
 (async () => {
   const out = process.argv[2] || path.join(__dirname, "..", "marketing-site", "og-boldline.jpg");
   const b = await chromium.launch({ executablePath: exe, args: ["--no-sandbox", "--allow-file-access-from-files"] });

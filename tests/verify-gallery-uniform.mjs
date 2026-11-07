@@ -7,6 +7,7 @@
 // which never load in this sandbox, so the images had NO intrinsic size and "fills its box"
 // was trivially true of a zero-sized image. The check passed while proving nothing.
 import { writeFileSync, readFileSync } from "node:fs";
+import { chromiumPath } from "../scripts/chromium-path.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import zlib from "node:zlib";
@@ -14,7 +15,7 @@ import zlib from "node:zlib";
 let chromium = null, exe = "";
 try {
   ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
-  exe = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+  exe = chromiumPath();
 } catch { /* no browser in this environment */ }
 if (!chromium) { console.log("verify-gallery-uniform: skipped, no browser in this environment"); process.exit(0); }
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");

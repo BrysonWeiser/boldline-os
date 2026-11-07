@@ -17,6 +17,7 @@
 // could not tell the difference between a fix and a plausible-looking edit.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { chromiumPath } from "../scripts/chromium-path.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -97,7 +98,7 @@ const ok = (name, cond, extra) => {
 let chromium = null, exe = "";
 try {
   ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
-  exe = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+  exe = chromiumPath();
 } catch { /* no browser in this environment */ }
 
 if (chromium) {
