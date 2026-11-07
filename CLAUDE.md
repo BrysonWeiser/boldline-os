@@ -150,7 +150,7 @@ automated.
   When a task needs a click in Netlify (an env var, a domain alias, a certificate, a manual
   redeploy), do NOT just explain it in the reply: **add it to that evening's 10pm Phoenix
   reminder** so every Netlify job lands in one trip. Use `send_later` / `update_trigger`
-  (latest: trig_0199G82Mb7sTEyHCbAWQDBrb, Mon 2026-10-26 10pm Phoenix = 05:00 UTC Tue, the Google listing setup (Cloud OAuth client + GBP_CLIENT_ID/GBP_CLIENT_SECRET + Connect Google, KB google-listing); the business email setup is PAUSED until the detailing LLC + bank account exist). 🔴 Convert Phoenix to UTC and convert BACK to confirm, per the Arizona time rule.
+  (latest: trig_011AEFGMgbQ3y1jeokqXhHUD, Thu 2026-11-05 10pm Phoenix = 05:00 UTC Fri: closing Supabase sign-ups, DONE 2026-11-06, KB os-signup-lockdown; the Google listing setup is also DONE and connected, KB google-listing; the business email setup is PAUSED until the detailing LLC + bank account exist). 🔴 Convert Phoenix to UTC and convert BACK to confirm, per the Arizona time rule.
   Tell it to RE-CHECK live state before resending, so the 10pm message reports what is true
   then rather than repeating what was true earlier. Still explain it in the reply too, in case
   he is at a computer.

@@ -3,7 +3,7 @@ name: google-listing
 topic: Google Business Profile
 task: run a business's Google Business Profile from the OS (reviews, review replies, weekly posts, profile numbers), connect Google, or sell the Google profile add-on
 keywords: [google listing, google business profile, GBP, business profile api, GBP_CLIENT_ID, GBP_CLIENT_SECRET, gbp-connect, gbp-watch, GoogleListingCard, gbpDrafts, gbpLog, review replies, local posts, localPosts, business.manage, fetchMultiDailyMetricsTimeSeries, google profile management]
-status: built, waiting on setup
+status: LIVE, connected 2026-11-06 (BoldLine's own profile, as theboldlinemedia@gmail.com)
 summary: Built 2026-10-26 after Google approved the Business Profile API (project 69639870912, 2026-10-23). A "Google listing" card on the Overview of BoldLine's own account and each owned business shows the profile's last 28 days (rating, calls, website clicks, direction requests, times seen, each against the 28 days before), every review still waiting for a reply with a drafted reply, and this week's post, all editable. NOTHING reaches Google until Bryson presses Post and confirms the exact words. A daily job (8:41am Phoenix) drafts replies to new reviews and, from Tuesday, next Monday's post (which goes up by itself Monday 8am unless held), and messages him (amber when a 1 or 2 star review is waiting). Needs GBP_CLIENT_ID and GBP_CLIENT_SECRET from an OAuth client in the BoldLine OS Cloud project, then "Connect Google" once.
 verified: 2026-10-26
 ---
@@ -56,6 +56,20 @@ detailing business first, then clients as the Google profile add-on (about $150 
 5. **For the detailing business:** the business Gmail must be Owner or Manager on its profile.
    That's **Corvane Auto Detailing**. Not yet as of 2026-10-27: the business and its Google profile aren't set up.
    He's connecting BoldLine's own profile first, from My Ads, then the Overview tab.
+
+## Setup progress, checked with Bryson Fri 2026-11-06 evening (Phoenix)
+- Cloud steps 1 and 2 done (he confirmed). Google Auth Platform: Audience **In production**, External, 0/100 user cap.
+- OAuth client **"BoldLine OS listing"** (Web application) exists, made Oct 27 2026; redirect URI is exactly
+  `https://os.boldlinemedia.com/gbp-connect/done`; one secret, enabled. Google no longer shows or downloads secrets
+  after creation, so a lost secret means **Add secret** on that client (then put the new one in Netlify).
+- The client shows "Last used November 3, 2026", so the OS has used it at least once: the Netlify keys are very
+  likely already in place. Next: the Google listing card (My Ads > Overview) tells which state it is in
+  ("Not switched on yet" = Netlify keys missing; "Connect Google" = keys in, not connected; numbers = connected).
+- The yellow "requires verification" banners are expected: unverified is fine for our own use (100-user cap).
+- ✅ **CONNECTED** (Bryson's screenshot, Fri 2026-11-06 evening): My Ads > Overview > Google listing shows "Connected as
+  theboldlinemedia@gmail.com", profile "BoldLine Media". Last 28 days then: no reviews yet, 0 calls, 1 website click,
+  0 direction requests, 47 times seen (down from 50). Setup finished; nothing left for him in Google or Netlify.
+  The detailing business (Corvane) still needs its own profile before it can be connected.
 
 ## Tests
 `tests/verify-google-listing.mjs` (59 checks) runs the real functions with Supabase, Google and Anthropic stubbed.
