@@ -2,7 +2,7 @@
 name: business-emails
 topic: My Businesses
 task: emails a business Bryson owns sends its own customers (booking confirmation, reminder before the job, review request after, time for another for one-off customers), sent from the business's own address and branded from its website; unsubscribe; the phone calendar feed
-keywords: [customer emails, reminder email, review request, rebook, time for another, one-off customers, subscription, plan package, planCustomers, sendAsBusiness, emailSender, emailSenderStatus, customerEmailLog, emailOptOut, optout, unsubscribe, biz-email.mjs, biz-email-shell.mjs, biz-customer-emails, brandFromHTML, Resend domain, fromAddress, biz-cal, webcal, ics, calendar feed]
+keywords: [client customer emails, clientOn, customerEmailsAllowed, bring back past customers, customer emails, reminder email, review request, rebook, time for another, one-off customers, subscription, plan package, planCustomers, sendAsBusiness, emailSender, emailSenderStatus, customerEmailLog, emailOptOut, optout, unsubscribe, biz-email.mjs, biz-email-shell.mjs, biz-customer-emails, brandFromHTML, Resend domain, fromAddress, biz-cal, webcal, ics, calendar feed]
 status: verified
 summary: Bryson, 2026-10-09 - "lets do all of them" (reminder before a job, review request after, phone calendar feed, time for another) "but make sure the email comes from the business email for my other business not boldline media (make a way for you to brand the email based off of the business name and website when i add it to the my businesses tab)" and the rebook email "only goes to the one off customers ... and dont already have a subscription". Built a branded email design per business (logo and colour pulled from its own website), sending from its own address once a test send proves it, an hourly job for the three automatic emails with narrow windows (no backlog), strict one-off-only rebook logic, signed unsubscribe, and a webcal calendar feed. Needs Bryson to verify the business's email domain in Resend before the automatic emails start.
 verified: 2026-10-13
@@ -144,3 +144,20 @@ a subscription."
 - `tests/verify-business-emails.mjs` (62 checks).
 - `verify-booking` and `verify-business-portal` were updated. Full suite 154/154.
 - The OS card renders on laptop and phone with no sideways scroll.
+
+## Clients too (2026-11-06)
+Bryson said yes to "bring back past customers" as part of doing all of a client's marketing (KB `complete-plan`).
+The same three emails (reminder before, review request after, "time for another" for one-off customers) now run for
+CLIENTS, on four conditions, all in `netlify/lib/biz-email.mjs` (`customerEmailsAllowed`):
+1. their BoldLine website takes bookings (`bookingOn`: intake how = book and at least one package); the customer list
+   and appointment times are the bookings made there;
+2. 🔴 OFF until Bryson ticks "Switched on for <name>" on the card (`customerEmails.clientOn`), once the client agreed;
+3. sent only from the client's own address after a test send proves it (`senderOf`, strict, same as his businesses);
+   a client's domain must be verified in Resend first, which needs their DNS;
+4. 🔴 never a health business (`isHealthBusiness`): patient emails need a signed BAA first; the card says so and the
+   server refuses setup.
+Also: a client who declined review requests (`declinedFeatures: review_requests`) never gets the review email.
+The unsubscribe page now works for any real business on file (not only his own), which matters legally.
+Where: the Customer emails card on the client's Overview (ads clients and website-only clients) when their website
+takes bookings. Tests: `tests/verify-client-customer-emails.mjs`. Not visually checked on screen this time (the
+preview tool was wiped by a machine refresh); the card change is one checkbox row.

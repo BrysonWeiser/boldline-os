@@ -20,7 +20,10 @@ export default async (req) => {
   const db = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
   const { data: rows } = await db.from("clients").select("id, data").eq("id", b).limit(1);
   const row = (rows || [])[0];
-  if (!row || !isOwned(row.data)) return page("This link doesn't work", "Reply to any of our emails and we'll take you off the list.");
+  // 🔴 Every business that can send these emails must honour the link: his own, AND clients (since 2026-11-06). An
+  // unsubscribe that stops working is the one failure here that breaks the law, so it works for any real business on
+  // file, even one whose emails were switched off again later.
+  if (!row || !row.data || row.data.demo || (row.data.internal && !isOwned(row.data))) return page("This link doesn't work", "Reply to any of our emails and we'll take you off the list.");
   const name = row.data.name || "us";
   if (req.method !== "POST") return page(`Unsubscribe from ${name}`, `Stop review requests and "book again" emails to ${e}? You'll still get confirmations and reminders for anything you book.`, `<form method="POST"><button type="submit">Unsubscribe</button></form>`);
   const list = (row.data.emailOptOut || []).map((x) => String(x).toLowerCase());

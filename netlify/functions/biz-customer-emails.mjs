@@ -1,12 +1,11 @@
-// Every hour: the emails a business Bryson owns sends its customers on its own (KB `business-emails`):
+// Every hour: the emails a business Bryson owns (or a client he has switched it on for) sends its customers on its own (KB `business-emails`):
 // a reminder before the job, a review request after it, and "time for another" for one-off customers.
 // Who is due what is decided by dueCustomerEmails (pure, tested); this only sends and records.
 // 🔴 Sent first, then recorded, then the record is merged into a fresh read: a failed send is tried again
 // next hour, and a booking or opt-out that landed meanwhile is never written over.
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, retryQuery } from "../lib/report-shared.mjs";
-import { isOwned } from "../lib/owned.mjs";
-import { dueCustomerEmails, buildCustomerEmail, sendAsBusiness, senderOf } from "../lib/biz-email.mjs";
+import { dueCustomerEmails, buildCustomerEmail, sendAsBusiness, senderOf, customerEmailsAllowed } from "../lib/biz-email.mjs";
 
 export default async () => {
   const db = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -16,7 +15,8 @@ export default async () => {
   if (error) { console.error("biz-customer-emails: could not load", error.message); return; }
   for (const row of rows || []) {
     const cl = { ...(row.data || {}), id: (row.data && row.data.id) || row.id };
-    if (!isOwned(cl) || cl.demo) continue;
+    // His own businesses, and clients he has switched it on for (rules in lib/biz-email.mjs).
+    if (!customerEmailsAllowed(cl)) continue;
     const due = dueCustomerEmails(cl, Date.now());
     if (!due.length) continue;
     const log = {}; let senderBroke = null;

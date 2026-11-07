@@ -10793,6 +10793,11 @@ const bizEmailCall = async (action, body) => {
   const r = await fetch("/.netlify/functions/biz-email", { method:"POST", headers:{ "Content-Type":"application/json", Authorization:`Bearer ${session&&session.access_token}` }, body: JSON.stringify({ action, ...body }) });
   try { return await r.json(); } catch(e){ return { ok:false, error:"Could not reach the server. Try again." }; }
 };
+// Customer emails for a CLIENT (2026-11-06, the server twin is in netlify/lib/biz-email.mjs): only when their website
+// takes bookings, only once Bryson switches it on for them (they agreed), and never for a health business.
+const bookingOnOS=(c)=>{ const i=(c&&c.intake)||{}; const want=["book","link","call","quote"].includes(i.how)?i.how:(c&&c.booking&&c.booking.on?"book":"quote");
+  return want==="book"&&(((c&&c.booking&&c.booking.packages)||[]).filter(p=>p&&p.name).length>0); };
+const custEmailsClientOS=(c)=>!!c&&!c.internal&&!c.demo&&bookingOnOS(c);
 function CustomerEmailsCard({client,onUpdate}){
   const br = client.brand || {};
   const ce = client.customerEmails || {};
@@ -10830,9 +10835,20 @@ function CustomerEmailsCard({client,onUpdate}){
       </div>{extra}
     </div>);
   const optOuts = (client.emailOptOut||[]).length;
+  const forClient = !isOwned(client);
+  if(forClient&&revIsHealth(client)) return (
+    <Card style={{borderColor:`${C.gold}2a`}}>
+      <Label>Customer emails</Label>
+      <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:4}}>Off for health businesses. A patient's email address is private health information, so these emails need a signed privacy agreement (a BAA) with BoldLine first.</div>
+    </Card>);
   return (
     <Card style={{borderColor:`${C.gold}2a`}}>
       <Label>Customer emails</Label>
+      {forClient&&(
+        <label style={{display:"flex",alignItems:"flex-start",gap:9,margin:"6px 0 8px",padding:"10px 12px",borderRadius:10,border:`1px solid ${ce.clientOn?C.green+"55":C.border}`,background:ce.clientOn?"rgba(52,211,153,.07)":C.bg3,cursor:"pointer"}}>
+          <input type="checkbox" checked={!!ce.clientOn} onChange={e=>setCE({clientOn:e.target.checked})} style={{width:18,height:18,marginTop:1,accentColor:C.gold,flexShrink:0}}/>
+          <span style={{fontSize:12.5,color:C.textDim,lineHeight:1.5}}><b style={{color:C.text}}>Switched on for {client.name}.</b> Only tick this once they've agreed. Until then none of their customers hear from us, even with everything below set up.</span>
+        </label>)}
       <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,margin:"4px 0 6px"}}>Every email {client.name}'s customers get comes from the business's own address and looks like the business: its logo, its colour, its name. Nothing in them mentions BoldLine.</div>
 
       <div style={sub}>How the emails look</div>
@@ -14325,12 +14341,12 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
 
       <div style={{flex:1,overflowY:"auto",padding:isDesktop?"22px 28px 60px":"13px 13px 60px",width:"100%",maxWidth:isDesktop?1000:"none",margin:isDesktop?"0 auto":undefined}}>
         {tab==="overview"&&isWebsiteOnly(client)&&<WebsiteOnlyOverview client={client} onUpdate={onUpdate} onOpen={setTab}/>}
-        {tab==="overview"&&isWebsiteOnly(client)&&<div style={{marginTop:11}}><GoogleListingCard client={client}/><GbpCareBilling client={client}/></div>}
+        {tab==="overview"&&isWebsiteOnly(client)&&<div style={{marginTop:11}}><GoogleListingCard client={client}/><GbpCareBilling client={client}/>{custEmailsClientOS(client)&&<div style={{marginTop:11}}><CustomerEmailsCard client={client} onUpdate={onUpdate}/></div>}</div>}
         {tab==="overview"&&!isWebsiteOnly(client)&&(
           <div style={S.col11}>
             {isOwned(client)&&<BusinessPortalCard client={client} onUpdate={onUpdate}/>}
             {isOwned(client)&&<BrandKitCard client={client} onUpdate={onUpdate} onOpenAssets={()=>setTab("portal")}/>}
-            {isOwned(client)&&<CustomerEmailsCard client={client} onUpdate={onUpdate}/>}
+            {(isOwned(client)||custEmailsClientOS(client))&&<CustomerEmailsCard client={client} onUpdate={onUpdate}/>}
             {isOwned(client)&&<ShowcaseCard client={client} onUpdate={onUpdate}/>}
             <GoogleListingCard client={client}/>
             <GbpCareBilling client={client}/>

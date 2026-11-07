@@ -14,7 +14,8 @@
 // out for good. So does a booking still to come (they already rebooked), and unsubscribing.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { isOwned } from "./owned.mjs";
-import { bookingConfig, longWhen, payPhrase, payLabel } from "./booking.mjs";
+import { bookingConfig, longWhen, payPhrase, payLabel, bookingOn } from "./booking.mjs";
+import { isHealthBusiness } from "./review-requests.mjs";
 import { depositPaid } from "./payments.mjs";
 import { bizBrand, bizEmailHTML, bizEmailText } from "./biz-email-shell.mjs";
 
@@ -25,11 +26,30 @@ const low = (e) => String(e || "").trim().toLowerCase();
 const digits = (p) => { const d = String(p || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "1" ? d.slice(1) : d; };
 
 export const REBOOK_DAY_CHOICES = [30, 45, 60, 90, 120];
+// ── Who these emails are for ──────────────────────────────────────────────────────────────────────────────────────
+// Bryson's own businesses since 2026-10-09. CLIENTS since 2026-11-06 (Bryson said yes to "bring back past customers"
+// as part of doing all of a client's marketing), on four conditions:
+//  1. their BoldLine website takes bookings (that is where the customer list and the appointment times come from);
+//  2. 🔴 OFF until Bryson switches it on for that client (`customerEmails.clientOn`), because the client's customers
+//     must never hear from us before the client has agreed to it;
+//  3. sent only from the client's OWN address once a test proves it (`senderOf`, the same strict rule), never ours;
+//  4. 🔴 never a health business (chiropractor, dentist, clinic...): a patient's email in our hands is protected health
+//     information, and that needs a signed privacy agreement (BAA) first (KB service-add-ons).
+export const customerEmailsClient = (cl) => !!cl && !cl.internal && !cl.demo && bookingOn(cl);
+export const customerEmailsHealthBlocked = (cl) => customerEmailsClient(cl) && isHealthBusiness(cl);
+export const customerEmailsSetupAllowed = (cl) => !!cl && !cl.demo && (isOwned(cl) || (customerEmailsClient(cl) && !isHealthBusiness(cl)));
+export const customerEmailsAllowed = (cl) => {
+  if (!cl || cl.demo) return false;
+  if (isOwned(cl)) return true;
+  return customerEmailsSetupAllowed(cl) && !!(cl.customerEmails && cl.customerEmails.clientOn === true);
+};
+
 export function customerEmailsOf(cl) {
   const c = (cl && cl.customerEmails) || {};
   return {
     reminder: c.reminder !== false,
-    review: c.review !== false,
+    // A client who said no to review requests (declinedFeatures, KB service-add-ons) never gets this one either.
+    review: c.review !== false && !(Array.isArray(cl && cl.declinedFeatures) && cl.declinedFeatures.includes("review_requests")),
     rebook: c.rebook !== false,
     reviewUrl: https(c.reviewUrl),
     rebookDays: REBOOK_DAY_CHOICES.includes(Number(c.rebookDays)) ? Number(c.rebookDays) : 60,
@@ -128,7 +148,7 @@ export function rebookEmail(cl, b, { bookUrl = "", unsubscribe = "" } = {}) {
 // Pure, so verify-business-emails can walk the clock. Returns [{kind, booking}], at most one of each kind
 // per booking, never for a cancelled booking, never twice (`customerEmailLog` records a send).
 export function dueCustomerEmails(cl, now = Date.now()) {
-  if (!isOwned(cl) || (cl && cl.demo) || !senderOf(cl)) return [];
+  if (!customerEmailsAllowed(cl) || !senderOf(cl)) return [];
   const C = customerEmailsOf(cl);
   const all = ((cl && cl.bookings) || []).filter((b) => b && b.start && Date.parse(b.start));
   const live = all.filter((b) => b.status !== "cancelled");
