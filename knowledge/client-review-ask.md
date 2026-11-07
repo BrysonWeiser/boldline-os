@@ -41,3 +41,7 @@ The cloud machine's Chromium moved from `chromium-1194/chrome-linux/chrome` to `
 
 ## Tests
 `tests/verify-review-ask.mjs` (26 checks); older pins updated in verify-client-lifecycle-gaps and verify-website-emails.
+
+## Not the same as the "review requests" feature
+A client declining "review requests" (`declinedFeatures: review_requests`, e.g. Springbok) turned down the feature
+that emails THEIR customers or patients. It does not stop BoldLine asking the client for a review of BoldLine.
