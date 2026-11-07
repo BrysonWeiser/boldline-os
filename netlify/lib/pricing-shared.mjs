@@ -159,6 +159,13 @@ export const TERMS = { adsFirstTermMonths: 3, completeFirstTermMonths: 12, notic
 export const COMPLETE_PLAN = { id: "complete", name: "Complete", monthly: 500, platforms: 1,
   websiteBuildWaived: WEBSITE_OFFER.build, earlyExitPerMonthLeft: Math.round(WEBSITE_OFFER.build / 12),
   blogPostsPerMonth: WEBSITE_OFFER.blogPostsPerMonth };
+// Complete for ONLINE STORES (Bryson, 2026-11-07): $300 a month plus the store's share of ad spend (15%, 12% at the top
+// tier). Ads, shop landing pages, emails that bring past buyers back, Google profile care if they have a location.
+// No website (BoldLine doesn't build online stores), so no 12-month lock: 3 months, then month to month.
+export const COMPLETE_STORE = { id: "complete-store", name: "Complete for online stores", monthly: 300, termMonths: 3 };
+// Ads (and the store Complete) cancellation fee: leaving in the first 3 months pays back the setup fee BoldLine waived,
+// less a third for each month they stayed. A client who paid their setup owes nothing extra (Bryson, 2026-11-07).
+export const SETUP_PAYBACK = { months: 3 };
 
 export const websitePromptBlock = () => `
 BoldLine ALSO BUILDS WEBSITES, sold to anyone, with or without ads:
@@ -179,6 +186,8 @@ THE COMPLETE PLAN, for a business that wants BoldLine to handle ALL its marketin
 - Includes: their ads on ONE platform (Google or Meta; both platforms still needs $${COMBO_MIN_BUDGET.toLocaleString("en-US")}/mo of ad budget, same as Combined), a ${WEBSITE_OFFER.pages}-page website BUILT FREE (normally $${WEBSITE_OFFER.build.toLocaleString("en-US")}), hosting and care, Google Business Profile care (normally $${GOOGLE_PROFILE.monthly}/mo), a blog with about ${COMPLETE_PLAN.blogPostsPerMonth} articles a month (normally $${WEBSITE_OFFER.blogMonthly}/mo), emails that bring past customers back, and online booking with deposits.
 - 12 months to start (that is what pays for the free website), then month to month, either side can stop with ${TERMS.noticeDays} days' notice. Leaving early: they pay the rest of the build, $${COMPLETE_PLAN.earlyExitPerMonthLeft} for each month left, and keep the website.
 - Never quote a total "value" figure. If asked what it is worth, list the parts and their normal prices.
+FOR AN ONLINE STORE there is a store version: $${COMPLETE_STORE.monthly} a month plus their share of ad spend (15%, 12% at $10,000+), with the ads, shop landing pages, emails that bring past buyers back, and Google profile care if they have a location customers visit. No website (BoldLine does not build online stores), so 3 months, then month to month.
+LEAVING EARLY on Ads or the store version: in the first 3 months they pay back the setup fee that was waived, less a third for each month they stayed. If they paid their setup, nothing extra. Only mention it if asked.
 WHEN TO RECOMMEND COMPLETE: they need ads AND their website is weak, missing or not built to convert, or they want one team and one bill for everything. Recommend plain ADS when their website is genuinely good and they only need more leads. Recommend WEBSITE alone only when they cannot fund $${MIN_AD_BUDGET}/mo of ad spend but their site is the bigger problem.
 `;
 

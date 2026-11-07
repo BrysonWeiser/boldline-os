@@ -85,6 +85,29 @@ Both live in `TERMS` in `netlify/lib/pricing-shared.mjs` (with `COMPLETE_PLAN`),
 - Still to update with the OS step: `netlify/lib/blog-shared.mjs` (blog writer facts say "whichever is higher"),
   `client-emails-shared`, `scout-shared`, `lead-fee`, `ads-autopilot`, `deal-research-background`, portal copy.
 
+## ✅ DECIDED Sat 2026-11-07 evening: a cancellation fee, and Complete for online stores
+1. **Cancellation fee (Ads, first 3 months):** pay back the setup fee we WAIVED, less a third for each month they stayed
+   (any part of a month left counts as a whole month; only completed months are used up). A client who paid setup owes nothing extra. Recommended
+   over a flat fee because it is tied to a real cost (the free build), so it survives a challenge as liquidated damages,
+   and it keeps working whatever is decided about setup fees for client six onward.
+2. **Complete for online stores:** $300/mo plus 15% of ad spend (12% at $10k+). Ads, shop landing pages, monthly emails
+   that bring past buyers back, Google profile care if they have a location customers visit. NO website (we don't build
+   online stores), so no 12-month lock: 3 months then month to month, and the same setup payback as Ads.
+
+## 🏗️ BUILT (same evening): the cancellation fee and Complete for stores
+- `waivedSetupOf(cl,pkg)` (standard setup minus agreed setup, frozen at send as `contractWaivedSetup`) and
+  `setupPaybackOwed(cl,pkg,now)` = waived x months left of the first 3 / 3, in both renderer copies. Agreement v9 (b)
+  states it with the amount as liquidated damages; key terms show "Waived ($X standard; paid back in part if Client
+  leaves in the first 3 months)". A client who paid setup still reads "NO EARLY-TERMINATION FEE". The website Complete
+  plan pays back the build instead, never both. OS early-exit card adds it.
+- 🔴 `monthsLeftOf` counts only COMPLETED months as used (a month under way is still owed), matching the agreement's
+  "any part of a month counting as a whole month". The first version had it backwards; a test now pins it.
+- Store Complete: `COMPLETE_STORE` ($300, 3 months) in contract-shared + pricing-shared, `isStorePkgId` (packageId
+  "e-"). Section "The Complete Plan for Online Stores" (shop pages, past-buyer emails, Google profile if they have a
+  location; "Agency does not build or run the store itself"). `completeCovered` is false for stores, so no free website
+  unlocks. Plan card and Deal Prep allow it; pricing page store tab has a "Complete for stores" box; FAQ + llms.txt.
+- verify-new-pricing now 156 checks, 14/14 mutations caught overall. 187/187.
+
 ## 🏗️ Steps 1 to 6 BUILT (Sat 2026-11-07 afternoon, dev branch, not live)
 Bryson: "update the agreements billing and deal prep to the new pricing. also make sure in the os that there is an easy
 way to select which tier package they are on if they get the complete package".

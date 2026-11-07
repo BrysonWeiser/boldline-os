@@ -140,7 +140,7 @@ for (const [label, cl, pkg] of [
   eq("a sent Complete price can't be changed afterwards", CS.planFeeOf({ ...sentC, billingPlanMonthly: 300 }), 500);
   eq("🔴 a voided envelope froze nothing", CS.planOf({ ...sent, docusignStatus: "voided", plan: "complete" }), "complete");
   ok("🔴 the OS stamps the plan, its price and the founding month when it sends",
-    /contractPlan:planOf\(client\),contractPlanMonthly:planFeeOf\(client\)\|\|null,contractFoundingFreeMonth:foundingFreeMonthOf\(client\),contractLateFee:/.test(S));
+    /contractPlan:planOf\(client\),contractPlanMonthly:planFeeOf\(client\)\|\|null,contractFoundingFreeMonth:foundingFreeMonthOf\(client\),contractWaivedSetup:waivedSetupOf\(client,pkg\),contractLateFee:/.test(S));
   ok("and replacing an agreement unfreezes them", /contractPlan:null,contractPlanMonthly:null,contractFoundingFreeMonth:null/.test(S));
 }
 
@@ -195,10 +195,59 @@ for (const [label, cl, pkg] of [
   ok("the portal shows month to month, not an end date", /" · Month to month"/.test(src("netlify/functions/portal.mjs")));
   ok("the OS lists, alerts and scores ask daysToRenewal", (CODE.match(/daysToRenewal\(/g) || []).length >= 15 && !/daysUntil\((c|cl|a|b)\.contractEnd\)/.test(CODE));
   ok("the Contract tab never offers a v9 client a renewal", /\{!rolling&&showRenewBtn&&!showRenewal&&\(/.test(S));
-  eq("Complete exit: 3 months in, 9 months left = $1,125", CS.completeExitOwed({ ...base, plan: "complete", contractStart: "2026-01-15" }, "2026-04-10"), 9 * 125);
-  eq("Complete exit: a part month counts as used", CS.completeExitOwed({ ...base, plan: "complete", contractStart: "2026-01-15" }, "2026-04-20"), 8 * 125);
+  // "any part of a month counting as a whole month": only COMPLETED months are used up, exactly as the agreement says.
+  eq("Complete exit: 3 whole months done, 9 left = $1,125", CS.completeExitOwed({ ...base, plan: "complete", contractStart: "2026-01-15" }, "2026-04-20"), 9 * 125);
+  eq("Complete exit: a month under way is still owed in full", CS.completeExitOwed({ ...base, plan: "complete", contractStart: "2026-01-15" }, "2026-04-10"), 10 * 125);
+  eq("Complete exit: before the Start Date the whole year is owed", CS.completeExitOwed({ ...base, plan: "complete", contractStart: "2026-01-15" }, "2026-01-01"), 12 * 125);
   eq("Complete exit: after the first year nothing is owed", CS.completeExitOwed({ ...base, plan: "complete", contractStart: "2025-01-15" }, "2026-04-10"), 0);
   eq("an ads client owes nothing to leave", CS.completeExitOwed(base, "2026-04-10"), 0);
+}
+
+// ── 9b. The cancellation fee: pay back the free setup (Bryson, 2026-11-07) ──────────────────────────────
+{
+  const waived = { ...base, billingSetup: 0, contractStart: "2026-11-20" };
+  eq("the waived setup is the package's standard setup", CS.waivedSetupOf(waived, PKG), 1500);
+  eq("🔴 leaving before the ads start pays it all back", CS.setupPaybackOwed(waived, PKG, "2026-11-10"), 1500);
+  eq("leaving in the first month pays all three thirds (a month under way counts)", CS.setupPaybackOwed(waived, PKG, "2026-12-10"), 1500);
+  eq("one whole month done: two thirds", CS.setupPaybackOwed(waived, PKG, "2026-12-25"), 1000);
+  eq("two whole months done: one third", CS.setupPaybackOwed(waived, PKG, "2027-01-25"), 500);
+  eq("after the first 3 months: nothing", CS.setupPaybackOwed(waived, PKG, "2027-02-25"), 0);
+  eq("🔴 a client who PAID setup owes nothing extra", CS.setupPaybackOwed({ ...base, contractStart: "2026-11-20" }, PKG, "2026-12-10"), 0);
+  eq("a part-discount pays back only what was waived", CS.waivedSetupOf({ ...base, billingSetup: 1000 }, PKG), 500);
+  eq("the website Complete plan pays back the build instead, never the setup too", CS.setupPaybackOwed({ ...waived, plan: "complete" }, PKG, "2026-12-10"), 0);
+  eq("a pre-v9 agreement never gains it", CS.setupPaybackOwed({ ...waived, contractTermsVersion: 8 }, PKG, "2026-12-10"), 0);
+  const t = text(both(waived)[0]);
+  ok("🔴 the agreement states it, with the amount, as liquidated damages", /one third of \$1,500 for each month of the initial term remaining/.test(t) && /as liquidated damages and not as a penalty/.test(t) && /without charging its standard Setup Fee in return for the three-month commitment/.test(t));
+  ok("and the key terms flag it beside the waived setup", /Waived \(\$1,500 standard; paid back in part if Client leaves in the first 3 months\)/.test(t));
+  ok("a client who paid setup still reads 'no early-termination fee'", /THERE IS NO EARLY-TERMINATION FEE/.test(text(both(base)[0])));
+  const sent = { ...waived, docusignSentAt: "2026-11-10T18:00:00Z", contractTermsVersion: 9, contractWaivedSetup: 1500 };
+  eq("🔴 frozen at send: a later price-list change can't move it", CS.waivedSetupOf(sent, { ...PKG, setup: 3000 }), 1500);
+  ok("the OS stamps it when sending and clears it on replace", /contractWaivedSetup:waivedSetupOf\(client,pkg\),contractLateFee:/.test(S) && /contractWaivedSetup:null/.test(S));
+  ok("the OS early-exit card adds it to what is owed", /const owed=completeExitOwed\(client\)\+setupPaybackOwed\(client,pkg\);/.test(S));
+}
+
+// ── 9c. Complete for online stores ($300 + share of spend, no website, 3 months) ─────────────────────────
+{
+  const st = { ...base, packageId: "e-growth", billingPerLead: null, plan: "complete", billingSetup: 0, contractStart: "2026-11-20" };
+  eq("a store's Complete is $300", CS.planFeeOf(st), 300);
+  eq("and the price list agrees", CS.COMPLETE_STORE.monthly, PS.COMPLETE_STORE.monthly);
+  eq("3 months, not 12", CS.firstTermMonths(st), 3);
+  eq("no website build to pay back", CS.completeExitOwed(st, "2026-12-10"), 0);
+  eq("🔴 but the setup payback applies, like Ads", CS.setupPaybackOwed(st, STORE, "2026-12-10"), 1400);
+  const [a, b] = both(st, STORE);
+  eq("🔴 OS and portal render the same store Complete agreement", a === b, true);
+  const t = text(a);
+  ok("store Complete: named for what it is", /Complete Plan for Online Stores, with Store Growth advertising/.test(t) && /Complete Plan Fee \$300\/mo/.test(t));
+  ok("store Complete: shop pages, past-buyer emails, Google profile if they have a location", /Shop pages for the ads/.test(t) && /Emails to Client's past buyers/.test(t) && /if Client has a location customers visit/.test(t));
+  ok("🔴 store Complete: promises NO website", !/A website of up to/.test(t) && !/website build/.test(t) && /Agency does not build or run the store itself/.test(t));
+  ok("store Complete: 3 months then month to month", /Initial Term 3 months, then month to month/.test(t));
+  ok("store Complete: a month without spend adds nothing", /A month with no advertising spend adds nothing to the Complete Plan Fee/.test(t) && !/Qualified Lead/.test(t));
+  const ns = heads(a); ok("store Complete: sections numbered with no gap", JSON.stringify(ns) === JSON.stringify(ns.map((_, i) => i + 1)), ns.join(","));
+  eq("🔴 nothing website-side is 'covered' for a store (no free build unlocked)", WD.completeCovered({ ...st, contractSigned: true }), false);
+  ok("and its website locks are the ordinary ones", /Send the website agreement first/.test(WD.buildLock({ ...st, contractSigned: true }) || ""));
+  eq("never the Google profile add-on as well", CS.addOnsOf({ ...st, addOns: [{ id: "gbp_care" }] }).length, 0);
+  ok("the sales prompt knows the store version", /\$300 a month plus their share of ad spend/.test(PS.completePromptBlock(55)));
+  ok("the Plan card lets a store pick it", /Complete\{store\?" for stores":""\}/.test(S));
 }
 
 // ── 10. The OS: picking Complete and the ad tier ────────────────────────────────────────────────────────
@@ -206,8 +255,8 @@ for (const [label, cl, pkg] of [
   ok("the Plan card sits on the Contract tab, above Special Terms", /<PlanCard client=\{client\} pkg=\{pkg\} onUpdate=\{onUpdate\}\/>\n\s*<SpecialTermsCard/.test(S));
   ok("🔴 one tap per tier, with the tier their budget fits marked", /PLAN_TIERS\.map\(\(\[t,label,band\]\)=>/.test(S) && /FITS/.test(S) && /tierForBudget/.test(S));
   ok("and the platform is a tap (both only from $5,000)", /PLAN_PLATFORMS\.map/.test(S) && /budget<COMBO_MIN_BUDGET/.test(S));
-  ok("switching to Complete sets the 12-month first term and end date", /const months=p==="complete"\?COMPLETE_PLAN\.termMonths:ADS_FIRST_TERM_MONTHS;/.test(S));
-  ok("online stores can't be put on Complete", /disabled=\{store\}/.test(S));
+  ok("switching to Complete sets the 12-month first term and end date (website plan)", /p==="complete"&&!store\?COMPLETE_PLAN\.termMonths/.test(S));
+  ok("a store's Complete keeps a 3-month first term", /const months=p==="complete"&&!store\?COMPLETE_PLAN\.termMonths:ADS_FIRST_TERM_MONTHS;/.test(S));
   ok("Deal Prep can create a Complete client straight from the call", /withQuotedPlan\(clientFromMeeting\(/.test(S));
 }
 

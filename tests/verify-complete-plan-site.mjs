@@ -13,7 +13,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readSite, readPage, ROOT } from "./helpers/marketing-site.mjs";
-import { COMPLETE_PLAN, TERMS, WEBSITE_OFFER, GOOGLE_PROFILE, COMBO_MIN_BUDGET, PACKAGES } from "../netlify/lib/pricing-shared.mjs";
+import { COMPLETE_PLAN, COMPLETE_STORE, TERMS, WEBSITE_OFFER, GOOGLE_PROFILE, COMBO_MIN_BUDGET, PACKAGES } from "../netlify/lib/pricing-shared.mjs";
 import { FOUNDING_CLIENT_COUNT } from "../netlify/lib/founding.mjs";
 
 let pass = 0; const fails = [];
@@ -72,6 +72,16 @@ ok("stores: billed on spend, no minimum and no monthly fee", (PRICING.match(/on 
 // Bryson asked to see which ad budget qualifies for which plan: each card shows its band, from the price list.
 for (const p of managed) ok(`${p.id}: its ad budget band is on its card`, PRICING.includes(`For ad budgets of <b>${p.adSpend}</b>`), p.adSpend);
 ok("the how-you-pay box explains it and the 30 days' notice", P.includes("There's no monthly fee for ads.") && P.includes(`Either of us can stop with ${TERMS.noticeDays} days' notice.`));
+
+// Complete for online stores, inside the store tab, from the price list (Bryson, 2026-11-07).
+{
+  const ecom = PRICING.slice(PRICING.indexOf('data-panel="ecom"'));
+  const box = (ecom.match(/<div class="sc-box">[\s\S]*?<\/p>\s*<\/div>/) || [""])[0];
+  ok("the store tab carries Complete for stores", !!box);
+  ok("at the price list's price, with the share of spend", box.includes(`${usd(COMPLETE_STORE.monthly)}<small>/mo</small>`) && /plus 15% of your ad spend \(12% at \$10,000\+\)/.test(box));
+  ok("🔴 and it promises no website", !/built free|website built/i.test(box) && /no website build in this one/.test(box));
+  ok("3 months, then month to month", box.includes(`${TERMS.adsFirstTermMonths} months to start, then month to month`));
+}
 
 // ── Nothing of the old model survives anywhere a prospect reads ──────────────────────────────────────────────
 const OLD = [/whichever is higher/i, /whichever of those is higher/i, /never both/i, /monthly minimum/i, /\$\d[\d,]*\/mo<\/b> minimum/i,

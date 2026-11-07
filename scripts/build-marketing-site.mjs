@@ -13,7 +13,7 @@ import { renderSite, THEME_IDS, PICK_THEMES, SITE_THEMES, SITE_PAGES as SAMPLE_P
 import { MODE_TOGGLE_CSS, MODE_TOGGLE_HTML, modeToggleJS } from "../netlify/lib/demo-site.mjs";
 import { DEMO, DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT, LANDING_DEMOS, SAMPLE_MODE } from "./site-showcase-demo.mjs";
 import { renderLandingPage } from "../netlify/functions/landing.mjs";
-import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE, GOOGLE_PROFILE, COMPLETE_PLAN, TERMS, COMBO_MIN_BUDGET, MIN_AD_BUDGET } from "../netlify/lib/pricing-shared.mjs";
+import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE, GOOGLE_PROFILE, COMPLETE_PLAN, COMPLETE_STORE, TERMS, COMBO_MIN_BUDGET, MIN_AD_BUDGET } from "../netlify/lib/pricing-shared.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "marketing-src");
@@ -193,6 +193,13 @@ const completeSection = () => `
   </div>
 </div></section>
 `;
+// Complete for online stores (Bryson, 2026-11-07), shown inside the store plans tab. No website: we don't build stores.
+const storePcts = [...new Set(PACKAGES.filter((p) => p.pricingModel === "ad_spend_pct").map((p) => p.adSpendPct))].sort((a, b) => b - a);
+const storeComplete = () => `<div class="sc-box">
+        <div class="sc-head"><span class="ch-tag sc-tag">For online stores</span><div class="sc-k">Complete for stores</div><div class="sc-v">${usd(COMPLETE_STORE.monthly)}<small>/mo</small> <span>plus ${storePcts[0]}% of your ad spend (${storePcts[1]}% at $10,000+)</span></div></div>
+        <ul class="ch-list sc-list"><li>Your ads, run the same way as the plans above</li><li>Shop pages that send people straight to your store</li><li>Emails that bring past buyers back</li><li>Your Google profile kept busy, if you have a storefront</li></ul>
+        <p class="sc-foot">Your store stays where it is, so there's no website build in this one and no long contract: ${TERMS.adsFirstTermMonths} months to start, then month to month.</p>
+      </div>`;
 const webPricing = () => `
 <section class="wp-sec" id="website-pricing"><div class="wrap-x">
   <div class="x-head reveal"><div><div class="eyebrow">Websites</div><h2>Website pricing, with or without ads.</h2></div><a class="x-link" href="/websites/">See the designs <span>&rarr;</span></a></div>
@@ -476,7 +483,7 @@ const PAGES = [
     title: "Pricing | BoldLine Media",
     desc: "No monthly fee for ads: you pay a set fee per qualified lead. The Complete plan adds your website, built free, and the rest for $500 a month. Websites from $1,500.",
     body: pageHero("Pricing", "Pay for leads, <em>not promises.</em>", "No monthly fee for ads. You pay a set fee for each qualified lead we deliver, so a month with no leads costs you nothing. Your ad budget is separate and goes straight to Google or Meta on your own card.")
-      + choices() + planFinder() + part("services.html") + completeSection() + compareNudge() + webPricing() + gbpSection() + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
+      + choices() + planFinder() + part("services.html").replace("<!--STORE_COMPLETE-->", storeComplete()) + completeSection() + compareNudge() + webPricing() + gbpSection() + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
   { id: "how", path: "/how-it-works/", file: "how-it-works/index.html",
     title: "How It Works | BoldLine Media",
     desc: "The same structure every time: discovery, build, launch and weekly optimization. Who we work with, and the questions people ask first.",

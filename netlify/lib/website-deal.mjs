@@ -29,12 +29,13 @@
 //   launchedAt
 
 import { WEBSITE_OFFER, WEBSITE_SIGNATURE, GOOGLE_PROFILE } from "./pricing-shared.mjs";
-import { gbpCareClauses, planOf } from "./contract-shared.cjs";
+import { gbpCareClauses, planOf, isStorePkgId } from "./contract-shared.cjs";
 // A Complete client (KB complete-plan) gets the website inside their ONE ads agreement: built free on the 12-month
 // first term, hosting, care and the blog inside the $500. So there is no website agreement to send, nothing to pay
 // here, and no care plan to start: the build unlocks when THAT agreement is signed. 🔴 Anything that bills a website
 // (care plan at launch, a website invoice) must ask this first, or a Complete client pays twice for the same site.
-export const completeCovered = (cl) => planOf(cl) === "complete";
+// A store's Complete plan has no website (we don't build online stores), so it covers nothing here.
+export const completeCovered = (cl) => planOf(cl) === "complete" && !isStorePkgId(cl);
 
 export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: WEBSITE_OFFER.care };
 // WA-2 (2026-10-06): section 6 spells out that BoldLine manages the client's domain settings through access the
