@@ -18523,7 +18523,7 @@
         "fetchMultiDailyMetricsTimeSeries",
         "google profile management"
       ],
-      "status": "built, waiting on setup",
+      "status": "LIVE, connected 2026-11-06 (BoldLine's own profile, as theboldlinemedia@gmail.com)",
       "summary": "Built 2026-10-26 after Google approved the Business Profile API (project 69639870912, 2026-10-23). A \"Google listing\" card on the Overview of BoldLine's own account and each owned business shows the profile's last 28 days (rating, calls, website clicks, direction requests, times seen, each against the 28 days before), every review still waiting for a reply with a drafted reply, and this week's post, all editable. NOTHING reaches Google until Bryson presses Post and confirms the exact words. A daily job (8:41am Phoenix) drafts replies to new reviews and, from Tuesday, next Monday's post (which goes up by itself Monday 8am unless held), and messages him (amber when a 1 or 2 star review is waiting). Needs GBP_CLIENT_ID and GBP_CLIENT_SECRET from an OAuth client in the BoldLine OS Cloud project, then \"Connect Google\" once.",
       "verified": "2026-10-26",
       "terms": {
