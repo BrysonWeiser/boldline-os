@@ -72,6 +72,11 @@ Both live in `TERMS` in `netlify/lib/pricing-shared.mjs` (with `COMPLETE_PLAN`),
   lead?" and "What's in the Complete plan?"), founding banners (home + get-started) add "and so is the first month of
   lead fees", Google profile eyebrow "Add-on, or included in Complete", ads structured data price 0, llms.txt,
   recommender's sub-$500 answer no longer mentions a minimum.
+- 2026-11-07 ~12:10pm Phoenix, Bryson on the ad plan cards: "instead of showing no monthly fee lets say that they only
+  pay for results and which ad budgets qualify them for which tier". Cards now read: name, a gold-edged band "For ad
+  budgets of $X to $Y/mo" (from `adSpend`), then "Pay only for results" (the Ads choice card and plan finder say the same).
+  STORE cards lead with "15% / 12% of your ad spend" instead, because "only for results" is not true of a share of spend
+  (told him; tests enforce headline-per-model).
 - Tests: NEW `tests/verify-complete-plan-site.mjs` (37 checks, 7 mutations caught); verify-packages section 6,
   verify-site-matches-packages, verify-marketing-pages, verify-marketing-motion updated to the new model. 186/186.
 - 🔴 KNOWN, DELIBERATE GAP: the catalog's `price` (and the OS, agreement, Deal Prep, `calcMonthlyBill`) still carry the

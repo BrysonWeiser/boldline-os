@@ -789,7 +789,7 @@
     amt.textContent=money(b)+(+r.value===STEPS.length-1?'+':'')+' a month';
     var one=plans.filter(function(p){ return !p.combined && fits(p,b); })[0];
     var both=plans.filter(function(p){ return p.combined && fits(p,b); })[0];
-    if(one){ name.textContent=one.name; min.innerHTML='<b>No monthly fee.</b> You pay a set fee for each qualified lead we deliver.'; }
+    if(one){ name.textContent=one.name; min.innerHTML='<b>Pay only for results.</b> A set fee for each qualified lead we deliver, and no monthly fee.'; }
     also.textContent=both?'Running Google and Meta together? At this budget that is '+both.name+', with no monthly fee either.':'';
     r.style.setProperty('--p',(+r.value/(STEPS.length-1)*100)+'%');
   }

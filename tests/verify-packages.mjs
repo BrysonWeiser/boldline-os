@@ -528,13 +528,15 @@ eq("site split-testing bullets match splitTesting packages", bulletCount("split-
 // single fee. Both are captured so neither can drift unnoticed.
 // 🔴 Since 2026-11-07 (KB complete-plan) a managed plan quotes NO monthly fee at all ("No monthly fee"). The
 // old "From $X/mo" shape is still captured, so if it ever comes back on a card the price check fails.
-const CARD_RE = /<h3>([^<]+)<\/h3>[\s\S]{0,400}?class="price">(?:From <b>\$([\d,]+)\/mo<\/b>|<b>\$([\d,]+)<\/b> once|<b>(No monthly fee)<\/b>)[\s\S]{0,60}?class="pnote">([\s\S]*?)<\/div>[\s\S]{0,240}?Typical ad budget: ([^<]+)</g;
+// Card order since 2026-11-07: title, the ad budget that qualifies for it, what you pay, the note. A lead-gen card
+// leads with "Pay only for results", a store card with its share of ad spend; both are "no fee" shapes.
+const CARD_RE = /<h3>([^<]+)<\/h3>\s*<div class="budget">For ad budgets of <b>([^<]+)<\/b><\/div>\s*<div class="price">(?:From <b>\$([\d,]+)\/mo<\/b>|<b>\$([\d,]+)<\/b> once|<b>(Pay only for results|\d+% of your ad spend)<\/b>)<\/div>\s*<div class="pnote">([\s\S]*?)<\/div>/g;
 const cardsIn = (panelName) => [...panelOfSite(panelName).matchAll(CARD_RE)].map((m) => ({
-  title: m[1].trim(),
-  price: m[2] ? Number(m[2].replace(/,/g, "")) : 0,
-  once: m[3] ? Number(m[3].replace(/,/g, "")) : null,
-  noFee: !!m[4],
-  perf: m[5].trim(), budget: m[6].trim(),
+  title: m[1].trim(), budget: m[2].trim(),
+  price: m[3] ? Number(m[3].replace(/,/g, "")) : 0,
+  once: m[4] ? Number(m[4].replace(/,/g, "")) : null,
+  noFee: !!m[5], headline: m[5] || "",
+  perf: (m[5] || "") + " " + m[6].trim(),
 }));
 // 🔴 THE HAND-OFF IS DELIBERATELY NOT ON THE SITE.
 // Bryson, 2026-08-19: "i dont want to advertise it i just want it as an option for sales
@@ -600,6 +602,9 @@ PUBLIC_PKGS.forEach((p) => {
   // and the card must say what a month with nothing costs.
   ok(`${p.id} no longer claims a greater-of rule`, !/whichever is higher|never both/i.test(c.perf), c.perf);
   ok(`${p.id} says a quiet month is not topped up`, /nothing in a month with none|no minimum/i.test(c.perf), c.perf);
+  // "Pay only for results" is true of a per-lead plan and NOT of a store, which pays a share of its spend whatever
+  // happens. So the headline must match the model.
+  ok(`${p.id} leads with the right headline`, p.pricingModel === "ad_spend_pct" ? c.headline === `${p.adSpendPct}% of your ad spend` : c.headline === "Pay only for results", c.headline);
   if (isOneTime(p)) { /* no performance half to check */ }
   else if (p.pricingModel === "ad_spend_pct")
     ok(`${p.id} quotes ${p.adSpendPct}% of ad spend on the site`, c.perf.includes(`${p.adSpendPct}% of your ad spend`), c.perf);

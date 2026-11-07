@@ -99,7 +99,7 @@ const planFinder = () => `
       <div class="pf-ticks" aria-hidden="true"><span style="left:0">$500</span><span style="left:41.667%">$2,500</span><span style="left:75%">$10,000</span><span style="left:100%">$30,000+</span></div>
       <div class="pf-result" id="pfResult" aria-live="polite">
         <div class="pf-plan"><span class="pf-name">Launch System</span><span class="pf-plat">Google or Meta, same price</span></div>
-        <div class="pf-min"><b>No monthly fee.</b> You pay a set fee for each qualified lead we deliver.</div>
+        <div class="pf-min"><b>Pay only for results.</b> A set fee for each qualified lead we deliver, and no monthly fee.</div>
         <div class="pf-also"></div>
       </div>
     </div>
@@ -124,7 +124,7 @@ const choices = () => `
   <div class="ch-grid reveal">
     <div class="ch-card">
       <div class="ch-k">Ads</div>
-      <div class="ch-v">No monthly fee</div>
+      <div class="ch-v">Pay only for results</div>
       <p class="ch-sub">A set fee for each qualified lead. A month with none costs you nothing.</p>
       <ul class="ch-list">
         <li>Google or Meta ads, planned and run for you</li>

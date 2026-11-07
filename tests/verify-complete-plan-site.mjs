@@ -38,7 +38,7 @@ ok("leaving Complete early pays the rest of the build, per month left", COMPLETE
 ok("the pricing page leads with paying for leads", /<h1>Pay for leads, <em>not promises\.<\/em><\/h1>/.test(PRICING));
 ok("it offers the three choices: Ads, Complete, Website", /id="choices"/.test(PRICING)
   && ["Ads", "Complete", "Website"].every((k) => PRICING.includes(`<div class="ch-k">${k}</div>`)));
-ok("Ads says no monthly fee", /<div class="ch-k">Ads<\/div>\s*<div class="ch-v">No monthly fee<\/div>/.test(PRICING));
+ok("Ads says pay only for results", /<div class="ch-k">Ads<\/div>\s*<div class="ch-v">Pay only for results<\/div>/.test(PRICING));
 ok("Complete shows its price from the price list", PRICING.includes(`<div class="ch-v">${usd(COMPLETE_PLAN.monthly)}<small>/mo</small></div>`)
   && PRICING.includes(`<span class="cp-v">${usd(COMPLETE_PLAN.monthly)}<small>/mo</small></span>`));
 ok("Website shows its build price from the price list", PRICING.includes(`<div class="ch-v">${usd(WEBSITE_OFFER.build)}<small> to build</small></div>`));
@@ -64,8 +64,13 @@ ok("no invented total value anywhere", !/\$[\d,]+ (worth|of value)|worth of valu
 // The ad plan cards: no monthly fee on every one, and the "how you pay" box says so.
 const cards = (PRICING.match(/<div class="price">[\s\S]*?<\/div>/g) || []);
 const managed = PACKAGES.filter((p) => p.pricingModel !== "one_time");
-ok("every public ad plan card says no monthly fee", cards.length === managed.length && cards.every((c) => c === '<div class="price"><b>No monthly fee</b></div>'), cards.length + " cards");
-ok("stores pay a share of ad spend with no minimum", (PRICING.match(/% of your ad spend<\/b>, billed after the month\. No minimum\./g) || []).length === 3);
+const perLead = managed.filter((p) => p.pricingModel === "per_lead").length;
+ok("every per-lead plan card says pay only for results", cards.filter((c) => c === '<div class="price"><b>Pay only for results</b></div>').length === perLead, cards.length + " cards");
+ok("every store card leads with its share of ad spend, never 'only for results'", cards.filter((c) => /^<div class="price"><b>1[25]% of your ad spend<\/b><\/div>$/.test(c)).length === managed.length - perLead);
+ok("no card quotes a monthly price", !cards.some((c) => /\$/.test(c)));
+ok("stores: billed on spend, no minimum and no monthly fee", (PRICING.match(/on what you actually spent\. No minimum and no monthly fee\./g) || []).length === 3);
+// Bryson asked to see which ad budget qualifies for which plan: each card shows its band, from the price list.
+for (const p of managed) ok(`${p.id}: its ad budget band is on its card`, PRICING.includes(`For ad budgets of <b>${p.adSpend}</b>`), p.adSpend);
 ok("the how-you-pay box explains it and the 30 days' notice", P.includes("There's no monthly fee for ads.") && P.includes(`Either of us can stop with ${TERMS.noticeDays} days' notice.`));
 
 // ── Nothing of the old model survives anywhere a prospect reads ──────────────────────────────────────────────

@@ -148,9 +148,9 @@ for (const path of ["/pricing/", "/about/", "/how-it-works/"]) {
     const b = steps[i], fits = (p) => b >= p.minBudget && (p.maxBudget == null || b < p.maxBudget);
     const one = PACKAGES.find((p) => p.id.startsWith("g-") && fits(p)), both = PACKAGES.find((p) => p.id.startsWith("c-") && fits(p));
     // Since 2026-11-07 (KB complete-plan) no plan has a monthly fee, at any budget: it must say so and never quote a minimum.
-    if (shown.name !== one.name || !/^No monthly fee\./.test(shown.min) || /\$|minimum|whichever/i.test(shown.min + shown.also) || (both ? !shown.also.includes(both.name) : shown.also !== "")) bad.push(`$${b}: ${JSON.stringify(shown)}`);
+    if (shown.name !== one.name || !/^Pay only for results\..*no monthly fee/.test(shown.min) || /\$|minimum|whichever/i.test(shown.min + shown.also) || (both ? !shown.also.includes(both.name) : shown.also !== "")) bad.push(`$${b}: ${JSON.stringify(shown)}`);
   }
-  ok("🔴 the plan finder picks the right plan, and says no monthly fee, at every budget", bad.length === 0, bad.join(" | "));
+  ok("🔴 the plan finder picks the right plan, and says pay only for results, at every budget", bad.length === 0, bad.join(" | "));
   // The example month counts leads: the lit slots ARE the number it says you pay for, in both months.
   const month = () => page.evaluate(() => { const d = document.querySelector(".pf-dots"), m = d.getAttribute("data-month");
     return { m, lit: [...d.children].filter((i) => i.classList.contains(m === "slow" ? "s" : "b")).length,
