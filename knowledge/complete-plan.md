@@ -3,7 +3,7 @@ name: complete-plan
 topic: Pricing
 task: the proposed "do all their marketing" offer (ads per lead with no minimum, websites, Google profile, extra services) and what was decided vs only proposed
 keywords: [complete plan, all in one, done for you marketing, no monthly minimum, pay per lead only, first month free, founding offer, bundle, website plus google profile, $299, speed to lead, missed call text back, customer emails, booking deposits, package redesign]
-status: PROPOSED 2026-11-06 (pricing not built); customer emails for clients BUILT
+status: ALL DECIDED 2026-11-07, READY TO BUILD (nothing built yet except customer emails for clients)
 summary: Bryson, 2026-11-06, floated (1) no monthly minimum for anyone, pay only per qualified lead, first 5 clients get their first month free; (2) a system where a client pays BoldLine to manage all their marketing. Advice given and NOT yet confirmed by him - say "first month of lead fees free" not "completely free" (ad spend stays theirs), keep a ~3-month minimum term, keep the setup fee after the first five; per-lead only for ADS leads, flat monthly for website + Google profile; a "Complete" plan around $299/mo with the website built free on a 12-month term (leave early = pay the rest of the build) plus ad lead fees; skip social media and SEO retainers. Extras recommended - instant lead reply + missed-call text-back (blocked on Twilio upgrade + A2P), bring back past customers emails (BUILT for clients 2026-11-06, KB business-emails), online booking + deposits (already built, just name it).
 verified: 2026-11-06
 ---
@@ -22,7 +22,53 @@ Never describe Meta as pending or coming soon.
    parts bought separately (~$355/mo: build $1,500/12 + care $100 + Google profile $130); with it the parts are ~$505/mo
    plus emails, review requests and booking that aren't sold alone. Don't advertise a "$2,000 value" figure; show the
    itemised list. AWAITING his yes on "$500 with the blog included" before building.
+Preview shown 2026-11-07 (an HTML mock of the pricing page, the list of every page that changes, and the OS flow),
+sent as a file only, not published. Open questions put to him in it: (1) $500 WITH the blog; (2) store plans: keep 15%
+of ad spend with no minimum (recommended) or a fee per sale; (3) Complete includes ONE ad platform, both still needs
+$5,000/mo ad budget. Pages that mention the old pricing: pricing (19 mentions), home, ads, websites, the four industry
+pages, compare, about, get-started, llms.txt. OS work: a Complete package that switches on ads + website + Google
+profile + blog + customer emails + booking; ONE agreement (today ads and website are separate); billing = $500/mo
+subscription + approved lead fees on the same bill, founding first month of lead fees skipped automatically.
 Build order once he says yes: marketing site on the TEST COPY first (his OK), then agreement terms, Deal Prep, billing.
+
+## ✅ FINAL ANSWERS (Sat 2026-11-07, ~10:30am Phoenix)
+- Complete = **$500/mo WITH the blog included** (yes).
+- **Online stores: 15% of their monthly ad spend (12% at the top tier, as today), no monthly minimum** (yes). Bryson
+  first read it as "instead of a cut from each client"; clarified: only stores (no leads to count), the ad money still
+  goes from their card to Google/Meta, BoldLine bills the 15% separately.
+- Complete includes **one** ad platform; both Google and Meta still needs $5,000/mo ad budget, same as Combined (yes).
+- With 1-4 above (no minimum for anyone, first month of lead fees free for the first five, 3-month minimum, setup fee
+  for client six undecided).
+
+## 🔨 BUILD PLAN (recommended to run in a FRESH session; this one's context was huge)
+What already exists (do not rebuild):
+- Results-only billing: card on file via Checkout mode "setup", each approved lead batch charged as its own invoice
+  (KB `results-only-billing`). Clause 4.1 has a results-only variant, but today it is "no monthly minimum DURING THE
+  INITIAL TERM" (founding, `introOnly` in contract-shared.cjs ~line 548/581); the 3-month initial term clause is 2.2.
+- Founding count and banner wiring (KB `founding-offer`, netlify/lib/founding.mjs), Deal Prep quoting
+  (netlify/lib/pricing-shared.mjs), store plans at 15%/12% (KB `pricing-model`), website deals, Google profile care
+  billing (KB `addon-billing`), blog, customer emails (KB `business-emails`), booking + deposits.
+Steps:
+1. **No minimum for every lead-gen package, permanently** (not just the founding initial term). New contract TERMS
+   VERSION (terms are stamped at send, so signed/out-for-signature agreements keep theirs; KB `late-payment-policy`,
+   `contract-terms-versioning`). Package `price` stops being a floor: the catalog's FIVE copies + `verify-packages`
+   (KB pricing-model) show "No monthly fee, pay per qualified lead". `calcMonthlyBill` floor 0. Keep tiers by budget.
+2. **Stores**: 15% (12% top) of ad spend, no minimum; same terms version.
+3. **Founding (first five)**: setup waived (as now) + **first month of lead fees free** = leads delivered in the first
+   30 days after go-live (contractStart, KB campaign-live) are not charged; clause in the agreement; Deal Prep + banner.
+4. **3-month minimum** stays for ads-only (already clause 2.2). **Complete = 12 months**.
+5. **Complete package** (new id): $500/mo Stripe subscription; one ad platform (both = Combined rules, $5k budget);
+   Standard 5-page website with the $1,500 build WAIVED on the 12-month term, early exit = the rest of the build
+   pro-rated; hosting/care, Google profile care, blog (4/mo), customer emails (still per-client consent + own sender),
+   booking + deposits. ONE agreement covering ads (per lead, no minimum) + website + the rest. Lead fees go on the same
+   bill as the $500. 🔴 Must NOT double bill: Google profile care ($130) auto-billing on link, website care ($100),
+   blog ($150) must all be suppressed for a Complete client (they are inside the $500).
+6. **OS**: plan picker (Ads / Complete / Website) on the client sheet; Complete switches on everything; Contract tab
+   sends the one agreement; Deal Prep recommends between the three with the trade's lead fee.
+7. **Marketing site, TEST COPY FIRST for his OK** (pages: pricing, home, ads, websites, 4 industry pages, compare,
+   about, get-started, llms.txt), matching the preview he approved (heading "Pay for leads, not promises.", three
+   choices, ad tiers "No monthly fee", rewritten how-you-pay box, founding banner adds the free first month).
+8. Then agreements/billing/Deal Prep merge to main after tests; site goes live on his "go".
 
 ## Status
 - Pricing changes (no minimum for all, free first month, Complete plan) are ONLY PROPOSED. He has not confirmed the
