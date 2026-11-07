@@ -178,35 +178,18 @@ automated.
   prefer a fresh session per new topic (this file + the KB carry continuity). Note:
   `/fast` does NOT save credits (still Opus, just faster output).
 
-## STANDING TRIGGER — revert the site's "coming soon" state the moment Meta is approved
-Bryson asked for this to be **automatic**, so treat it as a standing instruction, not a
-to-do: **the instant it becomes known that Meta has granted Marketing API standard access**
-(he says so, an approval email arrives, or a non-internal client's Meta account starts
-reading successfully in `ads-sync`), **immediately revert the marketing site's coming-soon
-state and deploy** — do not wait to be asked, and do not ask permission first.
-
-- **WORK FROM `docs/META-FLIP-CHECKLIST.md`, NOT from the old revert.** `git revert a4b83f0`
-  is no longer sufficient on its own: anything added to the site AFTER that commit is
-  invisible to it (the Full System: Acquisition card already proved this — its waitlist
-  button would survive the revert). The **`CS:META-SOON` sentinels are the source of truth**,
-  and the checklist lists every one of them with what it becomes. Use `git show a4b83f0` only
-  as a reference for the original wording of the blocks that predate it. Then merge to `main`
-  as usual (rollback branch first, log in `docs/DEPLOYS.md`).
-- **`node tests/verify-meta-flip.mjs` polices this.** While the site is gated it fails if any
-  sentinel is missing from the checklist, or the checklist names one that no longer exists, or
-  a waitlist button carries no marker, or a Google card ever gets gated. After the flip it
-  switches expectations and asserts all 12 packages book and no marker survives. **So any new
-  gated site change is automatically recorded** (Bryson, 2026-08-17: *"make sure from now on any
-  updates we do to the website are saved for when we flip the website back to normal"*).
-- Then tell Bryson it's reverted, and update KB `meta-marketing-api` + `site-coming-soon`.
-- A weekly Routine also checks in about this (trigger `trig_012hH9VLXchaMj7LUc461Wrb`,
-  Mondays 09:00 Phoenix — see KB `site-coming-soon`) — but the Routine is the backstop. If you learn Meta is live in ANY
-  session, revert there and then.
-- **Then RAISE (do not silently build) the work parked behind Meta approval** — Meta creative
-  split testing and the conditions-triggered Meta refresh. Full list, why each is blocked, and
-  what each is worth in KB **`meta-parked-work`** (Bryson, 2026-08-17: *"mark the meta thing for
-  later once meta is approved"*). The site revert is automatic; these are features, so surface
-  them with a recommended order and let him choose.
+## META IS APPROVED — settled fact, never say otherwise (Bryson, 2026-11-07: "remember for the package and in general that meta already approved me make sure thats solid in your notes")
+**Meta granted BoldLine's Marketing API Access Tier on 2026-09-14** (12:20pm Phoenix). Meta ads run on CLIENT ad
+accounts; Meta creative split testing applies to clients the same as Google. **The marketing site was flipped out of
+its old "coming soon" state that same day: all 12 packages (Google, Meta, Combined, E-Commerce) book a call, and no
+`CS:META-SOON` marker survives** (`node tests/verify-meta-flip.mjs` reports FLIPPED and polices it).
+- 🔴 **Never** tell him Meta is pending, in review, "coming soon", or that a package or feature waits on Meta approval.
+  This was done wrongly on 2026-09-16 and again on 2026-11-07 (from this file's old "standing trigger" wording, now
+  removed). Meta is part of every offer, including the Complete plan (KB `complete-plan`).
+- The weekly "has Meta approved yet?" Routine (`trig_012hH9VLXchaMj7LUc461Wrb`) was switched OFF 2026-11-07.
+- One thing is still separate: reading OTHER businesses' Instagram photos (Business Discovery) needs Instagram
+  permissions of its own, a different review from the Marketing API one (KB `meta-parked-work`, item 5).
+- History and details: KB `meta-marketing-api`, `site-coming-soon`, `meta-parked-work`, `docs/META-FLIP-CHECKLIST.md`.
 
 ## Hard business constraint (do NOT violate)
 **The client pays for everything. BoldLine never fronts, holds, or is financially

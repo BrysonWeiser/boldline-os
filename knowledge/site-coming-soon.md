@@ -141,3 +141,13 @@ card accidentally gated) — each failed by name, then restored.
 comment rather than an HTML one, and `styles` and `rec-gate` carry a trailing note after the id. A
 naive find-and-replace silently skips both — which is exactly what happened on the first attempt,
 and the test correctly refused to call that half-done flip "flipped".
+
+## 2026-11-07: the leftovers that kept the old story alive, removed
+Bryson: "remember for the package and in general that meta already approved me make sure thats solid in your notes".
+A session told him Meta packages "still show coming soon" (false since 2026-09-14) because CLAUDE.md still carried the
+old "STANDING TRIGGER" section written as if approval were pending, and the morning brief guide (docs/MORNING-BRIEF.md)
+still said "Meta is in App Review" with outreach on hold. Fixed: CLAUDE.md now opens that section with
+"META IS APPROVED, settled fact"; the morning brief guide says Meta approved 2026-09-14 and outreach is on; and the
+weekly "Meta approval watch" Routine `trig_012hH9VLXchaMj7LUc461Wrb` was switched OFF (its prompt still described the
+site as coming soon and told a session to `git revert a4b83f0`, which would now damage the live site).
+

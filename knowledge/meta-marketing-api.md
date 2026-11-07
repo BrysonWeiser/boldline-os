@@ -215,3 +215,13 @@ fires a fresh session with the full brief. **The reminder is a backstop, not the
 with nothing is a real signal about the offer or the audience and deserves proper diagnosis.
 Also reconsider resubmitting anyway at that point, since the API-call bar is long cleared and
 the tier request may carry on that alone.
+
+## 2026-11-07: the leftovers that kept the old story alive, removed
+Bryson: "remember for the package and in general that meta already approved me make sure thats solid in your notes".
+A session told him Meta packages "still show coming soon" (false since 2026-09-14) because CLAUDE.md still carried the
+old "STANDING TRIGGER" section written as if approval were pending, and the morning brief guide (docs/MORNING-BRIEF.md)
+still said "Meta is in App Review" with outreach on hold. Fixed: CLAUDE.md now opens that section with
+"META IS APPROVED, settled fact"; the morning brief guide says Meta approved 2026-09-14 and outreach is on; and the
+weekly "Meta approval watch" Routine `trig_012hH9VLXchaMj7LUc461Wrb` was switched OFF (its prompt still described the
+site as coming soon and told a session to `git revert a4b83f0`, which would now damage the live site).
+
