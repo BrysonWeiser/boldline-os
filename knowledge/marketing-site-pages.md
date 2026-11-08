@@ -269,3 +269,6 @@ A light-vs-dark comparison picture was sent to him first. To switch back: change
 - FINAL (same afternoon): after the light-vs-dark comparison picture Bryson chose LIGHT: "lets do light to start off
   with and then they can change it when they open up each website like normal". `SAMPLE_MODE = "light"`, pictures
   re-shot light. My recommendation had been dark; his call. Aurora (retired, unlinked) stays dark, it has no light.
+
+## 2026-11-07 evening: new pricing LIVE
+The test-copy work (pricing redesign, Complete, store Complete, light sample sites) merged to main with the OS on Bryson's "go" (merge defc39f, rollback/20261108T015902Z). Dev and main are level again.
