@@ -3,7 +3,7 @@ name: complete-plan
 topic: Pricing
 task: the proposed "do all their marketing" offer (ads per lead with no minimum, websites, Google profile, extra services) and what was decided vs only proposed
 keywords: [complete plan, all in one, done for you marketing, no monthly minimum, pay per lead only, first month free, founding offer, bundle, website plus google profile, $299, speed to lead, missed call text back, customer emails, booking deposits, package redesign]
-status: BUILT 2026-11-07, all steps (site on the test copy + agreement terms v9, billing, Deal Prep, OS plan picker) on the dev branch, 187/187 tests. NOT LIVE: waiting on Bryson's "go" to merge everything to main together.
+status: LIVE 2026-11-07 ~7pm Phoenix (merge defc39f, rollback/20261108T015902Z, pre-merge ee2b6ca). Site and OS went live together on Bryson's go, after the test copy and the OS screenshots. 187/187 tests.
 summary: The new pricing, decided and BUILT 2026-11-07 (dev branch, not live until Bryson says go). No monthly minimum for anyone (ads per qualified lead, stores 15%/12% of spend); 3 months then month to month with 30 days' notice; first five clients get the first month of lead fees free; Complete = $500/mo plus the lead fee with the website built free on a 12-month first term (leave early = $125 per month left), hosting/care, Google profile, blog, past-customer emails, booking, one agreement and one bill. Agreement terms v9 (old agreements untouched), Plan card with one-tap ad tier on the Contract tab, Deal Prep recommends Ads/Complete/Website, marketing site on the test copy. Tests verify-new-pricing + verify-complete-plan-site.
 verified: 2026-11-07
 ---
