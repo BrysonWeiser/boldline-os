@@ -94,6 +94,14 @@ Both live in `TERMS` in `netlify/lib/pricing-shared.mjs` (with `COMPLETE_PLAN`),
    that bring past buyers back, Google profile care if they have a location customers visit. NO website (we don't build
    online stores), so no 12-month lock: 3 months then month to month, and the same setup payback as Ads.
 
+## 📸 OS screenshots shown before going live (Sun 2026-11-08, Bryson: "is there anything different in the os if so I want screenshots first")
+Taken by running the real OS locally against a FAKE Supabase (scratchpad os-shots: fake-supabase.js serves made-up
+clients from window.__FIX, every write discarded, all outside hosts blocked except the served React/Babel copies; Playwright
+tries the LAST route first, so the block-all route must be registered FIRST). Fixes found from the pictures: the Package
+tab now shows the client's own per-lead rate and "Setup waived" (it read the niche default and the list setup); a store's
+Plan card no longer says "lead fees" or the two-platform sentence; Deal Prep's Website box no longer calls the site
+"its own agreement, separate from the ads" beside a Complete recommendation.
+
 ## 🏗️ BUILT (same evening): the cancellation fee and Complete for stores
 - `waivedSetupOf(cl,pkg)` (standard setup minus agreed setup, frozen at send as `contractWaivedSetup`) and
   `setupPaybackOwed(cl,pkg,now)` = waived x months left of the first 3 / 3, in both renderer copies. Agreement v9 (b)

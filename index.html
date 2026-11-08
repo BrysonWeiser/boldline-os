@@ -2924,7 +2924,9 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
   const [selectedManualPkg,setSelectedManualPkg] = useState(null);
   const [upgradeApplied,setUpgradeApplied] = useState(false);
   const [applyConfirm,setApplyConfirm] = useState(false);
-  const perLead = PER_LEAD[client.niche];
+  // The client's agreed numbers (contractTerms), not the niche default and the list price: a waived setup reads as waived.
+  const perLead = contractTerms(client, pkg).perLead;
+  const agreedSetup = contractTerms(client, pkg).setup;
 
   const featureGroups = [
     { label:"Ads and Campaigns", ids:["search_ads","meta_ads","keyword_research","ad_variations","multi_campaign","google_shopping"] },
@@ -3011,7 +3013,7 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
                 <div style={{fontSize:10,color:C.textDim,marginTop:2}}>{planOf(client)==="complete"?"plus ":""}{pkgPerfLabel(pkg,perLead,client&&client.billingResultKind)}</div></>
               : <><div style={{fontSize:24,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>${Number(minimumOf(client,pkg)).toLocaleString()}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
                 <div style={{fontSize:10,color:C.textDim,marginTop:2}}>or {pkgPerfLabel(pkg,perLead,client&&client.billingResultKind)}, whichever is higher</div></>}
-            <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>${Number((pkg && pkg.setup) || 0).toLocaleString()} setup (one-time)</div>
+            <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{agreedSetup>0?`$${agreedSetup.toLocaleString()} setup (one-time)`:"Setup waived"}</div>
           </div>
         </div>
         <div style={{marginTop:10,padding:"6px 9px",borderRadius:8,backgroundColor:"rgba(0,0,0,0.3)",
@@ -5913,7 +5915,7 @@ function DealPrepWebsite({verdict}){
         </div>
       </div>
       <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6}}>
-        {WEBSITE_OFFER.pages} pages (Home, Services, About, Reviews, Contact), three designs for them to pick from, a contact form that sends them every enquiry, {WEBSITE_OFFER.revisionRounds} rounds of changes before launch. They can pay it all up front, or half now and half before it goes live. Care covers hosting, security and up to {WEBSITE_OFFER.carePlanEdits} small edits a month. They own their domain. It's its own agreement, separate from the ads.
+        {WEBSITE_OFFER.pages} pages (Home, Services, About, Reviews, Contact), three designs for them to pick from, a contact form that sends them every enquiry, {WEBSITE_OFFER.revisionRounds} rounds of changes before launch. They can pay it all up front, or half now and half before it goes live. Care covers hosting, security and up to {WEBSITE_OFFER.carePlanEdits} small edits a month. They own their domain. Bought on its own it's a separate agreement. With ads, Complete builds it free for ${COMPLETE_PLAN.monthly} a month (12 months).
       </div>
       <div style={{fontSize:10.5,color:C.gold,lineHeight:1.55,marginTop:8,padding:"7px 9px",borderRadius:8,backgroundColor:C.goldDim,border:`1px solid ${C.gold}33`}}>
         <b>Only you see this.</b> Running ads? &ldquo;Your ads send people to your website, so a site that doesn't turn visits into calls wastes the ad money.&rdquo; Came for the website? &ldquo;Once it's live, ads are how the right people find it.&rdquo; After you add them, set the price on their Website tab and send the agreement from there.
@@ -16340,7 +16342,7 @@ function PlanCard({client,pkg,onUpdate}){
               <div style={{fontSize:12,fontWeight:800}}>{label}</div>{f==="c"&&<div style={sub}>needs $5,000+ ad budget</div>}</button>;
           })}
         </div>}
-        <div style={{fontSize:10.5,color:C.textMuted,marginTop:6}}>Picked: <strong style={{color:C.text}}>{pkg.name}</strong> on {pkg.platform}.{plan==="complete"?" Complete includes one ad platform; both platforms follows the same $5,000 rule as any plan.":""}</div>
+        <div style={{fontSize:10.5,color:C.textMuted,marginTop:6}}>Picked: <strong style={{color:C.text}}>{pkg.name}</strong> on {pkg.platform}.{plan==="complete"&&!store?" Complete includes one ad platform. Both platforms follows the same $5,000 rule as any plan.":""}</div>
         {plan==="complete"&&<div style={{display:"flex",gap:10,alignItems:"flex-end",flexWrap:"wrap",marginTop:10}}>
           <label style={{fontSize:11,color:C.textMuted}}>Complete price ($ a month)<input inputMode="decimal" value={feeIn} onChange={e=>setFeeIn(e.target.value)} onBlur={commitFee} style={{display:"block",marginTop:4,width:120,padding:"8px 10px",fontSize:16,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text}}/></label>
           <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,flex:"1 1 200px"}}>{store?"Covers the shop pages, emails that bring past buyers back, and Google profile care if they have a location. No website: we don't build online stores. Their share of ad spend goes on the same bill.":"Covers the website (built free), hosting and care, Google profile care, the blog, past-customer emails and booking. None of those bill separately. Lead fees go on the same bill."}</div>
@@ -16348,9 +16350,9 @@ function PlanCard({client,pkg,onUpdate}){
       </>}
       <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:C.text,cursor:"pointer",marginTop:12}}>
         <input type="checkbox" checked={!!client.foundingFreeMonth} onChange={e=>onUpdate&&onUpdate({...client,foundingFreeMonth:e.target.checked})}/>
-        Founding client: first month of lead fees free
+        Founding client: first month {store?"of fees on ad spend":"of lead fees"} free
       </label>
-      <div style={{fontSize:10.5,color:C.textMuted,marginTop:3,marginLeft:24,lineHeight:1.5}}>Only for your first five clients. Leads in the first 30 days after the ads go live aren't charged. Their ad spend is still theirs.</div>
+      <div style={{fontSize:10.5,color:C.textMuted,marginTop:3,marginLeft:24,lineHeight:1.5}}>Only for your first five clients. {store?"No share of ad spend is charged for the first 30 days after the ads go live.":"Leads in the first 30 days after the ads go live aren't charged."} Their ad spend is still theirs.</div>
     </Card>);
 }
 
