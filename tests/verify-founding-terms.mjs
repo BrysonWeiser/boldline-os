@@ -74,6 +74,10 @@ const BASE = {
   id: "abc12345", name: "Stencil & Thread", contactName: "Sebastian Perrin",
   niche: "Custom Apparel", packageId: "g-launch", contractTermMonths: 3,
   contractStart: "Aug 27, 2026", contractEnd: "Nov 26, 2026",
+  // Pinned to v8: this suite guards the founding deal exactly as Sebastian signed it (no minimum during the initial
+  // term, a minimum disclosed for renewal). Since v9 (KB complete-plan) nobody has a minimum, which verify-new-pricing
+  // covers; an agreement already out under these terms must keep reading this way.
+  contractTermsVersion: 8,
 };
 
 // ── 1. A founding client: pays per result, no floor, no setup ─────────────────
@@ -192,9 +196,12 @@ const BASE = {
   const at = S.indexOf("function BillingCard");
   // Comments in this component explain the very rule being checked, so a prose mention
   // would satisfy a regex that the code did not (KB `repo-tests`, the comment trap).
-  const card = S.slice(at, at + 2600).split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+  const card = S.slice(at, at + 4000).split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+  // Since v9 (KB complete-plan) the card asks `minimumOf`, the one helper the agreement also asks, and THAT is where
+  // the null check has to live.
+  const minOf = S.slice(S.indexOf("function minimumOf("), S.indexOf("function rollingTerm("));
   ok("the billing card reads the minimum with a null check, not a falsy one",
-    /client\.billingMonthly!=null\?Number\(client\.billingMonthly\)/.test(card),
+    /const minimum=minimumOf\(client,pkg\)/.test(card) && /v !== null && v !== undefined && String\(v\)\.trim\(\) !== ""/.test(minOf) && !/billingMonthly \|\|/.test(minOf),
     "`||` treats a waived $0 minimum as unset and shows the package price instead");
   ok("🔴 and no longer uses the falsy form", !/client\.billingMonthly\|\|\(pkg/.test(card));
   ok("the setup fee beside it still uses a null check too",
@@ -267,7 +274,7 @@ const BASE = {
     !/Monthly fee must be greater than zero/.test(card),
     "that message blocked every results-only client");
   ok("it is refused only when there is no per-lead rate either, which bills nothing ever",
-    /!\(m>0\)&&!\(effRate>0\)/.test(card));
+    /!\(noMinimumTerms\(client\)\?planFee>0:m>0\)&&!\(effRate>0\)/.test(card));
   ok("the Stripe constraint sits on the Stripe button instead", /monthly>0\s*\n?\s*\?\s*<button onClick=\{setupBilling\}/.test(card));
   // 🔴 UPDATED 2026-08-27. This used to assert the card EXPLAINED that nothing could
   // happen ("no subscription to create"), which was an accurate description of a dead end:

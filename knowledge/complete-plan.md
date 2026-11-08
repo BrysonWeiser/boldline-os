@@ -3,9 +3,9 @@ name: complete-plan
 topic: Pricing
 task: the proposed "do all their marketing" offer (ads per lead with no minimum, websites, Google profile, extra services) and what was decided vs only proposed
 keywords: [complete plan, all in one, done for you marketing, no monthly minimum, pay per lead only, first month free, founding offer, bundle, website plus google profile, $299, speed to lead, missed call text back, customer emails, booking deposits, package redesign]
-status: ALL DECIDED 2026-11-07, READY TO BUILD (nothing built yet except customer emails for clients)
-summary: Bryson, 2026-11-06, floated (1) no monthly minimum for anyone, pay only per qualified lead, first 5 clients get their first month free; (2) a system where a client pays BoldLine to manage all their marketing. Advice given and NOT yet confirmed by him - say "first month of lead fees free" not "completely free" (ad spend stays theirs), keep a ~3-month minimum term, keep the setup fee after the first five; per-lead only for ADS leads, flat monthly for website + Google profile; a "Complete" plan around $299/mo with the website built free on a 12-month term (leave early = pay the rest of the build) plus ad lead fees; skip social media and SEO retainers. Extras recommended - instant lead reply + missed-call text-back (blocked on Twilio upgrade + A2P), bring back past customers emails (BUILT for clients 2026-11-06, KB business-emails), online booking + deposits (already built, just name it).
-verified: 2026-11-06
+status: BUILT 2026-11-07, all steps (site on the test copy + agreement terms v9, billing, Deal Prep, OS plan picker) on the dev branch, 187/187 tests. NOT LIVE: waiting on Bryson's "go" to merge everything to main together.
+summary: The new pricing, decided and BUILT 2026-11-07 (dev branch, not live until Bryson says go). No monthly minimum for anyone (ads per qualified lead, stores 15%/12% of spend); 3 months then month to month with 30 days' notice; first five clients get the first month of lead fees free; Complete = $500/mo plus the lead fee with the website built free on a 12-month first term (leave early = $125 per month left), hosting/care, Google profile, blog, past-customer emails, booking, one agreement and one bill. Agreement terms v9 (old agreements untouched), Plan card with one-tap ad tier on the Contract tab, Deal Prep recommends Ads/Complete/Website, marketing site on the test copy. Tests verify-new-pricing + verify-complete-plan-site.
+verified: 2026-11-07
 ---
 
 ## Meta is part of it
@@ -52,7 +52,117 @@ month-to-month +10%, 6 months -5%, 12 months -10%, KB `contract-renewal-pricing`
 - Build impact: the renewal flow on the Contract tab, the renewal email, `TERM_RATE`/term discounts and the contract's
   term wording all change for NEW terms only; clients already signed keep what they signed.
 
-## 🔨 BUILD PLAN (recommended to run in a FRESH session; this one's context was huge)
+## ✅ CONFIRMED by Bryson, Sat 2026-11-07 ~11:30am Phoenix (the two "confirm with Bryson" items)
+- After the first term, either side ends it with **30 days' notice**.
+- **Complete goes month to month at $500 after its first 12 months**, same notice.
+Both live in `TERMS` in `netlify/lib/pricing-shared.mjs` (with `COMPLETE_PLAN`), which the site already reads.
+
+## 🌐 Step 7 DONE on the test copy (2026-11-07, dev branch, pushed to the test-copy branch)
+- Test copy = Netlify branch deploy of `claude/monday-sept-7-catchup-hyschf` (address in KB two-netlify-sites). The dev
+  branch of the session is pushed there; a commit must touch `marketing-site/` or Netlify skips the build.
+- Pricing page: hero "Pay for leads, not promises."; three choices (Ads "No monthly fee" / Complete $500 featured /
+  Website $1,500); plan finder says "No monthly fee" at every budget and its example month now LIGHTS THE LEADS you
+  pay for (3 slow, 11 busy, `.pf-dots`) instead of the old minimum-vs-fee bars; ad cards "No monthly fee" + "A set fee
+  per qualified lead. Nothing in a month with none."; stores "15%/12% of your ad spend, billed after the month. No
+  minimum."; rewritten how-you-pay box (3 months then month to month, 30 days' notice); new `#complete` section (7
+  parts, each with its stand-alone price from the price list, NO invented total value; terms boxes: 12 months, early
+  exit = $125 per month left of the $1,500 build, one platform, both needs $5,000).
+- Elsewhere: home price tile, Websites tile "or free with Complete", trade pages' price block, /compare/ rows (paid
+  per lead; 3 months then month to month, 30 days), FAQ (cost answer, 30 days' notice, NEW "What counts as a qualified
+  lead?" and "What's in the Complete plan?"), founding banners (home + get-started) add "and so is the first month of
+  lead fees", Google profile eyebrow "Add-on, or included in Complete", ads structured data price 0, llms.txt,
+  recommender's sub-$500 answer no longer mentions a minimum.
+- 2026-11-07 ~12:10pm Phoenix, Bryson on the ad plan cards: "instead of showing no monthly fee lets say that they only
+  pay for results and which ad budgets qualify them for which tier". Cards now read: name, a gold-edged band "For ad
+  budgets of $X to $Y/mo" (from `adSpend`), then "Pay only for results" (the Ads choice card and plan finder say the same).
+  STORE cards lead with "15% / 12% of your ad spend" instead, because "only for results" is not true of a share of spend
+  (told him; tests enforce headline-per-model).
+- Tests: NEW `tests/verify-complete-plan-site.mjs` (37 checks, 7 mutations caught); verify-packages section 6,
+  verify-site-matches-packages, verify-marketing-pages, verify-marketing-motion updated to the new model. 186/186.
+- 🔴 KNOWN, DELIBERATE GAP: the catalog's `price` (and the OS, agreement, Deal Prep, `calcMonthlyBill`) still carry the
+  old monthly minimums. verify-packages says so in a comment where it now checks "advertises no monthly fee" instead of
+  "price matches". Do NOT merge the dev branch to main (that would put the new site live) until steps 1-6 land.
+- Still to update with the OS step: `netlify/lib/blog-shared.mjs` (blog writer facts say "whichever is higher"),
+  `client-emails-shared`, `scout-shared`, `lead-fee`, `ads-autopilot`, `deal-research-background`, portal copy.
+
+## ✅ DECIDED Sat 2026-11-07 evening: a cancellation fee, and Complete for online stores
+1. **Cancellation fee (Ads, first 3 months):** pay back the setup fee we WAIVED, less a third for each month they stayed
+   (any part of a month left counts as a whole month; only completed months are used up). A client who paid setup owes nothing extra. Recommended
+   over a flat fee because it is tied to a real cost (the free build), so it survives a challenge as liquidated damages,
+   and it keeps working whatever is decided about setup fees for client six onward.
+2. **Complete for online stores:** $300/mo plus 15% of ad spend (12% at $10k+). Ads, shop landing pages, monthly emails
+   that bring past buyers back, Google profile care if they have a location customers visit. NO website (we don't build
+   online stores), so no 12-month lock: 3 months then month to month, and the same setup payback as Ads.
+
+## 📸 OS screenshots shown before going live (Sun 2026-11-08, Bryson: "is there anything different in the os if so I want screenshots first")
+Taken by running the real OS locally against a FAKE Supabase (scratchpad os-shots: fake-supabase.js serves made-up
+clients from window.__FIX, every write discarded, all outside hosts blocked except the served React/Babel copies; Playwright
+tries the LAST route first, so the block-all route must be registered FIRST). Fixes found from the pictures: the Package
+tab now shows the client's own per-lead rate and "Setup waived" (it read the niche default and the list setup); a store's
+Plan card no longer says "lead fees" or the two-platform sentence; Deal Prep's Website box no longer calls the site
+"its own agreement, separate from the ads" beside a Complete recommendation.
+
+## 🏗️ BUILT (same evening): the cancellation fee and Complete for stores
+- `waivedSetupOf(cl,pkg)` (standard setup minus agreed setup, frozen at send as `contractWaivedSetup`) and
+  `setupPaybackOwed(cl,pkg,now)` = waived x months left of the first 3 / 3, in both renderer copies. Agreement v9 (b)
+  states it with the amount as liquidated damages; key terms show "Waived ($X standard; paid back in part if Client
+  leaves in the first 3 months)". A client who paid setup still reads "NO EARLY-TERMINATION FEE". The website Complete
+  plan pays back the build instead, never both. OS early-exit card adds it.
+- 🔴 `monthsLeftOf` counts only COMPLETED months as used (a month under way is still owed), matching the agreement's
+  "any part of a month counting as a whole month". The first version had it backwards; a test now pins it.
+- Store Complete: `COMPLETE_STORE` ($300, 3 months) in contract-shared + pricing-shared, `isStorePkgId` (packageId
+  "e-"). Section "The Complete Plan for Online Stores" (shop pages, past-buyer emails, Google profile if they have a
+  location; "Agency does not build or run the store itself"). `completeCovered` is false for stores, so no free website
+  unlocks. Plan card and Deal Prep allow it; pricing page store tab has a "Complete for stores" box; FAQ + llms.txt.
+- verify-new-pricing now 156 checks, 14/14 mutations caught overall. 187/187.
+
+## 🏗️ Steps 1 to 6 BUILT (Sat 2026-11-07 afternoon, dev branch, not live)
+Bryson: "update the agreements billing and deal prep to the new pricing. also make sure in the os that there is an easy
+way to select which tier package they are on if they get the complete package".
+- 🔴 **Terms v9** (`TERMS_CURRENT = 9`, `TERMS_V9_FROM` 7 Nov 2026 5pm Phoenix; OS `CONTRACT_TERMS_VERSION = 9`). EVERYTHING
+  new is gated on v9, so a signed or sent agreement keeps its minimum, renewal menu and exit fee. Helpers, identical in
+  `netlify/lib/contract-shared.cjs` and `index.html` (inside the lifted TERMS_V2_FROM span): `COMPLETE_PLAN`,
+  `ADS_FIRST_TERM_MONTHS`, `NOTICE_DAYS`, `FOUNDING_FREE_DAYS`, `contractOut`, `noMinimumTerms`, `planOf`, `planFeeOf`,
+  `foundingFreeMonthOf`, `minimumOf`, `rollingTerm`, `firstTermMonths`, `completeExitOwed`.
+- **The catalog's `price` is now ONLY the minimum of pre-v9 agreements.** Nothing new reads it as a fee: `minimumOf` is 0
+  on v9; `calcMonthlyBill` defaults to `noMinimum: true` (pass false to reproduce an old bill).
+- **Agreement v9 (ads):** "THERE IS NO MONTHLY MINIMUM", Initial Term 3 months then month to month (2.2/2.3, no
+  renewal menu, no holdover), termination (a) 30 days' notice from the end of the first term, (b) early during the first
+  term owes only accrued fees, NO early-termination fee (decided by me: with no monthly fee there is no honest number to
+  charge; tell Bryson if he wants one). Stores: 15%/12% of spend, no minimum, own wording.
+- **Complete agreement** = the same ads agreement with section "The Complete Plan" after General: website (5 pages, 2
+  rounds), hosting/care (2 edits), Google profile care (the add-on's conduct clauses reused), blog (~4/mo), past-customer
+  emails, booking with deposits; $500/mo billed in advance from the Start Date, lead fees ON TOP; build fee $1,500 waived
+  on the 12-month term, early exit $125 per month left (part month whole), ownership/handover clause.
+- **Founding first month:** a per-client tick (`foundingFreeMonth`), clause 4.5 + key-terms row. Billing card counts a
+  lead free when it ARRIVED within 30 days of `contractStart` (marked `freeFounding`, fee 0), never by approval date.
+- **Frozen at send** (like add-ons): `contractPlan`, `contractPlanMonthly`, `contractFoundingFreeMonth`; Replace agreement
+  clears them.
+- **Billing:** v9 ads = results-only path (card on file, monthly lead invoice). Complete = Stripe subscription for the
+  plan fee (product named "Complete plan with ... (monthly)", `productLabel`), lead fees parked as pending items that ride
+  that invoice in FULL (`monthlyFloor = minimum` = 0). 🔴 No double billing: `addOnsOf` returns [] for Complete; website
+  deal card shows "Covered by Complete" (no agreement/invoices); `website-deal` launch skips `startCarePlan`;
+  `blogActive` true for a signed, live Complete site; build/publish locks open when the ads agreement is signed.
+- **Renewals:** v9 clients are never offered one (Contract tab shows "First term ends X, then month to month"). A pre-v9
+  client renewing goes ONTO v9: `billingMonthly: 0`, stamp v9, and new Stripe action `end-minimum` sets the old ads
+  subscription to cancel at the end of the period already paid (never immediately). The 1/3/6/12 term menu is retired.
+- **No more "contract ending, renew" for v9:** `daysToRenewal` (Infinity when rolling) in every OS list/alert/score;
+  billing-watch renewal email, calendar digest, report-shared health/renewals and the portal all skip rolling clients.
+- **OS Plan card** (Contract tab, above Special Terms): Ads / Complete buttons, then one tap per tier (Launch / Growth /
+  Acquisition, the tier their `adBudget` fits marked FITS) and platform (Google / Meta / Both, Both only from $5,000),
+  Complete price box, founding tick. Stores can't pick Complete. After sending it only states what the agreement holds.
+- **Deal Prep:** prompt has `completePromptBlock` and a third header line `PLAN: ads|complete|website` (`parsePlanLine`,
+  stored as `recommendPlan`); screen shows the three plans with the trade's lead fee and "★ Pitch this"; package rows say
+  "no monthly fee"; founding note = setup waived + first month of lead fees free; "Create the client" has Ads/Complete
+  (`withQuotedPlan`). Cold-call objection card, portal upgrades/package card, invoice email (Complete line), blog writer
+  facts, lead scout prompt, lead-fee finder all updated.
+- Tests: NEW `tests/verify-new-pricing.mjs` (122 checks, 10/10 mutations caught). Old-terms suites pinned to
+  `contractTermsVersion: 8` where they describe a minimum (they still guard agreements already out), with v9 checks added
+  beside them; `verify-term-incentive` rewritten for the retired menu. 187/187.
+- 🔴 Existing clients: they keep what they signed. To move one onto the new pricing, "Replace this agreement" and they
+  sign the new one, or renew them onto it at the end of their term.
+
+## 🔨 BUILD PLAN (DONE, kept for the record) (recommended to run in a FRESH session; this one's context was huge)
 What already exists (do not rebuild):
 - Results-only billing: card on file via Checkout mode "setup", each approved lead batch charged as its own invoice
   (KB `results-only-billing`). Clause 4.1 has a results-only variant, but today it is "no monthly minimum DURING THE

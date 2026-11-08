@@ -143,8 +143,8 @@ ok("and every mapped feature is a real feature",
   ok("every copy of the founder quote on the site says the same thing",
     founderQuotes.length >= 2 && founderQuotes.every((q) => q === quote), `${founderQuotes.length} copies`);
 
-  // The site promises the minimum OR the performance fee, whichever is higher. So a quote may
-  // say the UPSIDE depends on results. It may not say the whole fee does.
+  // Since 2026-11-07 the ads have no monthly fee, but the Complete plan has a flat $500 a month, so
+  // a quote may say the UPSIDE depends on results. It may not say the whole fee does.
   const overclaims = [
     /only (get |getting |)paid when/i,
     // Both directions of the same claim: what THEY pay, and what HE gets. A guard that only
@@ -161,11 +161,11 @@ ok("and every mapped feature is a real feature",
   ].filter((re) => re.test(quote));
   ok("🔴 the quote does not promise results-only pricing",
     overclaims.length === 0,
-    "the pricing section on this same page says the minimum or the performance fee, whichever "
-    + "is higher, so this reads as a contradiction and a client will quote it back: "
+    "the pricing page sells the Complete plan at a flat monthly price, so this reads as a "
+    + "contradiction and a client will quote it back: "
     + overclaims.map(String).join(", "));
   ok("and the pricing section it has to agree with is still there",
-    /whichever of those is higher/.test(SITE) && /Never both added together/.test(SITE));
+    /There's no monthly fee for ads/.test(SITE) && /class="cp-v">\$[\d,]+<small>\/mo/.test(SITE));
 
   // 🔴 IT IS THE ONE PERSONAL MOMENT ON THE PAGE, SO IT MUST NOT REPEAT THE PAGE. The old quote
   // opened on keeping the roster small, which the fit section already says in its own words.

@@ -11,7 +11,7 @@ import { createClient } from "@supabase/supabase-js";
 import { humanize } from "../lib/humanize.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { getNicheLeadFee, packagesPromptBlock, foundingTermsBlock, websitePromptBlock } from "../lib/pricing-shared.mjs";
+import { getNicheLeadFee, packagesPromptBlock, foundingTermsBlock, websitePromptBlock, completePromptBlock } from "../lib/pricing-shared.mjs";
 import { foundingOfferActive } from "../lib/founding.mjs";
 
 const anthropic = new Anthropic();
@@ -29,6 +29,7 @@ ${packagesPromptBlock(leadFee)}
 For this prospect's industry, BoldLine's per-qualified-lead fee is about $${leadFee} (service packages only; e-commerce pays a percentage of ad spend instead).
 ${foundingTermsBlock(foundingOpen)}
 ${websitePromptBlock()}
+${completePromptBlock(leadFee)}
 
 WHEN TO RECOMMEND THE HAND-OFF. If this prospect plainly cannot fund $500/mo of ad spend, recommend the h-handoff package rather than a monthly plan, and say why in plain terms: below that there is not enough data for a managed campaign to learn, so a monthly plan would take their money and underperform. Do NOT reach for it just because a prospect looks small. It is the right answer for a genuine budget problem and the wrong answer for a negotiation.
 
@@ -45,6 +46,7 @@ ACCURACY RULES — read carefully. Bryson sometimes personally knows these owner
 OUTPUT — respond with EXACTLY this, nothing before it:
 First line, alone: RECOMMENDED: <one package id from the list above>
 Second line, alone: WEBSITE: <yes | only | no>   (yes = pitch a website alongside the ads, only = pitch the website instead of ads, no = their site is fine)
+Third line, alone: PLAN: <ads | complete | website>   (the ONE way to work with BoldLine you would pitch first, using the rules for Complete above; RECOMMENDED still names the ad tier, which is the ads inside Complete too)
 Then a blank line, then the briefing in this markdown (bold section headers, "- " bullets, short paragraphs):
 
 **Company Snapshot**
@@ -63,7 +65,7 @@ Then a blank line, then the briefing in this markdown (bold section headers, "- 
 - 3-4 specific, personalized hooks Bryson can say on the call (reference real details you found — owner name if known, a recent review theme, a visible gap). Make them natural, not salesy.
 
 **Recommended Package & the Money Math**
-Name the recommended package and WHY it fits their size/goals. Then the lead math in plain numbers: at ~$${leadFee}/lead and a realistic monthly lead volume for their spend range, what that costs vs. the value of a customer in their industry — show the ROI case Bryson can say out loud.
+Name the recommended plan (Ads, Complete or Website) and ad tier and WHY they fit. There is no monthly minimum on any plan: the ads are paid per qualified lead, and Complete adds a flat monthly fee on top for everything else. Then the lead math in plain numbers: at ~$${leadFee}/lead and a realistic monthly lead volume for their spend range, what that costs vs. the value of a customer in their industry — show the ROI case Bryson can say out loud.
 
 **Website**
 - What their current site is like, from what you actually saw (or that they have none).
@@ -76,6 +78,12 @@ Be specific and concrete. Bryson is reading this right before dialing — make e
 
 // The second header line: whether to pitch a website. Anything unexpected reads as "no" and the line
 // is removed either way, so the briefing never starts with a stray machine line.
+// The third header line: which of the three ways to work with BoldLine to pitch first (KB complete-plan).
+export const parsePlanLine = (text) => {
+  const m = String(text || "").match(/^\s*PLAN:\s*(ads|complete|website)\b[^\n]*\n?/i);
+  if (!m) return { brief: text, recommendPlan: null };
+  return { brief: text.slice(m[0].length).replace(/^\s+/, ""), recommendPlan: m[1].toLowerCase() };
+};
 export const parseWebsiteLine = (text) => {
   const m = String(text || "").match(/^\s*WEBSITE:\s*(yes|only|no)\b[^\n]*\n?/i);
   if (!m) return { brief: text, recommendWebsite: null };
@@ -122,7 +130,8 @@ const runResearch = async (input, foundingOpen = true) => {
   const m = text.match(/^\s*RECOMMENDED:\s*([a-z][a-z-]*)\s*/i);
   if (m) { recommendedPackageId = m[1].trim().toLowerCase(); brief = text.slice(m[0].length).replace(/^\s+/, ""); }
   const parsed = parseWebsiteLine(brief);
-  return { brief: parsed.brief, recommendedPackageId, recommendWebsite: parsed.recommendWebsite, nicheLeadFee: leadFee };
+  const plan = parsePlanLine(parsed.brief);
+  return { brief: plan.brief, recommendedPackageId, recommendWebsite: parsed.recommendWebsite, recommendPlan: plan.recommendPlan, nicheLeadFee: leadFee };
 };
 
 export default async (req) => {

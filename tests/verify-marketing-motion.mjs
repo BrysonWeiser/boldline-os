@@ -144,14 +144,23 @@ for (const path of ["/pricing/", "/about/", "/how-it-works/"]) {
   const steps = [500, 750, 1000, 1500, 2000, 2500, 3500, 5000, 7500, 10000, 15000, 20000, 30000];
   const bad = [];
   for (let i = 0; i < steps.length; i++) {
-    const shown = await page.evaluate((v) => { const r = document.getElementById("pfBudget"); r.value = v; r.dispatchEvent(new Event("input")); return { name: document.querySelector(".pf-name").textContent, min: document.querySelector(".pf-min b").textContent, also: document.querySelector(".pf-also").textContent }; }, i);
+    const shown = await page.evaluate((v) => { const r = document.getElementById("pfBudget"); r.value = v; r.dispatchEvent(new Event("input")); return { name: document.querySelector(".pf-name").textContent, min: document.querySelector(".pf-min").textContent, also: document.querySelector(".pf-also").textContent }; }, i);
     const b = steps[i], fits = (p) => b >= p.minBudget && (p.maxBudget == null || b < p.maxBudget);
     const one = PACKAGES.find((p) => p.id.startsWith("g-") && fits(p)), both = PACKAGES.find((p) => p.id.startsWith("c-") && fits(p));
-    if (shown.name !== one.name || shown.min !== `$${one.price.toLocaleString("en-US")}/mo` || (both ? !shown.also.includes(both.name) : shown.also !== "")) bad.push(`$${b}: ${JSON.stringify(shown)}`);
+    // Since 2026-11-07 (KB complete-plan) no plan has a monthly fee, at any budget: it must say so and never quote a minimum.
+    if (shown.name !== one.name || !/^Pay only for results\..*no monthly fee/.test(shown.min) || /\$|minimum|whichever/i.test(shown.min + shown.also) || (both ? !shown.also.includes(both.name) : shown.also !== "")) bad.push(`$${b}: ${JSON.stringify(shown)}`);
   }
-  ok("🔴 the plan finder picks the right plan and minimum at every budget", bad.length === 0, bad.join(" | "));
+  ok("🔴 the plan finder picks the right plan, and says pay only for results, at every budget", bad.length === 0, bad.join(" | "));
+  // The example month counts leads: the lit slots ARE the number it says you pay for, in both months.
+  const month = () => page.evaluate(() => { const d = document.querySelector(".pf-dots"), m = d.getAttribute("data-month");
+    return { m, lit: [...d.children].filter((i) => i.classList.contains(m === "slow" ? "s" : "b")).length,
+      says: document.querySelector(`.pf-tally span[data-for="${m}"]`).textContent, shown: !document.querySelector(`.pf-say[data-for="${m}"]`).hidden,
+      other: document.querySelector(`.pf-say[data-for="${m === "slow" ? "busy" : "slow"}"]`).hidden }; });
+  const slow = await month();
+  ok("the slow month lights exactly the leads it says you pay for", slow.m === "slow" && slow.says.startsWith(`${slow.lit} `) && slow.shown && slow.other, JSON.stringify(slow));
   await page.click('.pf-toggle button[data-month="busy"]');
-  ok("and the busy month says the lead fee is what you pay", await page.evaluate(() => document.querySelector(".pf-bars").getAttribute("data-month") === "busy" && !document.querySelector('.pf-say[data-for="busy"]').hidden));
+  const busy = await month();
+  ok("and the busy month lights more, and says that many", busy.m === "busy" && busy.lit > slow.lit && busy.says.startsWith(`${busy.lit} `) && busy.shown && busy.other, JSON.stringify(busy));
   await close();
 }
 

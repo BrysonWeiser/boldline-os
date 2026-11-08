@@ -119,7 +119,9 @@ for (const f of ["privacy.html", "terms.html", "404.html", "netlify/lib/blog-ren
       web ? web.offers.description : "missing");
   }
   const ads = ld("pricing/index.html").find((x) => x["@type"] === "Service" && /advertising/i.test(x.serviceType || ""));
-  ok("and the ads service quotes the real $400 minimum, never the old $350", !!ads && ads.offers.price === "400" && !/350/.test(JSON.stringify(ads)));
+  // Since 2026-11-07 (KB complete-plan) there is no monthly fee for ads, so a price of 0 with the per-lead basis.
+  // A leftover "$400 minimum" here would tell search engines the old price long after the page changed.
+  ok("and the ads service says there is no monthly fee, never an old minimum", !!ads && ads.offers.price === "0" && /no monthly fee/i.test(ads.offers.description) && /qualified lead/.test(ads.offers.description) && !/\$(350|400)|minimum|whichever/i.test(JSON.stringify(ads)));
 }
 
 // The link preview picture (what iMessage, LinkedIn and Facebook show when the site is shared). It once kept

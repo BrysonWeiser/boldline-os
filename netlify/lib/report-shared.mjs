@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { humanize } from "./humanize.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { pipelineProgress } from "./pipeline-shared.mjs";
-import { resultWords } from "./contract-shared.cjs";
+import { resultWords, rollingTerm } from "./contract-shared.cjs";
 import { brandColorOf } from "./site-render.mjs";
 import { isHouse, isOwned } from "./owned.mjs";
 
@@ -61,7 +61,7 @@ export const daysUntil = (s) => Math.ceil((new Date(s) - new Date()) / 864e5);
 
 export const calcHealth = (cl) => {
   let score = 0;
-  const days = daysUntil(cl.contractEnd);
+  const days = rollingTerm(cl) ? Infinity : daysUntil(cl.contractEnd);   // v9 never needs renewing
 
   if (cl.contractSigned)  score += 1;
   if (cl.intakeComplete)  score += 1;
@@ -890,6 +890,7 @@ export const buildOSDataBlock = (rows, now = new Date()) => {
   }).map((c) => c.name);
 
   const renewalsSoon = active.filter((c) => {
+    if (rollingTerm(c)) return false;   // v9: month to month, nothing to renew
     const days = daysUntil(c.contractEnd);
     return days > 0 && days <= 30;
   }).map((c) => `${c.name} (${daysUntil(c.contractEnd)}d)`);

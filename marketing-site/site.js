@@ -105,7 +105,7 @@
     // instead is decided on the call, not here. (Reasoning: KB `pricing-model`. This file is
     // served to the public, comments included, so it does not belong on the page.)
     if(answers.budget === 'tiny'){
-      why = 'Honestly, at under $500 a month in ad budget a monthly plan is not the right fit. There is not enough data coming through for anyone to optimize meaningfully, so you would be paying a monthly minimum for very little. That does not mean we cannot help. Book a call and we will tell you straight what we would do at your budget, and what it would cost. If the answer is that you should wait, we will say that too.';
+      why = 'Honestly, at under $500 a month in ad budget a monthly plan is not the right fit. There is not enough data coming through for anyone to optimize meaningfully, so the ads would struggle to bring you enough leads to be worth it. That does not mean we cannot help. Book a call and we will tell you straight what we would do at your budget, and what it would cost. If the answer is that you should wait, we will say that too.';
     }
     // Someone who asked for both and got one deserves the reason, or it reads as a
     // downsell. It is the opposite: it is the advice that makes their budget work.
@@ -773,8 +773,8 @@
   },{timeout:3000}); });
 })();
 
-/* Pricing: the plan finder. Slide to a monthly ad budget and it shows the plan, its minimum and, from $5,000,
-   the Google and Meta together option. The example month shows "whichever is higher" instead of describing it.
+/* Pricing: the plan finder. Slide to a monthly ad budget and it shows the plan (there is no monthly fee) and, from
+   $5,000, the Google and Meta together option. The example month lights up the leads you would pay for.
    The plans come from the page itself (data-plans, written from the one price list when the site is built). */
 (function(){
   var pf=document.querySelector('.pf'); if(!pf) return;
@@ -789,17 +789,17 @@
     amt.textContent=money(b)+(+r.value===STEPS.length-1?'+':'')+' a month';
     var one=plans.filter(function(p){ return !p.combined && fits(p,b); })[0];
     var both=plans.filter(function(p){ return p.combined && fits(p,b); })[0];
-    if(one){ name.textContent=one.name; min.innerHTML='<b>'+money(one.price)+'/mo</b> minimum, or a fee per qualified lead, whichever is higher.'; }
-    also.textContent=both?'Running Google and Meta together? '+both.name+' starts at '+money(both.price)+' a month.':'';
+    if(one){ name.textContent=one.name; min.innerHTML='<b>Pay only for results.</b> A set fee for each qualified lead we deliver, and no monthly fee.'; }
+    also.textContent=both?'Running Google and Meta together? At this budget that is '+both.name+', with no monthly fee either.':'';
     r.style.setProperty('--p',(+r.value/(STEPS.length-1)*100)+'%');
   }
   r.addEventListener('input',show); show();
-  var bars=pf.querySelector('.pf-bars');
+  var bars=pf.querySelector('.pf-dots');
   [].forEach.call(pf.querySelectorAll('.pf-toggle button'),function(btn){
     btn.addEventListener('click',function(){
       var m=btn.getAttribute('data-month'); bars.setAttribute('data-month',m);
       [].forEach.call(pf.querySelectorAll('.pf-toggle button'),function(x){ var on=x===btn; x.classList.toggle('on',on); x.setAttribute('aria-selected',on?'true':'false'); });
-      [].forEach.call(pf.querySelectorAll('.pf-say'),function(p){ p.hidden=p.getAttribute('data-for')!==m; });
+      [].forEach.call(pf.querySelectorAll('.pf-say,.pf-tally span'),function(p){ p.hidden=p.getAttribute('data-for')!==m; });
     });
   });
 })();

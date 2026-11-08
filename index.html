@@ -473,19 +473,23 @@ const ALL_PKGS = Object.values(PACKAGES_DB).flat();
 const contractTerms = (client, pkg) => {
   const c = client || {}, p = pkg || {};
   const num = (v, fallback) => (v != null && String(v).trim() !== "" ? Number(v) : Number(fallback) || 0);
-  const monthly = num(c.billingMonthly, p.price);
+  // v9 (KB complete-plan): no minimum at all; before v9 the agreed figure, else the package's standard minimum.
+  const monthly = (p.pricingModel === "one_time" || p.pricingModel === "website") ? num(c.billingMonthly, p.price) : minimumOf(c, p);
+  // The Complete Plan Fee ($500 by default). Separate from the minimum on purpose: lead fees are measured
+  // against the minimum and are added IN FULL on top of this, never absorbed by it.
+  const planMonthly = planFeeOf(c);
   const setup   = num(c.billingSetup, p.setup);
   const perLead = c.billingPerLead != null && String(c.billingPerLead).trim() !== ""
     ? Number(c.billingPerLead)
     : (PER_LEAD[c.niche] || 0);
   return {
-    monthly, setup, perLead,
+    monthly, setup, perLead, planMonthly,
     // Stated separately because "waived" and "this package has no setup fee" read the same
     // on screen and mean very different things in a conversation with the client.
     setupWaived: setup === 0 && Number(p.setup || 0) > 0,
-    monthlyWaived: monthly === 0 && Number(p.price || 0) > 0,
+    monthlyWaived: monthly === 0 && Number(p.price || 0) > 0 && !noMinimumTerms(c),
     // No monthly at all and a per-lead rate: he earns only when the client earns.
-    resultsOnly: monthly === 0 && perLead > 0,
+    resultsOnly: monthly === 0 && planMonthly === 0 && perLead > 0,
   };
 };
 
@@ -521,7 +525,8 @@ const resultWords = (cl) => {
     warranty:'<strong>Performance Fees compensate campaign management only; Agency does not warrant any particular level of sales, revenue, or return on ad spend, and no fee is refundable because Client&rsquo;s own margin on a sale was lower than expected.</strong>' };
 };
 
-const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 } = {}) => {
+// `noMinimum` (default TRUE since 2026-11-07, KB complete-plan): a quote today has no floor. Mirrors pricing-shared.mjs.
+const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0, noMinimum = true } = {}) => {
   if (!pkg) return { floor:0, earned:0, billed:0, atFloor:false, model:"none", basis:"" };
   // A one-time build has no monthly side at all. Returning a zero floor rather than
   // falling through matters: `atFloor` false stops the billing card telling the owner a
@@ -529,7 +534,7 @@ const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 
   if (pkg.pricingModel === "one_time")
     return { floor:0, earned:0, billed:0, atFloor:false, model:"one_time",
              basis:`one-time build, $${Number(pkg.setup||0).toLocaleString()}` };
-  const floor = Number(pkg.price) || 0;
+  const floor = noMinimum ? 0 : (Number(pkg.price) || 0);
   const pctModel = pkg.pricingModel === "ad_spend_pct";
   const pct = Number(pkg.adSpendPct) || 0;
   const spend = Number(adSpend) || 0;
@@ -571,11 +576,19 @@ const pkgPerfLabel = (pkg, perLeadFee, resultKind) => {
   return perLeadFee ? `$${perLeadFee} per qualified lead` : "per qualified lead";
 };
 const isOneTime = (pkg) => !!pkg && pkg.pricingModel === "one_time";
-// One line a client can read without a diagram: "from $400/mo — whichever is higher".
+// What a package costs, as a big figure and a small unit. `cl` is the client it is quoted to; leave it out to quote a
+// prospect today (the new terms). Only an agreement signed before the new pricing still shows a monthly minimum.
+const pkgFeeLine = (pkg, cl) => {
+  if (!pkg) return { big: "\u2014", unit: "" };
+  if (isOneTime(pkg)) return { big: `$${Number(pkg.setup||0).toLocaleString()}`, unit: " once" };
+  if (cl && !noMinimumTerms(cl)) return { big: `$${(Number(pkg.price)||0).toLocaleString()}`, unit: "/mo min" };
+  return pkg.pricingModel === "ad_spend_pct" ? { big: `${pkg.adSpendPct}%`, unit: " of ad spend" } : { big: "Per lead", unit: ", no monthly fee" };
+};
+// One line a client can read without a diagram. No monthly fee on the new terms (KB complete-plan).
 const pkgPriceSummary = (pkg, perLeadFee) =>
   !pkg ? "—"
   : isOneTime(pkg) ? `$${Number(pkg.setup||0).toLocaleString()} once, then it's yours`
-  : `from ${pkgMinLabel(pkg)}/mo, or ${pkgPerfLabel(pkg, perLeadFee)} — whichever is higher`;
+  : `no monthly fee, ${pkgPerfLabel(pkg, perLeadFee)}`;
 
 // ─── HOUSE ACCOUNT PACKAGE ────────────────────────────────────────────────────
 // Standing expectation (Bryson, 2026-08-14): "I also expect I will always receive
@@ -1354,6 +1367,10 @@ const today   = new Date();
 const addDays = (d,n) => { const r=new Date(d); r.setDate(r.getDate()+n); return r; };
 const fmt     = (d)   => new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
 const daysUntil=(s)   => Math.ceil((new Date(s)-new Date())/(864e5));
+// Days until a contract needs renewing. A v9 agreement never does (KB complete-plan): after its first term it runs month
+// to month by itself, so every "contract ending, renew" list, alert and score reads it as far away. `rollingTerm` is a
+// hoisted function declaration beside the agreement.
+const daysToRenewal=(cl)=>(cl&&rollingTerm(cl,findPkg(cl.packageId)))?Infinity:daysUntil(cl&&cl.contractEnd);
 const uid     = ()    => Math.random().toString(36).slice(2,9);
 const makeSlug = (name) => `${String(name||"client").toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,40)||"client"}-${uid().slice(0,4)}`;
 
@@ -1780,7 +1797,7 @@ const getAlerts = (cl) => {
   if (!cl.intakeComplete) a.push({type:"intake",msg:"Intake form not yet complete.",severity:"yellow"});
   if (cl.upgradeRequest)  a.push({type:"upgrade",msg:`Upgrade requested: ${cl.upgradeRequest}`,severity:"blue"});
   if (cl.contractEnd) {
-    const d = daysUntil(cl.contractEnd);
+    const d = daysToRenewal(cl);
     if (d<=7&&d>=0)       a.push({type:"contract_7", msg:`Contract expires in ${d} day${d!==1?"s":""}. Urgent renewal needed.`,severity:"red"});
     else if (d<=30&&d>=0) a.push({type:"contract_30",msg:`Contract expires in ${d} days. Start renewal conversation.`,severity:"yellow"});
   }
@@ -1853,7 +1870,7 @@ const getAlerts = (cl) => {
   //    `email:` names the template so the reminder can deep-link to the Emails tab.
   if (!cl.internal) {
     const eSent = (label) => (cl.commLog||[]).some(e => (e.note||"").includes(`Sent "${label}"`));
-    const dEnd  = cl.contractEnd ? daysUntil(cl.contractEnd) : null;
+    const dEnd  = cl.contractEnd ? daysToRenewal(cl) : null;
     if (cl.contractSigned && !eSent("Welcome + Portal"))
       a.push({type:"email_welcome",msg:"📧 New client — send the Welcome + Portal email.",severity:"blue",email:"welcome"});
     else if (cl.contractSigned && !eSent("Ad Account Access"))
@@ -2417,7 +2434,7 @@ const calcHealth = (cl) => {
   // it will never have. Client scoring below is deliberately unchanged.
   if (cl && cl.internal) return calcHouseHealth(cl);
   let score = 0;
-  const days = daysUntil(cl.contractEnd);
+  const days = daysToRenewal(cl);
 
   // ── Foundation (max 2 pts) ─────────────────────────────────────────────────
   if (cl.contractSigned)  score += 1;   // signed = relationship is real
@@ -2863,8 +2880,8 @@ function UpgradeSheet({currentPkgId,clientName,onRequest,onClose}) {
                       <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>{pkg.platform} · {pkg.adSpend}</div>
                     </div>
                     <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-                      <div style={{fontSize:19,fontWeight:800,color:C.gold}}>${pkg.price}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
-                      <div style={{fontSize:10,color:C.green,fontWeight:600}}>{diff>0?`+$${diff}/mo minimum`:"Same monthly minimum"}</div>
+                      <div style={{fontSize:19,fontWeight:800,color:C.gold}}>{pkgFeeLine(pkg).big}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>{pkgFeeLine(pkg).unit}</span></div>
+                      <div style={{fontSize:10,color:C.green,fontWeight:600}}>{isOneTime(pkg)?"":"No monthly fee on any plan"}</div>
                     </div>
                   </div>
                   {/* New features preview */}
@@ -2907,7 +2924,9 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
   const [selectedManualPkg,setSelectedManualPkg] = useState(null);
   const [upgradeApplied,setUpgradeApplied] = useState(false);
   const [applyConfirm,setApplyConfirm] = useState(false);
-  const perLead = PER_LEAD[client.niche];
+  // The client's agreed numbers (contractTerms), not the niche default and the list price: a waived setup reads as waived.
+  const perLead = contractTerms(client, pkg).perLead;
+  const agreedSetup = contractTerms(client, pkg).setup;
 
   const featureGroups = [
     { label:"Ads and Campaigns", ids:["search_ads","meta_ads","keyword_research","ad_variations","multi_campaign","google_shopping"] },
@@ -2965,7 +2984,7 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
                   <div style={{fontSize:12.5,fontWeight:700,color:C.text}}>{p.name}</div>
                   <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>${Number(p.setup||0).toLocaleString()} setup</div>
                 </div>
-                <div style={{fontSize:15,fontWeight:800,color:C.gold,flexShrink:0}}>${Number(p.price||0).toLocaleString()}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>/mo</span></div>
+                <div style={{fontSize:15,fontWeight:800,color:C.gold,flexShrink:0}}>{pkgFeeLine(p,client).big}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>{pkgFeeLine(p,client).unit}</span></div>
               </button>
             ))}
           </div>
@@ -2987,9 +3006,14 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
             {(pkg && pkg.savings)&&<div style={{fontSize:11,color:C.green,fontWeight:600,marginTop:3}}>{pkg.savings}</div>}
           </div>
           <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-            <div style={{fontSize:24,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>${Number((pkg && pkg.price) || 0).toLocaleString()}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
-            <div style={{fontSize:10,color:C.textDim,marginTop:2}}>or {pkgPerfLabel(pkg,perLead,client&&client.billingResultKind)} — whichever is higher</div>
-            <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>${Number((pkg && pkg.setup) || 0).toLocaleString()} setup (one-time)</div>
+            {noMinimumTerms(client)
+              ? <>{planOf(client)==="complete"
+                  ? <div style={{fontSize:24,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>${planFeeOf(client).toLocaleString()}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/mo Complete</span></div>
+                  : <div style={{fontSize:20,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>No monthly fee</div>}
+                <div style={{fontSize:10,color:C.textDim,marginTop:2}}>{planOf(client)==="complete"?"plus ":""}{pkgPerfLabel(pkg,perLead,client&&client.billingResultKind)}</div></>
+              : <><div style={{fontSize:24,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>${Number(minimumOf(client,pkg)).toLocaleString()}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
+                <div style={{fontSize:10,color:C.textDim,marginTop:2}}>or {pkgPerfLabel(pkg,perLead,client&&client.billingResultKind)}, whichever is higher</div></>}
+            <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{agreedSetup>0?`$${agreedSetup.toLocaleString()} setup (one-time)`:"Setup waived"}</div>
           </div>
         </div>
         <div style={{marginTop:10,padding:"6px 9px",borderRadius:8,backgroundColor:"rgba(0,0,0,0.3)",
@@ -3061,7 +3085,7 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
                 <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{p.platform}</div>
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:C.gold}}>from ${p.price}/mo</div>
+                <div style={{fontSize:13,fontWeight:700,color:C.gold}}>{pkgFeeLine(p,client).big}<span style={{fontSize:9,fontWeight:400,color:C.textMuted}}>{pkgFeeLine(p,client).unit}</span></div>
                 <div style={{fontSize:9,color:C.textMuted}}>${p.setup.toLocaleString()} setup</div>
               </div>
             </button>
@@ -3110,7 +3134,9 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
 //   v3 — early cancellation costs the remaining Committed Term, not one month.
 //   v7 — automatic Google review requests (1.4), and declined features left out.
 //   v8 — optional add-on services (Google Business Profile care), frozen at send.
-const CONTRACT_TERMS_VERSION = 8;
+//   v9 — the new pricing (KB complete-plan): no monthly minimum, 3 months then month to month with 30 days'
+//        notice, the Complete plan (12 months), the founding client's free first month of lead fees.
+const CONTRACT_TERMS_VERSION = 9;
 
 // ── 🔴 WHAT IS MISSING FROM THIS AGREEMENT, BEFORE IT CAN BE SENT ─────────────
 // Bryson, 2026-09-15: *"if there is a contract that is missing information such as missing
@@ -3230,11 +3256,12 @@ const contractView=(cl)=>{
 const TERMS_V2_FROM = Date.UTC(2026, 8, 3);         // 3 Sep 2026
 const TERMS_V6_FROM = Date.UTC(2026, 8, 27, 10, 0); // 27 Sep 2026, 3am Phoenix
 const TERMS_V7_FROM = Date.UTC(2026, 9, 5, 20, 0);  // 5 Oct 2026, 1pm Phoenix: review requests
+const TERMS_V9_FROM = Date.UTC(2026, 10, 8, 0, 0);  // 7 Nov 2026, 5pm Phoenix: the new pricing (KB complete-plan)
 // 🔴 THE NEWEST VERSION, AND IT MUST BE BUMPED WITH EVERY NEW CLAUSE. It was once written as a
 // literal 2, and adding v3 the next day left every new client silently on v2: the clause was
 // in the file, gated correctly, and reached nobody. A default naming a specific version goes
 // stale the moment a version is added, which is exactly when nobody is looking at it.
-const TERMS_CURRENT = 8;
+const TERMS_CURRENT = 9;
 function termsVersionOf(cl) {
   cl = cl || {};
   const v = cl.contractTermsVersion;
@@ -3251,7 +3278,115 @@ function termsVersionOf(cl) {
   if (first < TERMS_V6_FROM) return 5;
   if (first < TERMS_V7_FROM) return 6;
   if (first < TERMS_V8_FROM) return 7;
+  if (first < TERMS_V9_FROM) return 8;
   return TERMS_CURRENT;
+}
+
+// ── 🔴 v9 (7 Nov 2026): THE NEW PRICING, AND THE COMPLETE PLAN (KB `complete-plan`) ──
+// Bryson, Sat 2026-11-07, all decided: no monthly minimum for anyone (ads are paid per qualified lead,
+// stores a share of ad spend); every agreement starts with a 3-month term, Complete with 12; after that it
+// runs month to month with nothing to renew, and either side ends it with 30 days' notice; the first five
+// clients also get their first month of lead fees free. Complete is $500 a month plus the lead fee: the
+// website built free on the 12-month term (leaving early pays the rest of the $1,500 build, $125 a month
+// left), hosting and care, Google profile care, a blog, past-customer emails and online booking.
+// 🔴 ALL OF IT IS GATED ON v9. A client who signed before keeps exactly what they signed: their minimum,
+// their renewal menu, their exit fee. Moving one onto the new pricing is a new agreement both sides sign
+// ("Replace this agreement"), never a silent change. Mirrored in index.html, pinned by verify-new-pricing.
+const COMPLETE_PLAN = { monthly: 500, termMonths: 12, buildWaived: 1500, exitPerMonth: 125, pages: 5, blogPostsPerMonth: 4, careEdits: 2 };
+const ADS_FIRST_TERM_MONTHS = 3, NOTICE_DAYS = 30, FOUNDING_FREE_DAYS = 30;
+// Complete for ONLINE STORES (Bryson, 2026-11-07): $300 a month plus their share of ad spend. Ads, shop landing pages,
+// emails that bring past buyers back, and Google profile care if they have a location. No website (BoldLine does not
+// build online stores), so no free build to pay back and no 12-month lock: 3 months, then month to month.
+const COMPLETE_STORE = { monthly: 300, termMonths: 3 };
+function isStorePkgId(cl) { return /^e-/.test(String((cl && cl.packageId) || "")); }
+// Has this agreement gone out (or been signed)? Then what it says is frozen. A voided or declined
+// envelope froze nothing, the same rule as everywhere above.
+function contractOut(cl) {
+  cl = cl || {};
+  const dead = !cl.contractSigned && /^(voided|declined)$/i.test(String(cl.docusignStatus || ""));
+  return !!(cl.contractSigned || (cl.docusignSentAt && !dead));
+}
+// No monthly minimum, ever, on v9. The old minimum lives on in `price` only for agreements signed before.
+function noMinimumTerms(cl) { return termsVersionOf(cl) >= 9; }
+// "ads" or "complete". Frozen at send as `contractPlan`, so switching the plan box after sending can never
+// turn a signed ads agreement into a Complete one, or the other way round.
+function planOf(cl) {
+  cl = cl || {};
+  if (termsVersionOf(cl) < 9) return "ads";
+  const p = contractOut(cl) && cl.contractPlan ? cl.contractPlan : cl.plan;
+  return p === "complete" ? "complete" : "ads";
+}
+// The Complete Plan Fee: the client's own (`billingPlanMonthly`, frozen at send as `contractPlanMonthly`),
+// else the standard $500. Zero for anyone not on Complete.
+function planFeeOf(cl) {
+  cl = cl || {};
+  if (planOf(cl) !== "complete") return 0;
+  const has = (v) => v !== null && v !== undefined && String(v).trim() !== "" && Number.isFinite(Number(v));
+  const v = contractOut(cl) && has(cl.contractPlanMonthly) ? cl.contractPlanMonthly : cl.billingPlanMonthly;
+  return has(v) ? Math.max(0, Math.round(Number(v) * 100) / 100) : (isStorePkgId(cl) ? COMPLETE_STORE.monthly : COMPLETE_PLAN.monthly);
+}
+// The founding client's free first month of lead fees. Ticked per client, frozen at send.
+function foundingFreeMonthOf(cl) {
+  cl = cl || {};
+  if (termsVersionOf(cl) < 9) return false;
+  return !!(contractOut(cl) ? cl.contractFoundingFreeMonth : cl.foundingFreeMonth);
+}
+// What the client owes as a monthly MINIMUM (the floor lead fees are measured against). Zero on v9, zero for
+// a hand-off or a website-only client; before v9 the agreed figure, else the package's standard minimum.
+function minimumOf(cl, pkg) {
+  cl = cl || {};
+  if (!pkg || pkg.pricingModel === "one_time" || pkg.pricingModel === "website") return 0;
+  if (noMinimumTerms(cl)) return 0;
+  const v = cl.billingMonthly;
+  return v !== null && v !== undefined && String(v).trim() !== "" ? (Number(v) || 0) : (Number(pkg.price) || 0);
+}
+// A v9 agreement has no end to renew: after the first term it simply carries on month to month. Every
+// "contract ends soon, renew" reminder asks this first. Not a hand-off (it has no term) and not website-only.
+function rollingTerm(cl, pkg) {
+  cl = cl || {};
+  if (pkg && (pkg.pricingModel === "one_time" || pkg.pricingModel === "website")) return false;
+  return termsVersionOf(cl) >= 9;
+}
+// The first term's length in months: 12 on Complete, 3 otherwise (v9). Before v9, what was agreed.
+function firstTermMonths(cl) {
+  cl = cl || {};
+  if (termsVersionOf(cl) >= 9) return planOf(cl) === "complete" && !isStorePkgId(cl) ? COMPLETE_PLAN.termMonths : ADS_FIRST_TERM_MONTHS;
+  return Number(cl.contractTermMonths) || 3;
+}
+// Leaving Complete before its first 12 months: the rest of the waived build, a part month counting whole.
+// Months of a first term still to run at `now`, any part of a month counting as a whole month, exactly as the agreement
+// words it. Only COMPLETED months are used up. Before the Start Date: all of it.
+function monthsLeftOf(cl, term, now) {
+  cl = cl || {};
+  const s = new Date(cl.contractStart || ""), n = now ? new Date(now) : new Date();
+  if (isNaN(s.getTime()) || n < s) return term;
+  let gone = (n.getFullYear() - s.getFullYear()) * 12 + (n.getMonth() - s.getMonth());
+  if (n.getDate() < s.getDate()) gone -= 1;   // the month under way is not finished, so it is still owed
+  return Math.max(0, Math.min(term, term - gone));
+}
+function completeExitOwed(cl, now) {
+  cl = cl || {};
+  if (planOf(cl) !== "complete" || isStorePkgId(cl) || !cl.contractStart) return 0;
+  return monthsLeftOf(cl, COMPLETE_PLAN.termMonths, now) * COMPLETE_PLAN.exitPerMonth;
+}
+// ── 🔴 THE CANCELLATION FEE ON ADS (Bryson, 2026-11-07: "lets do a cancelation fee"). Leaving in the first 3 months pays
+// back the Setup Fee BoldLine waived, less a third for each month they stayed. Tied to a real cost (the build given
+// free in return for the commitment), which is what lets it stand as liquidated damages rather than a penalty, and a
+// client who PAID setup owes nothing extra. Frozen at send (`contractWaivedSetup`), so a later price-list change can't
+// move it. Not on the website Complete plan, whose first year pays back the free website instead.
+function waivedSetupOf(cl, pkg) {
+  cl = cl || {};
+  if (contractOut(cl) && cl.contractWaivedSetup !== null && cl.contractWaivedSetup !== undefined && cl.contractWaivedSetup !== "") return Math.max(0, Number(cl.contractWaivedSetup) || 0);
+  if (!pkg || pkg.pricingModel === "one_time" || pkg.pricingModel === "website") return 0;
+  const std = Number(pkg.setup) || 0, v = cl.billingSetup;
+  const agreed = v !== null && v !== undefined && String(v).trim() !== "" ? (Number(v) || 0) : std;
+  return Math.max(0, Math.round(std - agreed));
+}
+function setupPaybackOwed(cl, pkg, now) {
+  cl = cl || {};
+  if (termsVersionOf(cl) < 9 || (planOf(cl) === "complete" && !isStorePkgId(cl))) return 0;
+  const waived = waivedSetupOf(cl, pkg);
+  return waived > 0 ? Math.round(waived * monthsLeftOf(cl, ADS_FIRST_TERM_MONTHS, now) / ADS_FIRST_TERM_MONTHS) : 0;
 }
 
 // ── The late fee: Bryson's per-client setting, frozen into each agreement when it is sent ──
@@ -3312,7 +3447,7 @@ const TERMS_V8_FROM = Date.UTC(2026, 9, 28, 6, 0);  // 27 Oct 2026, 11pm Phoenix
 const ADD_ONS = { gbp_care: { name: "Google Business Profile Care", monthly: 130 } };
 function addOnsOf(cl) {
   cl = cl || {};
-  if (termsVersionOf(cl) < 8 || cl.packageId === "h-handoff") return [];
+  if (termsVersionOf(cl) < 8 || cl.packageId === "h-handoff" || planOf(cl) === "complete") return [];
   const dead = !cl.contractSigned && /^(voided|declined)$/i.test(String(cl.docusignStatus || ""));
   const out = cl.contractSigned || (cl.docusignSentAt && !dead);
   const list = out ? (Array.isArray(cl.contractAddOns) ? cl.contractAddOns : []) : (Array.isArray(cl.addOns) ? cl.addOns : []);
@@ -3336,7 +3471,7 @@ function gbpCareClauses(monthly, opts) {
     '<p>(b) <strong>Client&rsquo;s profile.</strong> The profile belongs to Client. ' + A + ' works through manager access that Client gives it and may remove at any time, and will not ask to become an owner of the profile. ' + A + ' will not change Client&rsquo;s business name, address, phone number, hours or categories, remove photos, or ask Google to remove a review, unless Client asks for or approves it. Replies and posts will not state offers, prices or facts about Client&rsquo;s business that Client has not given ' + A + ', and ' + A + ' will change or remove any reply or post Client asks it to.</p>',
     '<p>(c) <strong>Reviews are earned, never bought.</strong> ' + A + ' will never write, buy or post a review for Client, offer anything in return for a review, or ask only the customers likely to leave a good one. Google alone decides what appears on Google. It may remove reviews or posts, change how the profile is shown, or suspend the profile under its own policies, and that is not a breach by ' + A + '. ' + A + ' does not guarantee any ranking, rating, number of reviews or other result. Google is not a party to this Agreement and does not sponsor or endorse ' + A + '.</p>',
     '<p>(d) <strong>Fee.</strong> This service costs <strong>' + m + ' per month</strong>, billed monthly in advance, starting on the day Client gives ' + A + ' manager access to the profile. It is separate from and in addition to ' + (opts.separate || 'every other fee in this Agreement') + '. It is charged to the payment method Client keeps on file with ' + A + ', or invoiced by email when there is none. If a payment for it is unpaid fifteen (15) days after it is due, ' + A + ' may pause the service until it is paid.</p>',
-    '<p>(e) <strong>Ending it.</strong> This service runs month to month' + (opts.term ? ' and is not part of the Committed Term' : '') + '. Either party may end it with thirty (30) days&rsquo; written notice without ending the rest of this Agreement, and no early termination amount applies to it. It also ends when the rest of this Agreement ends. When it ends, ' + A + ' stops managing the profile and removes its own access. Fees for a month already started are not refunded.</p>',
+    '<p>(e) <strong>Ending it.</strong> This service runs month to month' + (opts.term ? ' and is not part of the ' + (opts.term === "initial" ? 'initial term' : 'Committed Term') : '') + '. Either party may end it with thirty (30) days&rsquo; written notice without ending the rest of this Agreement, and no early termination amount applies to it. It also ends when the rest of this Agreement ends. When it ends, ' + A + ' stops managing the profile and removes its own access. Fees for a month already started are not refunded.</p>',
   ];
 }
 
@@ -3370,11 +3505,18 @@ const makeContractHTML=(cl,pkg)=>{
   const pl=PER_LEAD[cl.niche];
   const feats=contractFeatureIds(cl).map(fid=>{const f=ALL_FEATURES.find(x=>x.id===fid);return f?'<li>'+f.label+'</li>':''}).join('');
   // Effective monthly = the agreed rate (term-priced at renewal) when set, else the standard package rate.
-  const effMonthly = cl.billingMonthly!=null ? Number(cl.billingMonthly) : ((pkg&&pkg.price)||0);
+  // v9: no monthly minimum, whatever the old field says (KB complete-plan). Before v9, the agreed rate.
+  const v9 = termsVersionOf(cl) >= 9, complete = planOf(cl) === "complete";
+  const planFee = planFeeOf(cl), freeMonth = foundingFreeMonthOf(cl);
+  // Complete WITH a website (service businesses) or for an online store (no website, 3 months). And the setup a v9
+  // client would pay back for leaving in the first 3 months (zero when they paid it, or on the website Complete plan).
+  const store = isStorePkgId(cl), completeSite = complete && !store;
+  const waivedSetup = v9 && !completeSite ? waivedSetupOf(cl, pkg) : 0;
+  const effMonthly = v9 ? 0 : (cl.billingMonthly!=null ? Number(cl.billingMonthly) : ((pkg&&pkg.price)||0));
   const stdMonthly = (pkg&&pkg.price) || effMonthly;      // the Standard (3-month) Rate
   // Setup fee honors a manual adjustment (billingSetup), including an explicit $0 waiver.
   const setupFee   = (cl.billingSetup!=null?cl.billingSetup:(pkg&&pkg.setup))||0;
-  const termMo     = cl.contractTermMonths || 3;
+  const termMo     = v9 ? firstTermMonths(cl) : (cl.contractTermMonths || 3);
   const clientName = esc(cl.name), signerName = esc(cl.contactName||"Authorized Signatory");
   // Set only when the OS knows it was signed. `contractSignedAt` is written by the DocuSign
   // watcher from the envelope's own completion time, so it is the real date, not "today".
@@ -3489,6 +3631,8 @@ const makeContractHTML=(cl,pkg)=>{
         nNoG=nBase+3+dAb, nTerm=nBase+4+dAb, nIP=nBase+5+dAb, nConf=nBase+6+dAb,
         nData=nBase+7+dAb, nLiab=nBase+8+dAb, nInd=nBase+9+dAb, nRel=nBase+10+dAb,
         nLaw=nBase+11+dAb, nGen=nBase+12+dAb;
+  // v9 Complete: its own section straight after General (Google profile care is inside it, so never an add-on too).
+  const nComp = nGen+1;
 
   // 🔴 The fee is framed as amounts already earned plus reserved capacity, NOT as a penalty,
   // and that framing is the difference between a clause that holds and one a court strikes
@@ -3501,6 +3645,8 @@ const makeContractHTML=(cl,pkg)=>{
    +'<p>(b) If Client has not provided them, or does not respond to Agency for fourteen (14) consecutive days, Agency will send a written reminder to the email address on page one. If the outstanding items are still not provided within ten (10) days after that reminder, Agency may end this Agreement immediately by written notice.</p>'
    +(oneTime
      ? '<p>(c) If this Agreement ends under (b), the build fee is earned in full and is not refundable, and any unpaid balance for work already performed remains payable. Agency has reserved build capacity and turned away other work for this engagement, so these amounts reflect that reservation and the work done, not a penalty.</p>'
+     : v9
+     ? '<p>(c) If this Agreement ends under (b), any Setup Fee is earned in full and is not refundable, and fees already accrued remain payable'+(completeSite?', together with the remaining website build amount under Section '+nComp+'(c)':'')+'. Agency has reserved capacity and turned away other work for this engagement, so these amounts reflect that reservation and the work done, not a penalty.</p>'
      : '<p>(c) If this Agreement ends under (b), the setup fee is earned in full and is not refundable, and the Monthly Minimum remains payable for each month or part month from the '+(termsVersion>=5?'Start Date':'Effective Date')+' to the date this Agreement ends. Agency has reserved capacity and turned away other work for the committed term, so these amounts reflect that reservation and the work done, not a penalty.</p>')
    +'<p>(d) Nothing in this section obliges Agency to end this Agreement. Agency may instead pause work and extend the term by the length of the delay, on written notice. Time lost to Client delay does not count toward any Agency turnaround commitment.</p>'
    +'<p>(e) This section does not apply where the delay is caused by Agency, or by a platform outage or other event outside Client&rsquo;s reasonable control.</p>'
@@ -3600,12 +3746,45 @@ const makeContractHTML=(cl,pkg)=>{
   const nAdd = termsVersion >= 8 ? nGen+1 : nBase+13;
   const addOnHTML = !gbpAdd ? "" : (
     '<h2>'+nAdd+'. Add-On Service: Google Business Profile Care</h2>'
-   +gbpCareClauses(gbpAdd.monthly, { agency: "Agency", term: true,
+   +gbpCareClauses(gbpAdd.monthly, { agency: "Agency", term: v9 ? "initial" : true,
       separate: introOnly ? 'every other fee in this Agreement, and is not part of the Performance Fee'
         : hasPerf ? 'every other fee in this Agreement, and does not count toward the Monthly Minimum or the Performance Fee'
         : 'every other fee in this Agreement, and does not count toward the Monthly Minimum' }).join('')
   );
-  const nSpec = termsVersion >= 8 ? nGen+1+(gbpAdd?1:0) : nBase+13;
+  // ── 🔴 v9: THE COMPLETE PLAN (KB complete-plan). One agreement for the ads AND the always-on work, so the client
+  // signs once and pays one bill. The website build is waived on the 12-month term; leaving early pays the rest of
+  // it. Google profile care reuses the add-on's conduct clauses word for word (what Agency does, the client's
+  // profile, reviews earned never bought), so the two can never promise different things.
+  const completeStoreHTML = !(complete && store) ? "" : (
+    '<h2>'+nComp+'. The Complete Plan for Online Stores</h2>'
+   +'<p>(a) <strong>What it adds.</strong> In addition to the advertising services above, Agency will provide the following for as long as this Agreement continues:</p>'
+   +'<ul>'
+   +'<li><strong>Shop pages for the ads:</strong> landing pages built for Client&rsquo;s campaigns that send shoppers straight to Client&rsquo;s own online store. Agency does not build or run the store itself.</li>'
+   +'<li><strong>Emails to Client&rsquo;s past buyers</strong> inviting them back, sent under Client&rsquo;s business name, only to customers Client provides and confirms it may email, each with an unsubscribe link that Agency honors.</li>'
+   +'<li><strong>Google Business Profile care,</strong> if Client has a location customers visit, on the terms in paragraph (c).</li>'
+   +'</ul>'
+   +'<p>(b) <strong>Complete Plan Fee.</strong> <strong>'+money(planFee)+' per month</strong>, billed monthly in advance from the Start Date. It covers everything in paragraph (a). It is separate from and in addition to the Performance Fee in Section 4, and it never counts toward or against it. After the initial term it continues month to month at the same fee.</p>'
+   +gbpCareClauses(0, { agency: "Agency" }).slice(0, 3).map(function (p, i) { return p.replace(/^<p>\(([a-c])\)/, '<p>(c)('+['i','ii','iii'][i]+')'); }).join('')
+   +'<p>(d) <strong>Ending the Complete Plan.</strong> The Complete Plan is part of this Agreement and ends with it. To keep only the advertising services, the parties sign a new agreement for them.</p>'
+  );
+  const completeHTML = !completeSite ? "" : (
+    '<h2>'+nComp+'. The Complete Plan</h2>'
+   +'<p>(a) <strong>What it adds.</strong> In addition to the advertising services above, Agency will provide the following for as long as this Agreement continues:</p>'
+   +'<ul>'
+   +'<li><strong>A website</strong> of up to '+COMPLETE_PLAN.pages+' pages (Home, Services, About, Reviews and Contact), written by Agency from what Client tells it, in a design Client chooses from Agency&rsquo;s designs, with two (2) rounds of changes before it goes live. It goes live only once Client approves it.</li>'
+   +'<li><strong>Hosting and care:</strong> Agency keeps the website online, secure and up to date, and makes up to '+COMPLETE_PLAN.careEdits+' small changes a month (such as text, photos, hours or prices) when Client asks. Larger changes are quoted first.</li>'
+   +'<li><strong>Google Business Profile care,</strong> on the terms in paragraph (e).</li>'
+   +'<li><strong>A blog</strong> on the website with about '+COMPLETE_PLAN.blogPostsPerMonth+' articles a month written by Agency. Client may read, edit or hold any article before it is published.</li>'
+   +'<li><strong>Emails to Client&rsquo;s past customers</strong> inviting them back, sent under Client&rsquo;s business name, only to customers Client provides and confirms it may email, each with an unsubscribe link that Agency honors.</li>'
+   +'<li><strong>Online booking</strong> on the website, with optional deposits paid to Client through Client&rsquo;s own payment account. Agency never holds Client&rsquo;s customers&rsquo; money.</li>'
+   +'</ul>'
+   +'<p>(b) <strong>Complete Plan Fee.</strong> <strong>'+money(planFee)+' per month</strong>, billed monthly in advance from the Start Date. It covers everything in paragraph (a). It is separate from and in addition to the Performance Fee in Section 4, which is charged only for results as set out there, and it never counts toward or against the Performance Fee. After the initial term it continues month to month at the same fee.</p>'
+   +'<p>(c) <strong>The website build fee is waived.</strong> Agency&rsquo;s standard fee to build this website is '+money(COMPLETE_PLAN.buildWaived)+'. Agency builds it at no charge because Client commits to the twelve (12) month initial term. If this Agreement ends before the initial term is complete, for any reason other than Agency&rsquo;s uncured breach or Agency ending it early, Client pays the part of that fee not yet earned: <strong>'+money(COMPLETE_PLAN.exitPerMonth)+' for each month of the initial term remaining</strong>, any part of a month counting as a whole month. Once the initial term is complete, nothing further is owed for the build.</p>'
+   +'<p>(d) <strong>Ownership of the website.</strong> Client&rsquo;s domain stays registered to Client at all times. The words, logo and photos on the website are Client&rsquo;s. If this Agreement ends, Agency will, once any amount owed under paragraph (c) and Section '+nTerm+' is paid, send Client a copy of the website&rsquo;s pages and images to host anywhere, and tell Client which domain settings Agency made, then stop hosting it.</p>'
+   +gbpCareClauses(0, { agency: "Agency" }).slice(0, 3).map(function (p, i) { return p.replace(/^<p>\(([a-c])\)/, '<p>(e)('+['i','ii','iii'][i]+')'); }).join('')
+   +'<p>(f) <strong>Ending the Complete Plan.</strong> The Complete Plan is part of this Agreement and ends with it. To keep only the advertising services, the parties sign a new agreement for them.</p>'
+  );
+  const nSpec = termsVersion >= 8 ? nGen+1+(gbpAdd?1:0)+(completeHTML||completeStoreHTML?1:0) : nBase+13;
   const specClauses = (cl.specialTerms && Array.isArray(cl.specialTerms.clauses) ? cl.specialTerms.clauses : [])
     .map(c => ({ heading: String((c&&c.heading)||"").trim(), text: String((c&&c.text)||"").trim() }))
     .filter(c => c.text);
@@ -3619,20 +3798,24 @@ const makeContractHTML=(cl,pkg)=>{
 
   const metaItem=(l,v)=>'<div class="meta-item"><div class="meta-label">'+l+'</div><div class="meta-value">'+v+'</div></div>';
   const meta =
-    metaItem("Service Package",(pkg&&pkg.name)||"—")
+    metaItem("Service Package",complete?(store?"Complete Plan for Online Stores, with ":"Complete Plan, with ")+((pkg&&pkg.name)||"—")+" advertising":((pkg&&pkg.name)||"—"))
    +metaItem("Advertising Platform",(pkg&&pkg.platform)||"—")
    +(oneTime
       ? metaItem("Total Fee",money(setupFee)+" one time")+metaItem("Ongoing Fees","None")
-      : metaItem("Monthly Minimum",introOnly?"None during the Initial Term":money(effMonthly)+"/mo")
-        +metaItem("One-Time Setup Fee",setupFee>0?money(setupFee):"Waived"))
-   +metaItem("Committed Term",oneTime?"None (one-time project)":monthsLabel(termMo))
+      : (complete?metaItem("Complete Plan Fee",money(planFee)+"/mo"):"")
+        +metaItem("Monthly Minimum",introOnly?(v9?"None":"None during the Initial Term"):money(effMonthly)+"/mo")
+        +metaItem("One-Time Setup Fee",setupFee>0?money(setupFee):(waivedSetup>0?"Waived ("+money(waivedSetup)+" standard; paid back in part if Client leaves in the first 3 months)":"Waived")))
+   +metaItem(v9?"Initial Term":"Committed Term",oneTime?"None (one-time project)":v9?monthsLabel(termMo)+", then month to month":monthsLabel(termMo))
    +metaItem("Start Date",startCell)
-   +metaItem("End Date",endCell)
+   +metaItem(v9?"Initial Term Ends":"End Date",endCell)
    +metaItem("Optimization Cadence",oneTime?"Two passes during the 30-day settle-in, then none"
        :((pkg&&pkg.optimizationFreq)==="weekly"?"Weekly":"Monthly"))
    +(perLeadFee?metaItem("Performance Fee",money(perLeadFee)+" "+W.per):"")
    +(pctFee?metaItem("Performance Fee",pctFee+"% of monthly ad spend"):"")
-   +(hasPerf?metaItem("How the two combine", introOnly
+   +(freeMonth&&hasPerf?metaItem("Founding Client","No Performance Fee for the first thirty (30) days after the Start Date"):"")
+   +(hasPerf?metaItem("How the two combine", v9
+        ? (complete ? "No minimum. Performance Fees are added to the Complete Plan Fee, never counted against it." : "No minimum. The performance fee is the entire fee.")
+        : introOnly
         ? "Nothing to combine. The performance fee is the entire fee."
         : "Whichever is higher, never both"):"")
    +(gbpAdd?metaItem("Add-On Service","Google Business Profile Care, "+money(gbpAdd.monthly)+"/mo, separate from the fees above"):"")
@@ -3656,7 +3839,9 @@ const makeContractHTML=(cl,pkg)=>{
   const perfSection = hasPerf ? (
     (introOnly ? '<h2>4. Performance Fee</h2>' : '<h2>4. Monthly Minimum and Performance Fee</h2>')
    +(introOnly
-      ? '<p>4.1 <strong>How the monthly fee is calculated.</strong> <span class="caps">THERE IS NO MONTHLY MINIMUM DURING THE INITIAL TERM.</span> For each calendar month of the Initial Term, Agency&rsquo;s entire fee is the Performance Fee for that month, calculated as set out below. If the Campaigns produce no '+W.many+' in a month, <strong>Client owes Agency nothing for that month</strong>. From any renewal term onward a Monthly Minimum will apply at the rate quoted by Agency at the time of renewal, and Client is under no obligation to renew.</p>'
+      ? (v9
+        ? '<p>4.1 <strong>How the Performance Fee works.</strong> <span class="caps">THERE IS NO MONTHLY MINIMUM.</span> For each calendar month, Agency&rsquo;s fee for the advertising services is the Performance Fee for that month, calculated as set out below'+(complete?', and it is separate from and in addition to the Complete Plan Fee':'')+'. '+(perLeadFee?'If the Campaigns produce no '+W.many+' in a month, <strong>Client owes no Performance Fee for that month</strong>.':'If there is no advertising spend in a month, <strong>Client owes no Performance Fee for that month</strong>.')+' This applies for the whole of this Agreement, including after the initial term.</p>'
+        : '<p>4.1 <strong>How the monthly fee is calculated.</strong> <span class="caps">THERE IS NO MONTHLY MINIMUM DURING THE INITIAL TERM.</span> For each calendar month of the Initial Term, Agency&rsquo;s entire fee is the Performance Fee for that month, calculated as set out below. If the Campaigns produce no '+W.many+' in a month, <strong>Client owes Agency nothing for that month</strong>. From any renewal term onward a Monthly Minimum will apply at the rate quoted by Agency at the time of renewal, and Client is under no obligation to renew.</p>')
       : '<p>4.1 <strong>How the monthly fee is calculated.</strong> For each calendar month, Agency&rsquo;s fee is the <strong>greater of</strong> (a) the Monthly Minimum stated in the Key Commercial Terms, or (b) the Performance Fee for that month. <span class="caps">THE TWO ARE NEVER CHARGED TOGETHER.</span> If the Performance Fee is less than the Monthly Minimum, Client pays the Monthly Minimum and nothing further. If the Performance Fee is greater, Client pays the Performance Fee and the Monthly Minimum is absorbed into it.</p>')
    +(perLeadFee ? (
       '<p>4.2 <strong>Performance Fee ('+W.per+').</strong> The Performance Fee for a month is the '+W.feeName+' stated above multiplied by the number of '+W.many+' generated by the Campaigns in that month. '+W.defn+'</p>'
@@ -3664,11 +3849,16 @@ const makeContractHTML=(cl,pkg)=>{
       '<p>4.2 <strong>Performance Fee (percentage of ad spend).</strong> The Performance Fee for a month is the percentage stated above of Client&rsquo;s total advertising spend across the Campaigns for that month, as reported by the advertising platforms. Advertising spend is paid by Client directly to the platforms and is never held or advanced by Agency; the percentage is a measure of Agency&rsquo;s fee, not a charge for or markup on ad spend.</p>'
     ))
    +(introOnly
-      ? '<p>4.3 <strong>Billing mechanics.</strong> Nothing is billed in advance. After each month closes, Agency calculates the Performance Fee for that month and it is charged on the next invoice. Client is billed in arrears, for results already delivered.</p>'
+      ? (complete
+        ? '<p>4.3 <strong>Billing mechanics.</strong> The Complete Plan Fee is billed monthly in advance under Section '+nComp+'. Performance Fees are not billed in advance: after each month closes, Agency calculates the Performance Fee for that month and adds it to the next invoice. The two are separate, and neither counts toward or against the other.</p>'
+        : '<p>4.3 <strong>Billing mechanics.</strong> Nothing is billed in advance. After each month closes, Agency calculates the Performance Fee for that month and it is charged on the next invoice. Client is billed in arrears, for results already delivered.</p>')
       : '<p>4.3 <strong>Billing mechanics.</strong> The Monthly Minimum is billed in advance at the start of each billing period. After the month closes, Agency calculates the Performance Fee; if it exceeds the Monthly Minimum already billed, <strong>only the difference</strong> is added to the next invoice. Client will never be invoiced both amounts in full for the same month.</p>')
    +(perLeadFee
       ? '<p>4.4 '+W.countNoun+' are calculated from '+W.countSource+'. If Client believes a '+W.itNoun+' was incorrectly counted, Client must notify Agency in writing within ten (10) days of the invoice date; Agency will review in good faith and credit any '+W.itNoun+' it reasonably determines was not a '+W.one+'. Invoices not disputed within that period are deemed accepted. '+W.warranty+'</p>'
       : '<p>4.4 Ad-spend figures are taken from the advertising platforms&rsquo; own reporting, which is the definitive measurement for this purpose. If Client believes a month&rsquo;s figure is wrong, Client must notify Agency in writing within ten (10) days of the invoice date and Agency will review in good faith. Invoices not disputed within that period are deemed accepted. <strong>Performance Fees compensate campaign management only; Agency does not warrant any particular level of sales, revenue, or return on ad spend.</strong></p>')
+   +(freeMonth
+      ? '<p>4.5 <strong>Founding client: the first month is free.</strong> No Performance Fee is charged for '+(perLeadFee?W.many+' generated':'advertising spend incurred')+' during the first thirty (30) days after the Start Date. This applies once, to the first thirty days only, and Client still pays its advertising spend directly to the platforms.</p>'
+      : '')
   ) : '';
   // Section numbers after the conditional ones stay fixed by rendering both slots
   // (empty string when absent) and numbering the rest from 6 onward.
@@ -3738,15 +3928,18 @@ const makeContractHTML=(cl,pkg)=>{
      ? '<h2>2. Term</h2>'
        +'<p>2.1 This Agreement begins on the Start Date and <strong>ends automatically on completion of handover</strong> under Section 4.3. There is no minimum commitment, no renewal, no holdover, and no notice period, because there is no ongoing service to continue.</p>'
        +'<p>2.2 Client may engage Agency again at any time under a separate agreement. Nothing here obliges either party to do so.</p>'
-     : '<h2>2. Term, Renewal, and Holdover</h2>'
+     : (v9?'<h2>2. Term</h2>':'<h2>2. Term, Renewal, and Holdover</h2>')
    +(termsVersion >= 5
      ? (eventStart
        ? '<p>2.1 <strong>Start Date.</strong> This Agreement takes effect on the Effective Date. The <strong>Start Date</strong> is the date on which the first advertising campaign under this Agreement begins delivering, as recorded by the advertising platform. Any date shown in the Key Commercial Terms above is an estimate for planning and does not itself begin the term. Agency will confirm the Start Date to Client in writing once it occurs. The Committed Term runs from the Start Date.</p>'
        : '<p>2.1 <strong>Start Date.</strong> This Agreement takes effect on the Effective Date. The <strong>Start Date</strong> is the date shown in the Key Commercial Terms above, which the parties have agreed. The Committed Term runs from the Start Date.</p>')
-       +'<p>2.2 The Committed Term is as shown above. <strong>The initial term is a minimum commitment of three (3) months</strong>; Client acknowledges that paid-advertising results require an initial optimization period and the pricing reflects that commitment. No Monthly Minimum accrues before the Start Date.</p>'
+       +(v9
+         ? '<p>2.2 <strong>Initial term.</strong> The initial term is <strong>'+(completeSite?'twelve (12) months':'three (3) months')+'</strong> from the Start Date. '+(completeSite?'Agency builds Client&rsquo;s website at no charge in return for this commitment (Section '+nComp+').':'Client acknowledges that paid-advertising results need an initial period to learn and improve, and agrees to give the Campaigns that time.')+' No fee accrues before the Start Date.</p>'
+           +'<p>2.3 <strong>After the initial term.</strong> When the initial term ends, this Agreement continues <strong>month to month</strong> on the same terms, with nothing further to sign and no renewal to agree, until either party ends it under Section '+nTerm+'.</p>'
+         : '<p>2.2 The Committed Term is as shown above. <strong>The initial term is a minimum commitment of three (3) months</strong>; Client acknowledges that paid-advertising results require an initial optimization period and the pricing reflects that commitment. No Monthly Minimum accrues before the Start Date.</p>')
      : '<p>2.1 This Agreement begins on the Start Date and continues for the Committed Term shown above. <strong>The initial term is a minimum commitment of three (3) months</strong>; Client acknowledges that paid-advertising results require an initial optimization period and the pricing reflects that commitment.</p>')
-   +'<p>'+(termsVersion>=5?'2.3':'2.2')+' At the end of any term, the parties may renew for a length of one (1), three (3), six (6), or twelve (12) months. The Monthly Minimum for a renewal depends on the renewal length selected: month-to-month service carries a premium over the standard three-month rate, and longer commitments receive a discounted rate, as quoted by Agency at the time of renewal. The rate for the current term is the Monthly Minimum stated in the Key Commercial Terms.</p>'
-   +'<p>'+(termsVersion>=5?'2.4':'2.3')+' <strong>Holdover.</strong> If the term expires and the parties have neither renewed nor terminated, this Agreement continues on a month-to-month basis at Agency&rsquo;s then-current month-to-month minimum for the same Service Package, until either party terminates under Section '+nTerm+'. This prevents any interruption of live campaigns.</p>'
+   +(v9?'':'<p>'+(termsVersion>=5?'2.3':'2.2')+' At the end of any term, the parties may renew for a length of one (1), three (3), six (6), or twelve (12) months. The Monthly Minimum for a renewal depends on the renewal length selected: month-to-month service carries a premium over the standard three-month rate, and longer commitments receive a discounted rate, as quoted by Agency at the time of renewal. The rate for the current term is the Monthly Minimum stated in the Key Commercial Terms.</p>')
+   +(v9?'':'<p>'+(termsVersion>=5?'2.4':'2.3')+' <strong>Holdover.</strong> If the term expires and the parties have neither renewed nor terminated, this Agreement continues on a month-to-month basis at Agency&rsquo;s then-current month-to-month minimum for the same Service Package, until either party terminates under Section '+nTerm+'. This prevents any interruption of live campaigns.</p>')
      )
    +(oneTime
      ? '<h2>3. Fees and Payment</h2>'
@@ -3757,7 +3950,9 @@ const makeContractHTML=(cl,pkg)=>{
      : '<h2>3. Fees and Payment</h2>'
    +'<p>3.1 <strong>Setup Fee.</strong> Any one-time Setup Fee shown in the Key Commercial Terms is due before campaign build begins and is non-refundable once Agency has commenced work, as it compensates account configuration, research, and build labor actually performed.</p>'
    +(introOnly
-      ? '<p>3.2 <strong>How and when Client is charged.</strong> <span class="caps">THERE IS NO RECURRING SUBSCRIPTION AND NO CHARGE IS TAKEN IN ADVANCE.</span> After each month closes, Agency calculates the Performance Fee for that month and charges it by automatic payment (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe), using the payment method Client places on file. A month that produces no '+W.many+' produces no charge. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
+      ? (complete
+        ? '<p>3.2 <strong>How and when Client is charged.</strong> The Complete Plan Fee is charged monthly in advance by automatic payment (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe), using the payment method Client places on file, and Client authorizes those recurring charges for as long as this Agreement continues. Performance Fees are charged in arrears, on the next invoice after the month in which they are earned. '+(perLeadFee?'A month that produces no '+W.many+' adds nothing to the Complete Plan Fee.':'A month with no advertising spend adds nothing to the Complete Plan Fee.')+' All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
+        : '<p>3.2 <strong>How and when Client is charged.</strong> <span class="caps">THERE IS NO RECURRING SUBSCRIPTION AND NO CHARGE IS TAKEN IN ADVANCE.</span> After each month closes, Agency calculates the Performance Fee for that month and charges it by automatic payment (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe), using the payment method Client places on file. '+(perLeadFee?'A month that produces no '+W.many+' produces no charge.':'A month with no advertising spend produces no charge.')+' All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>')
       : '<p>3.2 <strong>Monthly Minimum.</strong> The Monthly Minimum is billed monthly in advance by automatic charge (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe). Client authorizes recurring charges for the duration of this Agreement, including any holdover period. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>')
    +'<p>3.3 <strong>Taxes.</strong> Fees are exclusive of all taxes. Client is responsible for any sales, use, VAT, GST, withholding, or similar taxes arising from the Services in Client&rsquo;s jurisdiction, excluding taxes on Agency&rsquo;s income. International payments must be made without deduction; if withholding is legally required, Client will gross up so Agency receives the full invoiced amount.</p>'
    // 🔴 v6: THREE DAYS, A FLAT FEE, A PAUSE THAT NEVER DELETES, AND AN ENDING THAT IS A CHOICE.
@@ -3792,9 +3987,17 @@ const makeContractHTML=(cl,pkg)=>{
    +'<p>Client further acknowledges that advertising platforms may at any time change their policies, algorithms, pricing, or features; disapprove ads; restrict, suspend, or terminate accounts; or misreport data. Such platform actions are outside Agency&rsquo;s control and are not a breach by Agency, provided Agency uses commercially reasonable efforts to remediate. Fees remain payable during reasonable remediation periods; if a platform suspension attributable to neither party continues for more than thirty (30) consecutive days, either party may terminate under the section below without an early-termination fee.</p>'
 
    +'<h2>'+nTerm+'. Termination</h2>'
-   +'<p>(a) <strong>By either party at term end.</strong> Either party may elect not to renew by written notice at least thirty (30) days before the End Date.</p>'
+   +(v9
+     ? '<p>(a) <strong>By either party, on notice.</strong> Either party may end this Agreement with effect from the end of the initial term, or at any time after it, by thirty (30) days&rsquo; written notice. Fees accrued up to the date it ends remain payable.</p>'
+     : '<p>(a) <strong>By either party at term end.</strong> Either party may elect not to renew by written notice at least thirty (30) days before the End Date.</p>')
    +(oneTime
      ? '<p>(b) <strong>By Client.</strong> Because this is a one-time project with no committed term, there is no early-termination fee. If Client cancels after Agency has commenced work, fees for work already performed remain payable under Section 3.4.</p>'
+     : v9
+     ? (completeSite
+        ? '<p>(b) <strong>By Client, during the initial term.</strong> Client may end this Agreement before the initial term ends on thirty (30) days&rsquo; written notice. Client then pays, as liquidated damages and not as a penalty: (i) all fees accrued through the date it ends, plus (ii) the remaining website build amount under Section '+nComp+'(c), which is '+money(COMPLETE_PLAN.exitPerMonth)+' for each month of the initial term remaining after that date, any part of a month counting as a whole month. Any Setup Fee is earned on signing and is not refundable. The parties agree these amounts are a reasonable estimate of Agency&rsquo;s loss, because Agency built the website at no charge in return for the twelve-month commitment.</p>'
+        : waivedSetup>0
+        ? '<p>(b) <strong>By Client, during the initial term.</strong> Client may end this Agreement before the initial term ends on thirty (30) days&rsquo; written notice. Client then pays, as liquidated damages and not as a penalty: (i) all fees accrued through the date it ends, plus (ii) the part of the waived Setup Fee not yet earned, which is one third of '+money(waivedSetup)+' for each month of the initial term remaining after that date, any part of a month counting as a whole month. The parties agree this is a reasonable estimate of Agency&rsquo;s loss, because Agency set up the Campaigns without charging its standard Setup Fee in return for the three-month commitment. After the initial term nothing further is owed for the setup.</p>'
+        : '<p>(b) <strong>By Client, during the initial term.</strong> Client may end this Agreement before the initial term ends on thirty (30) days&rsquo; written notice, and owes only the fees accrued through the date it ends. <span class="caps">THERE IS NO EARLY-TERMINATION FEE UNDER THIS AGREEMENT.</span> Any Setup Fee is earned on signing and is not refundable.</p>')
      : (introOnly
         // 🔴 A FOUNDING WAIVER MUST NEVER BECOME A CLAWBACK. The standard clause recovers
         // the gap between the Standard Rate and a rate DISCOUNTED IN EXCHANGE FOR THE TERM.
@@ -3858,6 +4061,8 @@ const makeContractHTML=(cl,pkg)=>{
 
    +(cl.replacesAgreement&&cl.replacesAgreement.signedAt?'<p><strong>This Agreement replaces an earlier one.</strong> It replaces the Advertising Services Agreement between the parties signed on '+new Date(cl.replacesAgreement.signedAt).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric",timeZone:"America/Phoenix"})+(cl.replacesAgreement.envelopeId?' (DocuSign envelope '+String(cl.replacesAgreement.envelopeId).replace(/[^A-Za-z0-9-]/g,"")+')':'')+'. When this Agreement is signed, the parties agree that earlier agreement is cancelled and has no further effect, and nothing is owed under it.</p>':'')
 
+   +completeHTML
+   +completeStoreHTML
    +addOnHTML
    +specialHTML
    +'<h2>Signatures</h2>'
@@ -5435,7 +5640,7 @@ function LeadFeeFinder({defaults,onUse,isDesktop}){
           <div style={{padding:"12px 14px",borderRadius:11,backgroundColor:res.month.atFloor?"rgba(245,158,11,0.07)":"rgba(34,211,160,0.06)",border:`1px solid ${res.month.atFloor?"rgba(245,158,11,0.28)":"rgba(34,211,160,0.22)"}`}}>
             <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:res.month.atFloor?C.amber:C.green,marginBottom:6}}>What a month looks like</div>
             <div style={{fontSize:12,color:C.textDim,lineHeight:1.65}}>
-              On {res.month.packageName} at ${Number(res.month.adBudget).toLocaleString()}/mo of ad budget, expect about <strong style={{color:C.text}}>{res.month.leads} qualified leads</strong>, worth <strong style={{color:C.text}}>${Number(res.month.earned).toLocaleString()}</strong> in lead fees against a <strong style={{color:C.text}}>${Number(res.month.floor).toLocaleString()}</strong> minimum.
+              On {res.month.packageName} at ${Number(res.month.adBudget).toLocaleString()}/mo of ad budget, expect about <strong style={{color:C.text}}>{res.month.leads} qualified leads</strong>, worth <strong style={{color:C.text}}>${Number(res.month.earned).toLocaleString()}</strong> in lead fees{res.month.floor>0?<> against a <strong style={{color:C.text}}>${Number(res.month.floor).toLocaleString()}</strong> minimum</>:<>, with no monthly fee on top</>}.
               {res.month.atFloor
                 ? <> That is <strong style={{color:C.amber}}>under the minimum</strong>, so they would pay the minimum and your pricing is effectively flat for them. Either their budget needs to be bigger or the fee does.</>
                 : <> They pay <strong style={{color:C.green}}>${Number(res.month.billed).toLocaleString()}</strong>, which is <strong style={{color:C.green}}>{res.month.pctOfSpend}%</strong> of what they spend on ads.</>}
@@ -5568,6 +5773,17 @@ const setPath = (obj, path, value) => {
 // It also starts at `stage: "onboarding"` with `contractSigned: false` and no package, exactly
 // like a hand-added client: a good meeting is not a signature, and nothing that counts clients
 // may count this one until the contract comes back (standing rule in CLAUDE.md).
+// The plan he quoted on the call goes onto the new record (KB complete-plan), with the first term that goes with it,
+// and the founding client's free first month while the offer is open. All of it stays editable on the Contract tab
+// until the agreement goes out. A website-only or one-time client has no plan; a store stays on Ads.
+function withQuotedPlan(cl, plan, foundingOpen) {
+  const pk = findPkg(cl && cl.packageId);
+  if (!pk || isOneTime(pk) || pk.pricingModel === "website") return cl;
+  const complete = plan === "complete";
+  const months = complete && pk.pricingModel !== "ad_spend_pct" ? COMPLETE_PLAN.termMonths : ADS_FIRST_TERM_MONTHS;
+  const st = new Date(cl.contractStart || ""), start = isNaN(st.getTime()) ? new Date() : st;
+  return { ...cl, plan: complete ? "complete" : "ads", contractTermMonths: months, contractEnd: fmt(addMonths(start, months)), foundingFreeMonth: !!foundingOpen };
+}
 function clientFromMeeting(answers, brief, packageId) {
   const a = answers || {};
   const b = brief || {};
@@ -5669,7 +5885,7 @@ function WebsiteOnlyOverview({client,onUpdate,onOpen}){
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           <select value={pick} onChange={e=>setPick(e.target.value)} style={{...inp,flex:"1 1 220px",width:"auto"}}>
             <option value="">Choose an ads package…</option>
-            {adsPkgs.map(p=><option key={p.id} value={p.id}>{p.name} ({p.platform}) from ${p.price}/mo</option>)}
+            {adsPkgs.map(p=><option key={p.id} value={p.id}>{p.name} ({p.platform}), ad budget {p.adSpend}</option>)}
           </select>
           <button disabled={!pick} onClick={()=>{
             const pk=findPkg(pick); if(!pk) return;
@@ -5699,7 +5915,7 @@ function DealPrepWebsite({verdict}){
         </div>
       </div>
       <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6}}>
-        {WEBSITE_OFFER.pages} pages (Home, Services, About, Reviews, Contact), three designs for them to pick from, a contact form that sends them every enquiry, {WEBSITE_OFFER.revisionRounds} rounds of changes before launch. They can pay it all up front, or half now and half before it goes live. Care covers hosting, security and up to {WEBSITE_OFFER.carePlanEdits} small edits a month. They own their domain. It's its own agreement, separate from the ads.
+        {WEBSITE_OFFER.pages} pages (Home, Services, About, Reviews, Contact), three designs for them to pick from, a contact form that sends them every enquiry, {WEBSITE_OFFER.revisionRounds} rounds of changes before launch. They can pay it all up front, or half now and half before it goes live. Care covers hosting, security and up to {WEBSITE_OFFER.carePlanEdits} small edits a month. They own their domain. Bought on its own it's a separate agreement. With ads, Complete builds it free for ${COMPLETE_PLAN.monthly} a month (12 months).
       </div>
       <div style={{fontSize:10.5,color:C.gold,lineHeight:1.55,marginTop:8,padding:"7px 9px",borderRadius:8,backgroundColor:C.goldDim,border:`1px solid ${C.gold}33`}}>
         <b>Only you see this.</b> Running ads? &ldquo;Your ads send people to your website, so a site that doesn't turn visits into calls wastes the ad money.&rdquo; Came for the website? &ldquo;Once it's live, ads are how the right people find it.&rdquo; After you add them, set the price on their Website tab and send the agreement from there.
@@ -5728,6 +5944,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
   const [notesState,setNotesState]=useState("");  // "" | saving | saved | error
   const [made,setMade]=useState(null);
   const [newPkgId,setNewPkgId]=useState("");
+  const [newPlan,setNewPlan]=useState("ads");   // "ads" | "complete" (KB complete-plan)
   const saveTimer=useRef(null);
   const pollRef=useRef(null);
   useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); if(saveTimer.current) clearTimeout(saveTimer.current); },[]);
@@ -5772,7 +5989,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
   // not a signature and nothing that counts clients may count this one yet.
   const makeClient=()=>{
     if(!onCreateClient||!newPkgId) return;
-    const cl=clientFromMeeting(answers,{companyName:(result&&result._prospect)||form.companyName,niche:form.niche,notes:form.notes},newPkgId);
+    const cl=withQuotedPlan(clientFromMeeting(answers,{companyName:(result&&result._prospect)||form.companyName,niche:form.niche,notes:form.notes},newPkgId),newPlan,foundingOpen);
     setMade(cl.name);
     onCreateClient(cl);
   };
@@ -5839,7 +6056,11 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
   // is not sitting open on the next one.
   useEffect(()=>{ setOpenPkg(undefined); },[recId]);
   // Default to whatever the briefing recommended, since that is the price he just quoted.
-  useEffect(()=>{ if(recId&&!newPkgId) setNewPkgId(result&&result.recommendWebsite==="only"?WEB_PKG_ID:recId); },[recId]);
+  useEffect(()=>{ if(recId&&!newPkgId) setNewPkgId(result&&(result.recommendPlan==="website"||result.recommendWebsite==="only")?WEB_PKG_ID:recId); },[recId]);
+  // Which of the three ways to work with us the brief would pitch first (KB complete-plan). Older briefs had no PLAN
+  // line, so their website verdict stands in: "only" is a website, "yes" means ads plus a website, which is Complete.
+  const recPlan=result?(result.recommendPlan||(result.recommendWebsite==="only"?"website":result.recommendWebsite==="yes"?"complete":"ads")):"ads";
+  useEffect(()=>{ setNewPlan(recPlan==="complete"?"complete":"ads"); },[recId,recPlan]);
   const back = !isDesktop && (
     <button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>
   );
@@ -5927,6 +6148,26 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
           </div>
           <div style={{...card}}>{briefMdToNodes(result.brief)}</div>
           <DealPrepWebsite verdict={result.recommendWebsite}/>
+          {/* ── THE THREE WAYS TO WORK WITH US (KB complete-plan) ── the same three as the pricing page, with this
+              trade's lead fee, so what he says on the call is what the site and the agreement say. */}
+          <div style={{fontSize:11,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.gold,margin:"22px 0 10px"}}>Plans {leadFee?`· $${leadFee}/lead for this niche`:""}</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8}}>
+            {[["ads","Ads",`$${leadFee||"?"}`,"per qualified lead, no monthly fee",`3 months, then month to month.${foundingOpen?" Founding: setup waived and the first month of lead fees free.":""}`],
+              ["complete","Complete",`$${COMPLETE_PLAN.monthly}/mo`,`plus $${leadFee||"?"} per qualified lead`,`Website built free (normally ${wdMoney(WEBSITE_OFFER.build)}), hosting and care, Google profile, blog, past-customer emails, booking. 12 months, then month to month. Online stores: $${COMPLETE_STORE.monthly}/mo plus their share of ad spend, no website, 3 months.`],
+              ["website","Website",wdMoney(WEBSITE_OFFER.build),`to build, then ${wdMoney(WEBSITE_OFFER.care)}/mo`,"No ads. For a business that can't fund $500/mo of ad spend yet but needs the site."]].map(([k,label,big,small,note])=>{
+              const rec=recPlan===k;
+              return (
+                <div key={k} style={{padding:"11px 12px",borderRadius:10,border:`1px solid ${rec?C.gold+"77":C.border}`,background:rec?"rgba(200,168,75,0.08)":C.bg3}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+                    <span style={{fontSize:12.5,fontWeight:800,color:C.text}}>{label}</span>
+                    {rec&&<span style={{fontSize:8.5,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:"#1a1400",background:C.gradB,padding:"2px 6px",borderRadius:5}}>★ Pitch this</span>}
+                  </div>
+                  <div style={{fontSize:16,fontWeight:800,color:rec?C.gold:C.text,marginTop:4}}>{big} <span style={{fontSize:10,fontWeight:600,color:C.textMuted}}>{small}</span></div>
+                  <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>{note}</div>
+                </div>);
+            })}
+          </div>
+          <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:6}}>The ad tier below is the same whether they pick Ads or Complete: their ad budget decides it.</div>
           <div style={{fontSize:11,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.gold,margin:"22px 0 10px"}}>Packages {leadFee?`· $${leadFee}/lead for this niche`:""}</div>
           {[["Google Ads","google"],["Meta Ads","meta"],["Google + Meta","combined"],["E-commerce","ecom"]].map(([label,key])=>(
             <div key={key} style={{marginBottom:12}}>
@@ -5970,14 +6211,10 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
                       is free, so showing the standard pair here would put the wrong number
                       in front of him at the exact moment he is reading a recommendation. */}
                   <div style={{textAlign:"right",flexShrink:0}}>
-                    {foundingOpen&&pkg.leadFee&&leadFee?(<>
-                      <div style={{fontSize:13,fontWeight:800,color:rec?C.gold:C.text}}>${leadFee}<span style={{fontSize:9,fontWeight:600,color:C.textMuted}}>/lead</span></div>
-                      <div style={{fontSize:9.5,color:C.green,fontWeight:700}}>no monthly minimum</div>
-                      <div style={{fontSize:9.5,color:C.textMuted}}><span style={{textDecoration:"line-through",opacity:.6}}>${pkg.setup} setup</span> waived</div>
-                    </>):(<>
-                      <div style={{fontSize:13,fontWeight:800,color:rec?C.gold:C.text}}>${pkg.price}<span style={{fontSize:9,fontWeight:600,color:C.textMuted}}>/mo min</span></div>
-                      <div style={{fontSize:9.5,color:C.textMuted}}>${pkg.setup} setup{pkg.leadFee&&leadFee?` · $${leadFee}/lead`:""}</div>
-                    </>)}
+                    {/* 🔴 No monthly minimum for anyone since 2026-11-07 (KB complete-plan). Founding changes the setup only. */}
+                    <div style={{fontSize:13,fontWeight:800,color:rec?C.gold:C.text}}>{pkg.leadFee?<>${leadFee||"?"}<span style={{fontSize:9,fontWeight:600,color:C.textMuted}}>/lead</span></>:<>{pkg.adSpendPct}%<span style={{fontSize:9,fontWeight:600,color:C.textMuted}}> of ad spend</span></>}</div>
+                    <div style={{fontSize:9.5,color:C.green,fontWeight:700}}>no monthly fee</div>
+                    <div style={{fontSize:9.5,color:C.textMuted}}>{foundingOpen?<><span style={{textDecoration:"line-through",opacity:.6}}>${pkg.setup} setup</span> waived</>:<>${pkg.setup} setup</>}</div>
                   </div>
                  </div>
                  {!!feats.length&&(
@@ -6006,7 +6243,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
           ))}
           {foundingOpen&&(
             <div style={{fontSize:10.5,color:C.gold,lineHeight:1.55,marginTop:4,padding:"8px 10px",borderRadius:8,background:C.goldDim,border:`1px solid ${C.gold}44`}}>
-              <strong>Founding client pricing is shown.</strong> {slotsLeft} of {FOUNDING_CLIENT_COUNT} {slotsLeft===1?"place":"places"} left: setup waived, no monthly minimum, they pay per qualified lead only. Standard pricing is the crossed-out figure.
+              <strong>Founding client pricing is shown.</strong> {slotsLeft} of {FOUNDING_CLIENT_COUNT} {slotsLeft===1?"place":"places"} left: setup waived, and their first month of lead fees is free (their ad spend is still theirs). The standard setup is the crossed-out figure.
             </div>
           )}
           <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:4}}>AI research — verify anything you'll quote on the call. Per-lead fees are starter estimates; adjust as you like.</div>
@@ -6065,9 +6302,16 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
                   <option value="">Choose one…</option>
                   <option value={WEB_PKG_ID}>Website only (no ads){result&&result.recommendWebsite==="only"?" (recommended)":""} — {wdMoney(WEBSITE_OFFER.build)} build + {wdMoney(WEBSITE_OFFER.care)}/mo</option>
                   {ALL_PKGS.slice().sort((x,y)=>x.price-y.price).map(pk=>(
-                    <option key={pk.id} value={pk.id}>{pk.name}{pk.id===recId?" (recommended)":""} — ${Number(pk.price||0).toLocaleString()}/mo</option>
+                    <option key={pk.id} value={pk.id}>{pk.name} ({pk.platform}){pk.id===recId?" (recommended)":""}: {isOneTime(pk)?`$${Number(pk.setup||0).toLocaleString()} once`:`ad budget ${pk.adSpend}`}</option>
                   ))}
                 </select>
+                {(()=>{ const pk=findPkg(newPkgId); const can=pk&&!isOneTime(pk)&&pk.pricingModel!=="website"; const st=pk&&pk.pricingModel==="ad_spend_pct";
+                  return can&&<div style={{display:"flex",gap:6,marginTop:7}}>
+                    {[["ads","Ads only",st?"share of ad spend, no monthly fee":"per lead, no monthly fee"],["complete",st?"Complete for stores":"Complete",st?`$${COMPLETE_STORE.monthly}/mo + share of ad spend`:`$${COMPLETE_PLAN.monthly}/mo + per lead, website free`]].map(([k,l,sub2])=>(
+                      <button key={k} onClick={()=>setNewPlan(k)} style={{flex:"1 1 0",minWidth:0,padding:"8px 8px",borderRadius:9,cursor:"pointer",fontFamily:"inherit",textAlign:"center",
+                        border:`1px solid ${newPlan===k?C.gold:C.border}`,background:newPlan===k?"rgba(200,168,75,.12)":C.bg3,color:newPlan===k?C.gold:C.textDim}}>
+                        <div style={{fontSize:12,fontWeight:800}}>{l}</div><div style={{fontSize:9.5,color:C.textMuted,marginTop:2}}>{sub2}</div></button>))}
+                  </div>; })()}
               </div>
             )}
             {made
@@ -7671,7 +7915,7 @@ function buildCalendarEvents({ clients, newsletter, blog, meetings }) {
       const r = shift(c.billingNextCharge, -7); const ry = r && toYMD(r);
       if (ry) out.push({ ymd:ry, kind:"review", title:`Review leads — ${c.name}`, sub:"Approve/exclude before the invoice", clientId:c.id });
     }
-    if (c.contractEnd) {
+    if (c.contractEnd && !rollingTerm(c,findPkg(c.packageId))) {
       const yc = toYMD(c.contractEnd);
       if (yc) out.push({ ymd:yc, kind:"contract", title:`Contract ends — ${c.name}`, sub:"Renew or offboard", clientId:c.id });
       const r = shift(c.contractEnd, -30); const ry = r && toYMD(r);
@@ -7853,11 +8097,11 @@ const phWindow=(d)=>{ const h=d.getHours()+d.getMinutes()/60, wd=d.getDay();
   return {tone:"closed",label:"Closed"}; };
 const phClock=(s)=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
 const phIsTodayPhx=(iso)=>{ try{ const f=(t)=>new Date(t).toLocaleDateString("en-US",{timeZone:"America/Phoenix"}); return f(iso)===f(Date.now()); }catch(e){ return false; } };
-const PH_OBJECTIONS=()=>{ const from=Math.min(...PACKAGES_DB.google.map(p=>p.price));
+const PH_OBJECTIONS=()=>{
   return [
     ["\"We already have a guy for marketing.\"","Totally fair. Is he tying every call back to the ad that caused it? If not, you're paying for a guess. Worth ten minutes to compare?"],
     ["\"We get enough work from word of mouth.\"","That's the best kind. The goal isn't to replace it, it's to fill the slow weeks so you're not waiting on referrals."],
-    ["\"How much does it cost?\"",`Plans start at $${from} a month or a fee per qualified lead, whichever is higher, never both. Your ad budget goes straight to Google on your own card.`],
+    ["\"How much does it cost?\"",`There's no monthly fee for the ads. You pay a set fee for each qualified lead, so a slow month costs you less. If you want the website and the rest handled too, that's $${COMPLETE_PLAN.monthly} a month with the website built free. Your ad budget goes straight to Google on your own card.`],
     ["\"Just send me some info.\"","Happy to. What's the best email? I'll send a sample page built for a business like yours, then follow up later this week."],
     ["\"Tried ads before, didn't work.\"","Most people say that. Usually nobody tracked which ads made the phone ring. That's the first thing we fix, and I only earn more when you get more calls."],
   ]; };
@@ -8947,10 +9191,10 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
   // 🔴 CONTRACTED FLOORS, NOT LIST PRICES. This summed the package price for every client, so
   // a founding client on no monthly minimum still added his package's $400 to the total and
   // the dashboard reported money that will never be invoiced.
-  const MRR       = clients.reduce((s,c)=>s+contractTerms(c,findPkg(c.packageId)).monthly,0);
+  const MRR       = clients.reduce((s,c)=>{ const t=contractTerms(c,findPkg(c.packageId)); return s+t.monthly+(t.planMonthly||0); },0);
   const active    = clients.filter(c=>c.stage==="active").length;
   const allAlerts = clients.flatMap(c=>getAlerts(c));
-  const expiring  = clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=30; });
+  const expiring  = clients.filter(c=>{ const d=daysToRenewal(c); return d>=0&&d<=30; });
 
   // ── Filter + sort pipeline ─────────────────────────────────────────────────
   const q = search.toLowerCase().trim();
@@ -8968,7 +9212,7 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
     .sort((a,b)=>{
       if (sortBy==="health")  return calcHealth(b)-calcHealth(a);
       if (sortBy==="leads")   return leadCount(b)-leadCount(a);
-      if (sortBy==="expiry")  return daysUntil(a.contractEnd)-daysUntil(b.contractEnd);
+      if (sortBy==="expiry")  return daysToRenewal(a)-daysToRenewal(b);
       return a.name.localeCompare(b.name); // default: alphabetical
     });
 
@@ -9063,7 +9307,7 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
         </div>
       ))}
       {expiring.map(cl=>{
-        const d=daysUntil(cl.contractEnd);
+        const d=daysToRenewal(cl);
         return <div key={cl.id} onClick={()=>onSelect(cl)} style={{marginBottom:8,padding:"11px 13px",borderRadius:11,backgroundColor:d<=7?"rgba(239,68,68,.07)":"rgba(245,158,11,.07)",border:`1px solid ${d<=7?C.red:C.amber}33`,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
           <span style={{width:10,height:10,borderRadius:"50%",flexShrink:0,margin:"0 4px",background:d<=7?C.red:C.amber,boxShadow:`0 0 10px ${d<=7?C.red:C.amber}`}}/>
           <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div><div style={{fontSize:11,color:d<=7?C.red:C.amber}}>Contract expires in {d} day{d!==1?"s":""} — {d<=7?"urgent renewal needed":"start renewal conversation"}</div></div>
@@ -9206,7 +9450,7 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
           const pkg=findPkg(cl.packageId);
           const alerts=getAlerts(cl);
           const stage=stageInfo(cl.stage);
-          const days=daysUntil(cl.contractEnd);
+          const days=daysToRenewal(cl);
           const health=calcHealth(cl);
           return (
             <button key={cl.id} onClick={()=>onSelect(cl)} className="os-card" style={{
@@ -9793,14 +10037,14 @@ function TodayHero({ clients, leads, isDesktop, onOutreach, onLeadScout, onDealP
   const meetingsToday = T.filter((t) => t.meeting_at && phxDayKey(t.meeting_at) === todayKey && outOutcome(t.outcome) && outOutcome(t.outcome).books);
   const newLeads = (leads || []).filter((l) => l.status === "new");
   const red = clients.flatMap((c) => getAlerts(c).filter((a) => a.severity === "red"));
-  const expiring = clients.filter((c) => { const d = daysUntil(c.contractEnd); return d >= 0 && d <= 30; }).sort((a, b) => daysUntil(a.contractEnd) - daysUntil(b.contractEnd));
+  const expiring = clients.filter((c) => { const d = daysToRenewal(c); return d >= 0 && d <= 30; }).sort((a, b) => daysToRenewal(a) - daysToRenewal(b));
   const h = phxHour(), part = h < 5 ? "Working late" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
   const left = Math.max(0, TODAY_GOALS.calls - calls);
   const brief = [
     touches === null ? "Pulling today's numbers." : calls ? `${calls} ${calls === 1 ? "call" : "calls"} so far today${left ? `, ${left} to hit ${TODAY_GOALS.calls}.` : ". Goal hit."}` : h >= 7 && h < 18 ? "No calls yet today. The list is ready when you are." : "No calls logged today.",
     newLeads.length ? `${newLeads.length} new ${newLeads.length === 1 ? "lead is" : "leads are"} waiting.` : "",
     meetingsToday.length ? `${meetingsToday.length} ${meetingsToday.length === 1 ? "meeting" : "meetings"} on the books today.` : "",
-    expiring[0] ? `${expiring[0].name}'s contract ends in ${daysUntil(expiring[0].contractEnd)} days.` : "",
+    expiring[0] ? `${expiring[0].name}'s contract ends in ${daysToRenewal(expiring[0])} days.` : "",
   ].filter(Boolean).join(" ");
   useEffect(() => { if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) { setTyped(9999); return; }
     setTyped(0); let n = 0; const t = setInterval(() => { n += 2; setTyped(n); if (n >= brief.length) clearInterval(t); }, 18); return () => clearInterval(t); }, [brief]);
@@ -9811,7 +10055,7 @@ function TodayHero({ clients, leads, isDesktop, onOutreach, onLeadScout, onDealP
     newLeads.length && { tone: C.green, t: `${newLeads.length} new ${newLeads.length === 1 ? "lead" : "leads"}`, s: newLeads.slice(0, 2).map((l) => l.business || l.name).filter(Boolean).join(", ") || "Reply while they're warm", go: onLeads },
     meetingsToday.length && { tone: C.gold, t: `${meetingsToday.length} ${meetingsToday.length === 1 ? "meeting" : "meetings"} today`, s: meetingsToday.map((m) => new Date(m.meeting_at).toLocaleTimeString("en-US", { timeZone: "America/Phoenix", hour: "numeric", minute: "2-digit" })).join(", "), go: onCalendar },
     red.length && { tone: C.red, t: `${red.length} urgent ${red.length === 1 ? "alert" : "alerts"}`, s: red[0].msg, go: () => onSegment("alerts") },
-    expiring.length && { tone: C.amber, t: `${expiring.length} ${expiring.length === 1 ? "contract" : "contracts"} ending soon`, s: `${expiring[0].name}, ${daysUntil(expiring[0].contractEnd)} days`, go: () => onSegment("expiring") },
+    expiring.length && { tone: C.amber, t: `${expiring.length} ${expiring.length === 1 ? "contract" : "contracts"} ending soon`, s: `${expiring[0].name}, ${daysToRenewal(expiring[0])} days`, go: () => onSegment("expiring") },
   ].filter(Boolean);
   const maxDay = Math.max(1, ...days.map((d) => d.n));
   const stat = (label, v, goal, col) => (
@@ -9914,7 +10158,7 @@ function RevenueScreen({clients,onSelect,onBack,isDesktop}) {
   // Demo and internal accounts are excluded — they are not customers.
   const real = clients.filter(c=>!c.demo&&!c.internal);
   const floorRows = real
-    .map(cl=>{ const pkg=findPkg(cl.packageId); const t=contractTerms(cl,pkg); return {cl,pkg,floor:t.monthly,setup:t.setup}; })
+    .map(cl=>{ const pkg=findPkg(cl.packageId); const t=contractTerms(cl,pkg); return {cl,pkg,floor:t.monthly+(t.planMonthly||0),setup:t.setup}; })
     .sort((a,b)=>b.floor-a.floor);
   const floorTotal = floorRows.reduce((s,r)=>s+r.floor,0);
   const paying = floorRows.filter(r=>r.floor>0).length;
@@ -10073,7 +10317,7 @@ function RevenueScreen({clients,onSelect,onBack,isDesktop}) {
                       </div>
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
-                      <div style={{fontSize:16,fontWeight:800,color:floor>0?C.gold:C.textMuted,lineHeight:1}}>${floor.toLocaleString()}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
+                      <div style={{fontSize:16,fontWeight:800,color:floor>0?C.gold:C.textMuted,lineHeight:1}}>${floor.toLocaleString()}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>{planOf(cl)==="complete"?"/mo Complete":floor>0?"/mo min":"/mo, paid per lead"}</span></div>
                       {setup>0&&<div style={{fontSize:10,color:C.textMuted,marginTop:2}}>${setup.toLocaleString()} setup</div>}
                     </div>
                     <span style={{fontSize:16,color:C.textMuted,flexShrink:0}}>›</span>
@@ -10110,7 +10354,7 @@ function SegmentScreen({mode,clients,onSelect,onBack,isDesktop}) {
         return red(b)-red(a) || b.alerts.length-a.alerts.length;
       });
   } else if (mode==="expiring") {
-    rows = clients.map(cl=>({cl,days:daysUntil(cl.contractEnd)})).filter(r=>r.days>=0&&r.days<=30)
+    rows = clients.map(cl=>({cl,days:daysToRenewal(cl)})).filter(r=>r.days>=0&&r.days<=30)
       .sort((a,b)=>a.days-b.days);
   } else {
     rows = clients.map(cl=>({cl})).sort((a,b)=>a.cl.name.localeCompare(b.cl.name));
@@ -11316,7 +11560,8 @@ function EmailCenterTab({client,pkg,onUpdate}) {
       businessName: client.name||"",
       contactName: client.contactName||"",
       packageName: (pkg&&pkg.name)||"",
-      monthly: client.billingMonthly!=null?client.billingMonthly:((pkg&&pkg.price)||0),
+      monthly: minimumOf(client,pkg),
+      planMonthly: planFeeOf(client),
       setup: client.billingSetup!=null?client.billingSetup:((pkg&&pkg.setup)||0),
       leadCount, leadRate: perLeadRate, leadTotal: leadCount*perLeadRate,
       portalUrl: client.portalToken?`${window.location.origin}/portal?token=${client.portalToken}`:"",
@@ -11768,8 +12013,12 @@ const wdStagePaid=(cl,stage)=>{ const m=wdAmounts(wdTerms(cl)); const due=stage=
 const wdExempt=(cl)=>!!(cl&&cl.internal);
 const wdFirstPaid=(cl)=>wdStagePaid(cl,wdAmounts(wdTerms(cl)).firstStage);
 const wdFullyPaid=(cl)=>wdAmounts(wdTerms(cl)).stages.every(st=>wdStagePaid(cl,st));
+// Complete (KB complete-plan): built free under the one ads agreement. `planOf` lives outside this mirror block, so
+// the guard keeps the block evaluable on its own (the mirror test runs it standalone, where it reads as "ads").
+const wdComplete=(cl)=>typeof planOf==="function"&&planOf(cl)==="complete"&&!/^e-/.test(String((cl&&cl.packageId)||""));   // a store's Complete has no website
 const wdBuildLock=(cl)=>{
   if(wdExempt(cl)) return null;
+  if(wdComplete(cl)) return cl.contractSigned?null:"A Complete client: the website is part of their one agreement and built free. The build unlocks once that agreement (Contract tab) is signed.";
   const a=wdDeal(cl).agreement;
   if(!a||!WD_LIVE.includes(a.status)) return "Send the website agreement first. The build unlocks once it is signed and the first payment is in.";
   if(a.status!=="completed") return "Waiting for the client to sign the website agreement.";
@@ -11779,6 +12028,7 @@ const wdBuildLock=(cl)=>{
 const wdPublishLock=(cl)=>{
   if(wdExempt(cl)) return null;
   const b=wdBuildLock(cl); if(b) return b;
+  if(wdComplete(cl)) return null;
   if(!wdFullyPaid(cl)) return `Waiting for the final payment (${wdMoney(wdAmounts(wdTerms(cl)).final)}). The site can't go live until it's paid.`;
   return null;
 };
@@ -12052,6 +12302,13 @@ function WebsiteDealCard({client,onUpdate}){
   useEffect(()=>{ if(open&&!wdExempt(client)) call("sync"); /* eslint-disable-next-line */ },[client.id]);
 
   if(wdExempt(client)) return null;
+  // 🔴 A Complete client has no website agreement and no website bill (KB complete-plan). Sending one from here would
+  // bill them twice for a site their $500 already covers, so the deal controls are not shown at all.
+  if(wdComplete(client)) return (
+    <div style={{...card,border:`1px solid ${C.gold}44`}}>
+      <div style={{fontSize:12.5,fontWeight:800,color:C.text}}>Covered by Complete</div>
+      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginTop:4}}>Their website is built free and looked after inside their {wdMoney(planFeeOf(client))} a month plan, so there's no website agreement to send and nothing to invoice here. {client.contractSigned?"Build it below, then put it live.":"The build unlocks once their Complete agreement is signed on the Contract tab."}</div>
+    </div>);
   const lbl={fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:6};
   const btn=(primary,dis)=>({padding:"10px 14px",fontSize:12,fontWeight:700,borderRadius:9,border:primary?"none":`1px solid ${C.border}`,backgroundColor:primary?C.gold:"transparent",color:primary?"#0a0800":C.textDim,cursor:dis?"default":"pointer",opacity:dis?.6:1});
   const step=(done,label,sub)=>(
@@ -12566,7 +12823,7 @@ function WebsiteTab({client,onUpdate}){
   const goLive=async()=>{
     if(w.published){ save({published:false}); setMsg("✓ Taken offline."); return; }
     if(publishLock){ setMsg(publishLock); return; }
-    const startsCare=!wdExempt(client)&&!deal.launchedAt&&careMo>0;
+    const startsCare=!wdExempt(client)&&!wdComplete(client)&&!deal.launchedAt&&careMo>0;
     if(startsCare&&!window.confirm(`Put the site live?\n\nThis also starts their ${wdMoney(careMo)} a month plan, as their agreement says.`)) return;
     setBusy(true); setMsg("");
     try{
@@ -14384,9 +14641,9 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                     // so the fallback could only ever show a seeded demo number.
                     {l:sale?"Avg cost per sale":"Avg CPL",v:st.cpl!=null?`$${Math.round(st.cpl).toLocaleString()}`:"—"},
                     {l:"Health Score",v:`${calcHealth(client).toFixed(1)}/10`},
-                    {l:"Contract End",v:client.contractEnd||"—"},
+                    {l:rollingTerm(client,pkg)?"First term ends":"Contract End",v:rollingTerm(client,pkg)&&daysUntil(client.contractEnd)<=0?"Done, month to month":(client.contractEnd||"—")},
                     // The signed number, not the list price. Same helper the revenue card runs.
-                    {l:"Monthly minimum",v:pkg?(contractTerms(client,pkg).monthly>0?`$${contractTerms(client,pkg).monthly}/mo`:"None"):"—"},
+                    {l:planOf(client)==="complete"?"Complete plan":"Monthly minimum",v:pkg?(planOf(client)==="complete"?`$${planFeeOf(client)}/mo + lead fees`:contractTerms(client,pkg).monthly>0?`$${contractTerms(client,pkg).monthly}/mo`:"None"):"—"},
                   ]; })()
               ).map(({l,v})=>(
                 <Card key={l}><Label>{l}</Label><div style={{fontSize:12,fontWeight:600,color:C.text}}>{v}</div></Card>
@@ -14406,12 +14663,15 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                       he does not pay is the whole complaint. Lead the number he earns from. */}
                   {t.resultsOnly ? (
                     <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${t.perLead.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/qualified {client.billingResultKind==="sale"?"sale":"lead"}</span></div>
+                  ) : t.planMonthly>0 ? (
+                    <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${t.planMonthly.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/mo Complete{t.perLead?` + $${t.perLead.toLocaleString()}/lead`:""}</span></div>
                   ) : (
                     <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${t.monthly.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
                   )}
                   <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>
                     {t.setup>0 ? `$${t.setup.toLocaleString()} setup` : t.setupWaived ? "Setup waived" : "No setup fee"}
-                    {t.resultsOnly ? (t.monthlyWaived?" · no monthly minimum":"") : (t.perLead?` · $${t.perLead.toLocaleString()}/lead`:"")}
+                    {t.resultsOnly ? (t.monthlyWaived||noMinimumTerms(client)?" · no monthly minimum":"") : t.planMonthly>0 ? " · no monthly minimum" : (t.perLead?` · $${t.perLead.toLocaleString()}/lead`:"")}
+                    {foundingFreeMonthOf(client)?" · first month of lead fees free":""}
                   </div>
                   {/* Named out loud, because a founding deal that reads like a mistake gets
                       "corrected" by somebody six months from now. */}
@@ -14468,7 +14728,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                 {l:resultWords(client).kind==="sale"?"Sales coming in":"Leads coming in", ok:adPerfStats(client).leadsTotal>0, pts:"1.5"},
                 {l:resultWords(client).kind==="sale"?"Cost per sale on target":"CPL on target", ok:(()=>{const c=adPerfStats(client).cpl; const t=resultWords(client).kind==="sale"?(client.billingPerLead!=null?client.billingPerLead:0):(PER_LEAD[client.niche]||50); return c!=null&&t>0&&c<=t;})(), pts:"0.5"},
                 {l:"Contract active",        ok:client.contractStatus==="active", pts:"1.0"},
-                {l:"Contract runway (30d+)", ok:daysUntil(client.contractEnd)>30, pts:"1.0"},
+                {l:"Contract runway (30d+)", ok:daysToRenewal(client)>30, pts:"1.0"},
                 {l:"Pipeline progress",      ok:bots.filter(b=>b.status==="done").length>5, pts:"1.0"},
               ];
               return (
@@ -14503,7 +14763,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
               </div>
               <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.textMuted}}>
                 <span>Start: {client.contractStart}</span>
-                <span style={{color:days<=7?C.red:days<=30?C.amber:C.textMuted,fontWeight:days<=30?700:400}}>End: {client.contractEnd}</span>
+                {rollingTerm(client,pkg)?<span style={{color:C.textMuted}}>{days>0?`First term ends ${client.contractEnd}, then month to month`:"Month to month"}</span>:<span style={{color:days<=7?C.red:days<=30?C.amber:C.textMuted,fontWeight:days<=30?700:400}}>End: {client.contractEnd}</span>}
               </div>
               {days<=30&&days>=0&&<div style={{marginTop:7,padding:"6px 9px",borderRadius:8,backgroundColor:days<=7?"rgba(239,68,68,.08)":"rgba(245,158,11,.08)",border:`1px solid ${days<=7?C.red:C.amber}33`,fontSize:11,color:days<=7?C.red:C.amber,fontWeight:600}}>{days<=7?"🔴 Urgent:":"🟡"} {days} day{days!==1?"s":""} left — {days<=7?"contact client immediately.":"start renewal conversation on next call."}</div>}
             </Card>}
@@ -14967,7 +15227,11 @@ function BillingCard({client,pkg,onUpdate}) {
   // The setup line directly below already got this right; this one did not, which would
   // have shown a founding client $400 on the Billing card while their signed agreement
   // said the minimum was waived.
-  const monthly=(client.billingMonthly!=null?Number(client.billingMonthly):((pkg&&pkg.price)||0))||0;
+  // 🔴 v9 (KB complete-plan): the MINIMUM is what lead fees are measured against, and on the new terms it is
+  // zero. The Complete Plan Fee is the subscription, and lead fees are added on top of it in full. `monthly` is
+  // what the subscription charges (minimum plus plan fee); `minimum` alone is the lead floor.
+  const minimum=minimumOf(client,pkg), planFee=planFeeOf(client), complete=planFee>0;
+  const monthly=minimum+planFee;
   // billingSetup may legitimately be 0 (waived) — only fall back when unset.
   const setup=(client.billingSetup!=null?client.billingSetup:(pkg&&pkg.setup))||0;
   const status=client.billingStatus||"none";
@@ -14992,7 +15256,7 @@ function BillingCard({client,pkg,onUpdate}) {
   const [adjMonthly,setAdjMonthly]=useState(String(monthly));
   const [adjSetup,setAdjSetup]=useState(String(setup));
   const [adjPerLead,setAdjPerLead]=useState("");   // blank keeps whatever is already agreed
-  const stdMonthly=(pkg&&pkg.price)||0, stdSetup=(pkg&&pkg.setup)||0;
+  const stdMonthly=noMinimumTerms(client)?(complete?COMPLETE_PLAN.monthly:0):((pkg&&pkg.price)||0), stdSetup=(pkg&&pkg.setup)||0;
   const discounted=monthly!==stdMonthly||setup!==stdSetup;
 
   const callBilling=stripeBilling;
@@ -15005,18 +15269,18 @@ function BillingCard({client,pkg,onUpdate}) {
     const effRate=rate!=null?rate:perLeadRate;
     if(oneTime){
       if(!(s>0)){ setMsg("A one-time build needs a fee greater than zero."); return; }
-    }else if(!(m>0)&&!(effRate>0)){
+    }else if(!(noMinimumTerms(client)?planFee>0:m>0)&&!(effRate>0)){
       // Zero on BOTH is the only genuinely broken combination: the client would owe nothing,
       // ever, under any circumstances.
       setMsg("Set a monthly minimum, a {W.per} rate, or both. With neither there is nothing to bill.");
       return;
     }
     setMsg("");
-    onUpdate&&onUpdate({...client,billingMonthly:m,billingSetup:s,...(rate!=null?{billingPerLead:rate}:{})});
+    onUpdate&&onUpdate({...client,...(noMinimumTerms(client)?{}:{billingMonthly:m}),billingSetup:s,...(rate!=null?{billingPerLead:rate}:{})});
     setAdjusting(false);
   };
   const resetAdjust=()=>{
-    onUpdate&&onUpdate({...client,billingMonthly:stdMonthly,billingSetup:stdSetup});
+    onUpdate&&onUpdate({...client,...(noMinimumTerms(client)?{}:{billingMonthly:stdMonthly}),billingSetup:stdSetup});
     setAdjMonthly(String(stdMonthly)); setAdjSetup(String(stdSetup));
     setAdjusting(false); setMsg("");
   };
@@ -15024,8 +15288,8 @@ function BillingCard({client,pkg,onUpdate}) {
     if(!client.email){ setMsg("Add the client's email on the Overview tab first."); return; }
     setBusy("setup"); setMsg("");
     try{
-      const d=await callBilling("create-checkout",{clientId:client.id,email:client.email,name:client.contactName||client.name,packageName:pkg&&pkg.name,monthlyAmount:monthly,setupAmount:setup,customerId:client.stripeCustomerId||"",origin:window.location.origin,oneTime,returnUrl:portalReturnUrl(client)});
-      onUpdate&&onUpdate({...client,stripeCustomerId:d.customerId,billingStatus:"awaiting_payment",billingCheckoutUrl:d.url,billingMonthly:monthly,billingSetup:setup});
+      const d=await callBilling("create-checkout",{clientId:client.id,email:client.email,name:client.contactName||client.name,packageName:pkg&&pkg.name,productLabel:complete?`Complete plan with ${pkg&&pkg.name} (monthly)`:"",monthlyAmount:monthly,setupAmount:setup,customerId:client.stripeCustomerId||"",origin:window.location.origin,oneTime,returnUrl:portalReturnUrl(client)});
+      onUpdate&&onUpdate({...client,stripeCustomerId:d.customerId,billingStatus:"awaiting_payment",billingCheckoutUrl:d.url,...(noMinimumTerms(client)?{}:{billingMonthly:monthly}),billingSetup:setup});
     }catch(e){ setMsg(e.message); }
     setBusy("");
   };
@@ -15105,7 +15369,14 @@ function BillingCard({client,pkg,onUpdate}) {
   const billableCount = billableLeads.length;
   const excludedCount = unbilledLeads.length - billableCount;
   const billedCount = leadLog.filter(l=>l.billed).length;
-  const leadAmount = billableCount*perLeadRate;
+  // 🔴 THE FOUNDING CLIENT'S FREE FIRST MONTH (KB complete-plan). Leads that arrived in the first 30 days after the
+  // ads went live (the Start Date) are approved and recorded like any other, but carry no fee. Decided by when the
+  // LEAD arrived, never by when it is approved, so approving late can't make a free lead cost money.
+  const freeUntil = (()=>{ if(!foundingFreeMonthOf(client)||!client.contractStart) return 0; const t=new Date(client.contractStart).getTime(); return Number.isFinite(t)?t+FOUNDING_FREE_DAYS*864e5:0; })();
+  const leadAt = (l)=>new Date(l.receivedAt||l.createdAt||l.date||0).getTime();
+  const freeLeads = freeUntil ? billableLeads.filter(x=>{ const t=leadAt(x.lead); return Number.isFinite(t)&&t>0&&t<freeUntil; }) : [];
+  const freeCount = freeLeads.length;
+  const leadAmount = (billableCount-freeCount)*perLeadRate;
 
   // ── GREATER-OF, NOT BOTH (2026-08-18) ──────────────────────────────────────
   // The subscription already charged the package's monthly MINIMUM in advance, so
@@ -15119,7 +15390,7 @@ function BillingCard({client,pkg,onUpdate}) {
   const billPeriod = new Date().toISOString().slice(0,7);           // "YYYY-MM"
   const periodState = (client.billingLeadPeriod && client.billingLeadPeriod.period===billPeriod)
     ? client.billingLeadPeriod : { period: billPeriod, earned: 0, charged: 0 };
-  const monthlyFloor = client.billingMonthly!=null ? client.billingMonthly : ((pkg&&pkg.price)||0);
+  const monthlyFloor = minimum;
   const earnedAfter  = periodState.earned + leadAmount;
   const owedAfter    = Math.max(0, earnedAfter - monthlyFloor);
   const chargeNow    = Math.max(0, Math.round(owedAfter - periodState.charged));
@@ -15140,7 +15411,7 @@ function BillingCard({client,pkg,onUpdate}) {
   const chargeLeads=async()=>{
     if(!client.stripeCustomerId){ setLeadMsg(resultsOnly?"Save a card on file first — there is nothing to invoice against.":"Set up recurring billing first — lead fees ride the client's monthly invoice."); return; }
     if(billableCount<=0){ setLeadMsg("No billable ${itPlural} right now."); return; }
-    if(!(perLeadRate>0)){ setLeadMsg("Set a per-lead rate above $0 first."); return; }
+    if(!(perLeadRate>0)&&freeCount<billableCount){ setLeadMsg("Set a per-lead rate above $0 first."); return; }
     setLeadBusy(true); setLeadMsg("");
     try{
       // Marking the leads billed still happens when nothing is owed: they ARE accounted
@@ -15151,23 +15422,32 @@ function BillingCard({client,pkg,onUpdate}) {
         // results-only agreement says nothing is billed in advance and the fee is charged
         // after the month closes. So this puts the amount against the client in Stripe,
         // and the month-end run (or "Invoice Now") raises the single bill.
-        await callBilling("charge-leads",{customerId:client.stripeCustomerId,count:billableCount,amount:chargeNow,clientName:client.name,arrears:resultsOnly});
+        await callBilling("charge-leads",{customerId:client.stripeCustomerId,count:billableCount-freeCount,amount:chargeNow,clientName:client.name,arrears:resultsOnly||minimum===0});
       }
       const billedAt=new Date().toISOString();
-      const updatedLog=leadLog.map(l=> (!l.billed&&!l.notBillable) ? {...l,billed:true,billedAt} : l);
-      const leadsWord=`${billableCount} qualified ${itNoun}${billableCount===1?"":"s"}`;
-      const note = chargeNow<=0
+      const freeSet=new Set(freeLeads.map(x=>x.idx));
+      const updatedLog=leadLog.map((l,i)=> (!l.billed&&!l.notBillable) ? {...l,billed:true,billedAt,...(freeSet.has(i)?{freeFounding:true,fee:0}:{})} : l);
+      const leadsWord=`${billableCount} qualified ${itNoun}${billableCount===1?"":"s"}${freeCount?` (${freeCount} free, founding first month)`:""}`;
+      const note = chargeNow<=0&&monthlyFloor===0
+        ? `Approved ${leadsWord}, nothing to bill (founding first month)`
+        : chargeNow<=0
         ? `Approved ${leadsWord} (${money(leadAmount)}) — under the ${money(monthlyFloor)} monthly minimum, nothing extra billed`
         : resultsOnly
         ? `Approved ${leadsWord} — ${money(chargeNow)} added to this month's invoice`
+        : minimum===0
+        ? `Approved ${leadsWord} — ${money(chargeNow)} added to the next monthly invoice, on top of the plan fee`
         : `Approved ${leadsWord} (${money(leadAmount)}) — ${money(chargeNow)} above the ${money(monthlyFloor)} minimum added to next invoice`;
       const entry={date:fmt(billedAt),note,cat:"billing",ts:Date.now()};
       onUpdate&&onUpdate({...client,leadsLog:updatedLog,commLog:[entry,...(client.commLog||[])],
         billingLeadPeriod:{ period:billPeriod, earned:earnedAfter, charged:periodState.charged }});
-      setLeadMsg(chargeNow<=0
+      setLeadMsg(chargeNow<=0&&monthlyFloor===0
+        ? `✓ ${billableCount} ${itNoun}${billableCount===1?"":"s"} approved. They came in during the founding client's free first month, so nothing is billed.`
+        : chargeNow<=0
         ? `✓ ${billableCount} ${itNoun}${billableCount===1?"":"s"} approved. ${money(leadAmount)} is under the ${money(monthlyFloor)} minimum, so nothing extra is billed.`
         : resultsOnly
         ? `✓ ${money(chargeNow)} added to this month's invoice. Nothing is charged until the 1st.`
+        : minimum===0
+        ? `✓ ${money(chargeNow)} added to their next monthly bill, on top of the plan fee.`
         : `✓ ${money(chargeNow)} added to the next invoice (${money(leadAmount)} earned, ${money(monthlyFloor)} minimum already billed).`);
       loadUpcoming();
     }catch(e){ setLeadMsg(e.message); }
@@ -15193,18 +15473,20 @@ function BillingCard({client,pkg,onUpdate}) {
         <Chip label={badge.t} color={badge.c} small/>
       </div>
       <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,marginBottom:10}}>
-        {monthly>0
+        {complete
+          ? <><span style={{color:C.gold,fontWeight:700}}>Complete</span> <span>{money(planFee)}</span><span style={{color:C.textMuted}}>/mo{minimum>0?<> + {money(minimum)}/mo minimum</>:", no minimum"}</span></>
+          : minimum>0
           ? <><span>{money(monthly)}</span><span style={{color:C.textMuted}}>/mo minimum</span></>
           : <span style={{color:C.green,fontWeight:700}}>No monthly minimum</span>}
         {perLeadRate>0&&<span> · <strong style={{color:C.text}}>{money(perLeadRate)}</strong><span style={{color:C.textMuted}}>/qualified {itNoun}</span></span>}
         {setup>0?<span> · {money(setup)} one-time setup</span>:<span style={{color:C.green,fontWeight:700}}> · setup waived</span>}
         {discounted&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold,border:`1px solid ${C.gold}44`,borderRadius:20,padding:"1px 7px"}}>Adjusted</span>}
-        <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>{monthly>0?"Whichever is higher, never both. ":"Paid on results only. "}The client pays Google and Meta directly for ad spend.</div>
+        <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>{complete?"Lead fees go on the same bill, on top of the plan fee. ":minimum>0?"Whichever is higher, never both. ":"Paid on results only. "}The client pays Google and Meta directly for ad spend.</div>
       </div>
 
       {!oneTime&&!client.internal&&termsVersionOf(client)>=6&&<LateFeeRow client={client} onUpdate={onUpdate}/>}
       {status==="none"&&!adjusting&&<>
-        {monthly>0&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Create a secure payment link. The client enters a card or bank account once, then the fee auto-charges every month.{setup>0?" The one-time setup fee is added to the first charge automatically.":" Setup fee is waived — first charge is the monthly minimum only."}</div>}
+        {monthly>0&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Create a secure payment link. The client enters a card or bank account once, then the {complete?"Complete plan fee":"fee"} auto-charges every month{complete?", and approved lead fees ride the same monthly bill":""}.{setup>0?" The one-time setup fee is added to the first charge automatically.":complete?" Setup fee is waived, so the first charge is the plan fee only.":" Setup fee is waived — first charge is the monthly minimum only."}</div>}
         {resultsOnly&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>No monthly minimum, so there is nothing recurring to subscribe to. The client saves a card once and it is never charged on its own. You approve qualified {itPlural}, and each approved batch is invoiced to that card straight away.{setup>0?` The ${money(setup)} setup fee is billed separately.`:" Setup fee is waived."}</div>}
         {oneTime&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>A one-time build. The client pays {money(setup)} once and owes nothing after that, so there is no subscription and no {itNoun} billing.</div>}
         {/* 🔴 THREE DIFFERENT PRODUCTS, THREE DIFFERENT WAYS TO GET PAID, and picking on
@@ -15433,7 +15715,7 @@ function BillingCard({client,pkg,onUpdate}) {
         {/* Per-qualified-lead billing — review + one-tap approve onto next invoice */}
         <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-            <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>{W.many} Billing{resultsOnly?"":" (whichever is higher)"}</span>
+            <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>{W.many} Billing{resultsOnly||minimum===0?"":" (whichever is higher)"}</span>
             <span style={{fontSize:10,color:C.textMuted}}>{flaggedBillable>0&&<span style={{color:C.amber,fontWeight:700}}>{flaggedBillable} flagged</span>}{flaggedBillable>0&&billedCount>0?" · ":""}{billedCount>0?`${billedCount} billed`:""}</span>
           </div>
 
@@ -15463,8 +15745,8 @@ function BillingCard({client,pkg,onUpdate}) {
                   })}
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8,marginBottom:4,fontSize:11}}>
-                  <span style={{color:C.textDim}}>{billableCount} billable{excludedCount>0?` · ${excludedCount} excluded`:""}</span>
-                  <span style={{fontWeight:800,color:C.text,whiteSpace:"nowrap"}}>{billableCount} × {money(perLeadRate)} = {money(leadAmount)}</span>
+                  <span style={{color:C.textDim}}>{billableCount} billable{freeCount>0?` · ${freeCount} free (founding first month)`:""}{excludedCount>0?` · ${excludedCount} excluded`:""}</span>
+                  <span style={{fontWeight:800,color:C.text,whiteSpace:"nowrap"}}>{billableCount-freeCount} × {money(perLeadRate)} = {money(leadAmount)}</span>
                 </div>
                 {/* The greater-of, shown as arithmetic so it can be checked at a glance. */}
                 <div style={{marginBottom:8,padding:"7px 9px",borderRadius:8,backgroundColor:"rgba(255,255,255,.03)",border:`1px solid ${C.border}`,fontSize:10,color:C.textMuted,lineHeight:1.55}}>
@@ -15475,7 +15757,7 @@ function BillingCard({client,pkg,onUpdate}) {
                     ? <div>{money(earnedAfter)} earned this month is above the {money(monthlyFloor)} minimum — <strong style={{color:C.green}}>{money(chargeNow)}</strong> gets added to the next invoice.</div>
                     : <div>{money(earnedAfter)} earned this month is under the {money(monthlyFloor)} minimum — <strong style={{color:C.text}}>they pay the minimum, nothing extra.</strong></div>}
                 </div>
-                <button onClick={chargeLeads} disabled={leadBusy||billableCount<=0||!(perLeadRate>0)} style={{width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:(billableCount>0&&perLeadRate>0)?C.green:C.border,color:(billableCount>0&&perLeadRate>0)?"#04110b":C.textMuted,cursor:(leadBusy||billableCount<=0||!(perLeadRate>0))?"default":"pointer",opacity:leadBusy?.7:1}}>{leadBusy?"Saving…":(chargeNow<=0?`Approve ${billableCount} ${itNoun}${billableCount===1?"":"s"} — nothing extra to bill`:resultsOnly?`Approve — invoice ${money(chargeNow)} now`:`Approve — add ${money(chargeNow)} to next invoice`)}</button>
+                <button onClick={chargeLeads} disabled={leadBusy||billableCount<=0||(!(perLeadRate>0)&&freeCount<billableCount)} style={{width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:(billableCount>0&&perLeadRate>0)?C.green:C.border,color:(billableCount>0&&perLeadRate>0)?"#04110b":C.textMuted,cursor:(leadBusy||billableCount<=0||!(perLeadRate>0))?"default":"pointer",opacity:leadBusy?.7:1}}>{leadBusy?"Saving…":(chargeNow<=0?`Approve ${billableCount} ${itNoun}${billableCount===1?"":"s"} — nothing extra to bill`:resultsOnly?`Approve — invoice ${money(chargeNow)} now`:`Approve — add ${money(chargeNow)} to next invoice`)}</button>
               </>}
           {leadMsg&&<div style={{fontSize:11,color:leadMsg.charAt(0)==="✓"?C.green:C.red,marginTop:8,lineHeight:1.6}}>{leadMsg}</div>}
         </div>
@@ -15932,7 +16214,7 @@ function ReplaceAgreementCard({client,onUpdate}){
     if(!window.confirm(`Replace ${client.name}'s signed agreement${on?` (signed ${on})`:""}?\n\nDocuSign can't cancel a signed agreement, so you'll send a new one that says in writing it replaces and cancels this one. When they sign it, the old one is gone. Until then the old one still stands.\n\nThe signed copy stays on the record. Next: change the terms, then send.`)) return;
     const prev={envelopeId:client.docusignEnvelopeId||"",signedAt:client.contractSignedAt||"",signedContractPath:client.signedContractPath||"",termsVersion:client.contractTermsVersion==null?null:client.contractTermsVersion,omits:client.contractOmits||null,lateFee:agreedLateFee(client),addOns:client.contractAddOns||null,replacedAt:new Date().toISOString()};
     onUpdate&&onUpdate({...client,contractHistory:[prev,...(client.contractHistory||[])].slice(0,10),replacesAgreement:{envelopeId:prev.envelopeId,signedAt:prev.signedAt||new Date().toISOString()},
-      contractSigned:false,contractStatus:"pending",docusignEnvelopeId:"",docusignStatus:"",docusignSentAt:"",contractSignedAt:"",signedContractPath:"",contractTermsVersion:null,contractLateFee:null,contractOmits:null,contractAddOns:null});
+      contractSigned:false,contractStatus:"pending",docusignEnvelopeId:"",docusignStatus:"",docusignSentAt:"",contractSignedAt:"",signedContractPath:"",contractPlan:null,contractPlanMonthly:null,contractFoundingFreeMonth:null,contractWaivedSetup:null,contractTermsVersion:null,contractLateFee:null,contractOmits:null,contractAddOns:null});
   };
   return (
     <Card>
@@ -15954,6 +16236,7 @@ function AddOnsCard({client,pkg,onUpdate}){
   const live=(Array.isArray(client.addOns)?client.addOns:[]).find(a=>a&&a.id==="gbp_care")||null;
   const [price,setPrice]=useState(String((live&&live.monthly)||ADD_ONS.gbp_care.monthly));
   if(client.internal||isOneTime(pkg)) return null;
+  if(planOf(client)==="complete") return null;   // Complete already includes Google profile care (KB complete-plan)
   const dead=!client.contractSigned&&/^(voided|declined)$/i.test(String(client.docusignStatus||""));
   const out=!!(client.contractSigned||(client.docusignSentAt&&!dead));
   const inAgreement=addOnsOf(client).find(a=>a.id==="gbp_care")||null;
@@ -15978,6 +16261,98 @@ function AddOnsCard({client,pkg,onUpdate}){
             <div style={{fontSize:11,color:C.textMuted,lineHeight:1.55,flex:"1 1 200px"}}>Its own section in the agreement. Billed on its own every month from the day you link their Google profile. It never counts toward their monthly minimum.</div>
           </div>}
         </>}
+    </Card>);
+}
+
+// ── 🔴 THE PLAN: ADS OR COMPLETE, AND WHICH AD TIER (KB complete-plan) ──────────────────────
+// Bryson, 2026-11-07: "make sure in the os that there is an easy way to select which tier package they are on if they
+// get the complete package". Complete is $500 a month plus the lead fee, with the website built free on a 12-month first
+// term; the ads inside it are an ordinary ad plan, so the tier follows their ad budget and the platform is a choice
+// (both platforms unlock at $5,000, the same rule as everywhere else). Picked here by tapping, BEFORE the agreement goes
+// out; sending freezes the plan, its fee and the founding month (`contractPlan` and friends), after which this card
+// only says what the agreement holds. Online stores stay on the Ads plans: Complete is priced around lead fees.
+const PLAN_TIERS=[["launch","Launch","$500 to $2,500"],["growth","Growth","$2,500 to $10,000"],["acquisition","Acquisition","$10,000+"]];
+const PLAN_PLATFORMS=[["g","Google"],["m","Meta"],["c","Both"]];   // a store has one family (e-) and no platform choice
+const adBudgetNum=(cl)=>{ const n=Number(String((cl&&cl.adBudget)||"").replace(/,/g,"").replace(/[^0-9.]/g,"")); return Number.isFinite(n)?n:0; };
+const tierForBudget=(n)=>n>=10000?"acquisition":n>=2500?"growth":n>=MIN_AD_BUDGET?"launch":"";
+const planPkgFor=(fam,tier)=>ALL_PKGS.find(p=>p.id.startsWith(fam+"-")&&p.tier===tier)||null;
+function PlanCard({client,pkg,onUpdate}){
+  const [feeIn,setFeeIn]=useState(String(planFeeOf({...client,plan:"complete"})));
+  useEffect(()=>{ setFeeIn(String(planFeeOf({...client,plan:"complete"}))); },[client.packageId]);
+  if(!client||client.internal||!pkg||isOneTime(pkg)||isWebsiteOnly(client)) return null;
+  if(termsVersionOf(client)<9) return null;   // an older agreement already says what they're on
+  const store=pkg.pricingModel==="ad_spend_pct";
+  const out=contractOut(client);
+  const plan=planOf(client), fee=planFeeOf({...client,plan:"complete"});
+  const fam=String(pkg.id).split("-")[0], tier=pkg.tier;
+  const budget=adBudgetNum(client), sugTier=tierForBudget(budget);
+  const log=(note)=>[{date:fmt(today),note,cat:"package",ts:Date.now()},...(client.commLog||[])];
+  const setPkg=(f,t)=>{
+    const p=planPkgFor(f,t); if(!p||p.id===client.packageId) return;
+    const old=client.botStatuses||{};
+    const botStatuses=Object.fromEntries(buildBots(p).map(b=>[b.id,old[b.id]||"waiting"]));
+    onUpdate&&onUpdate({...client,packageId:p.id,botStatuses,commLog:log(`Ad plan set to ${p.name} (${p.platform}).`)});
+  };
+  const setPlan=(p)=>{
+    if(p===plan) return;
+    const months=p==="complete"&&!store?COMPLETE_PLAN.termMonths:ADS_FIRST_TERM_MONTHS;
+    const st=new Date(client.contractStart||""); const start=isNaN(st.getTime())?today:st;
+    onUpdate&&onUpdate({...client,plan:p,contractTermMonths:months,contractEnd:fmt(addMonths(start,months)),
+      commLog:log(p==="complete"?(store?`Switched to Complete for online stores (${wdMoney(fee)}/mo plus their share of ad spend, 3 months then month to month).`:`Switched to the Complete plan (${wdMoney(fee)}/mo plus lead fees, 12 months then month to month).`):"Switched to Ads only (no monthly fee, 3 months then month to month).")});
+  };
+  const commitFee=()=>{ const n=Math.round(Number(feeIn)*100)/100; if(n>0&&n<=10000) onUpdate&&onUpdate({...client,billingPlanMonthly:n}); else setFeeIn(String(fee)); };
+  const chip=(on,dis)=>({flex:"1 1 0",minWidth:0,padding:"9px 8px",borderRadius:10,textAlign:"center",cursor:dis?"default":"pointer",opacity:dis?.45:1,
+    border:`1px solid ${on?C.gold:C.border}`,backgroundColor:on?"rgba(200,168,75,.12)":"rgba(255,255,255,.03)",color:on?C.gold:C.textDim,fontFamily:"inherit"});
+  const sub={fontSize:10,fontWeight:600,color:C.textMuted,marginTop:2,lineHeight:1.35};
+  const head={fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,margin:"12px 0 6px"};
+  if(out) return (
+    <Card>
+      <div style={{fontSize:12,fontWeight:700,color:C.textDim,marginBottom:4}}>Plan</div>
+      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>{plan==="complete"
+        ? <>In this agreement: <strong style={{color:C.text}}>Complete</strong> at {wdMoney(planFeeOf(client))} a month plus lead fees, with the <strong style={{color:C.text}}>{pkg.name} ({pkg.platform})</strong> ad plan inside it. 12 months, then month to month.</>
+        : <>In this agreement: <strong style={{color:C.text}}>Ads</strong>, {pkg.name} ({pkg.platform}). No monthly fee. 3 months, then month to month.</>}
+        {foundingFreeMonthOf(client)&&<> First month of lead fees free (founding client).</>}</div>
+      <div style={{fontSize:10.5,color:C.textMuted,marginTop:6}}>To change it now, replace the agreement (below) and pick again on the new one.</div>
+    </Card>);
+  return (
+    <Card style={{borderColor:plan==="complete"?`${C.gold}55`:C.border}}>
+      <div style={{fontSize:12,fontWeight:700,color:C.textDim}}>Plan</div>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.55,margin:"2px 0 8px"}}>Pick before you send the agreement. It goes into the agreement as written here.</div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>setPlan("ads")} style={chip(plan==="ads")}><div style={{fontSize:13,fontWeight:800}}>Ads</div><div style={sub}>{store?`${pkg.adSpendPct}% of ad spend`:"Pay per qualified lead"}. No monthly fee. 3 months, then month to month.</div></button>
+        <button onClick={()=>setPlan("complete")} style={chip(plan==="complete")}><div style={{fontSize:13,fontWeight:800}}>Complete{store?" for stores":""}</div><div style={sub}>{store?`${wdMoney(fee)}/mo plus ${pkg.adSpendPct}% of ad spend. Shop pages, past-buyer emails, Google profile. 3 months, then month to month.`:`${wdMoney(fee)}/mo plus lead fees. Website built free. 12 months, then month to month.`}</div></button>
+      </div>
+      {<>
+        <div style={head}>{plan==="complete"?"Their ad plan inside Complete":"Their ad plan"}</div>
+        <div style={{fontSize:10.5,color:C.textMuted,marginBottom:6,lineHeight:1.5}}>The tier follows their monthly ad budget{budget>0?<>: <strong style={{color:C.text}}>${budget.toLocaleString()}/mo</strong>{sugTier?<>, so <strong style={{color:C.gold}}>{(PLAN_TIERS.find(t=>t[0]===sugTier)||[])[1]}</strong></>:", below the $500 floor"}</>:" (add it on the Overview tab to get a suggestion)"}.</div>
+        <div style={{display:"flex",gap:6}}>
+          {PLAN_TIERS.map(([t,label,band])=>{
+            const f=fam==="c"&&t==="launch"?"g":fam;   // there is no Launch tier for both platforms
+            const p=planPkgFor(f,t);
+            return <button key={t} onClick={()=>setPkg(f,t)} disabled={!p} style={chip(tier===t,!p)}>
+              <div style={{fontSize:12.5,fontWeight:800}}>{label}{sugTier===t&&<span style={{fontSize:8.5,fontWeight:800,letterSpacing:".04em",marginLeft:5,padding:"1px 5px",borderRadius:5,color:"#1a1400",background:C.gold}}>FITS</span>}</div>
+              <div style={sub}>{band} ad budget</div></button>;
+          })}
+        </div>
+        {!store&&<div style={{display:"flex",gap:6,marginTop:6}}>
+          {PLAN_PLATFORMS.map(([f,label])=>{
+            const p=planPkgFor(f,tier==="launch"&&f==="c"?"growth":tier);
+            const dis=f==="c"&&(tier==="launch"||(budget>0&&budget<COMBO_MIN_BUDGET));
+            return <button key={f} onClick={()=>!dis&&p&&setPkg(f,p.tier)} disabled={dis} style={chip(fam===f,dis)}>
+              <div style={{fontSize:12,fontWeight:800}}>{label}</div>{f==="c"&&<div style={sub}>needs $5,000+ ad budget</div>}</button>;
+          })}
+        </div>}
+        <div style={{fontSize:10.5,color:C.textMuted,marginTop:6}}>Picked: <strong style={{color:C.text}}>{pkg.name}</strong> on {pkg.platform}.{plan==="complete"&&!store?" Complete includes one ad platform. Both platforms follows the same $5,000 rule as any plan.":""}</div>
+        {plan==="complete"&&<div style={{display:"flex",gap:10,alignItems:"flex-end",flexWrap:"wrap",marginTop:10}}>
+          <label style={{fontSize:11,color:C.textMuted}}>Complete price ($ a month)<input inputMode="decimal" value={feeIn} onChange={e=>setFeeIn(e.target.value)} onBlur={commitFee} style={{display:"block",marginTop:4,width:120,padding:"8px 10px",fontSize:16,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text}}/></label>
+          <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,flex:"1 1 200px"}}>{store?"Covers the shop pages, emails that bring past buyers back, and Google profile care if they have a location. No website: we don't build online stores. Their share of ad spend goes on the same bill.":"Covers the website (built free), hosting and care, Google profile care, the blog, past-customer emails and booking. None of those bill separately. Lead fees go on the same bill."}</div>
+        </div>}
+      </>}
+      <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:C.text,cursor:"pointer",marginTop:12}}>
+        <input type="checkbox" checked={!!client.foundingFreeMonth} onChange={e=>onUpdate&&onUpdate({...client,foundingFreeMonth:e.target.checked})}/>
+        Founding client: first month {store?"of fees on ad spend":"of lead fees"} free
+      </label>
+      <div style={{fontSize:10.5,color:C.textMuted,marginTop:3,marginLeft:24,lineHeight:1.5}}>Only for your first five clients. {store?"No share of ad spend is charged for the first 30 days after the ads go live.":"Leads in the first 30 days after the ads go live aren't charged."} Their ad spend is still theirs.</div>
     </Card>);
 }
 
@@ -16029,7 +16404,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
       // 🔴 STAMP THE VERSION THAT WAS SENT. The envelope freezes the document as it read today, and
       // the OS renders it fresh every time, so without this a later terms change would silently
       // rewrite what the OS says they signed. `html` came from termsVersionOf(client), so this matches.
-      onUpdate&&onUpdate({...client,contractStatus:"pending",docusignEnvelopeId:d.envelopeId,docusignSentAt:new Date().toISOString(),contractTermsVersion:termsVersionOf(client),contractOmits:(Array.isArray(client.declinedFeatures)?client.declinedFeatures:[]).slice(),contractLateFee:agreedLateFee(client),contractAddOns:addOnsOf(client)});
+      onUpdate&&onUpdate({...client,contractStatus:"pending",docusignEnvelopeId:d.envelopeId,docusignSentAt:new Date().toISOString(),contractTermsVersion:termsVersionOf(client),contractOmits:(Array.isArray(client.declinedFeatures)?client.declinedFeatures:[]).slice(),contractPlan:planOf(client),contractPlanMonthly:planFeeOf(client)||null,contractFoundingFreeMonth:foundingFreeMonthOf(client),contractWaivedSetup:waivedSetupOf(client,pkg),contractLateFee:agreedLateFee(client),contractAddOns:addOnsOf(client)});
     }catch(e){ setDsState("error"); setDsMsg("Network error — try again."); }
   };
   const downloadPDF=()=>{
@@ -16071,6 +16446,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
   // ── Early termination (Agreement: 30-day notice; ETF = 1 month's fee + term-discount clawback)
   const effMonthly=client.billingMonthly!=null?Number(client.billingMonthly):baseMonthly;
   const etfCalc=(()=>{
+    if(rollingTerm(client,pkg)){ const owed=completeExitOwed(client)+setupPaybackOwed(client,pkg); return {monthsBilled:0,clawPerMonth:0,clawback:0,etfFee:owed,total:owed,v9:true}; }
     const start=new Date(client.contractStart||new Date());
     const now=new Date();
     // Billing cycles already started this term (billed monthly in advance) — min 1, capped at the committed term.
@@ -16099,38 +16475,24 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
     }catch(e){ setEtfMsg("Recording kept locally, but Stripe billing failed: "+e.message); onUpdate&&onUpdate({...client,etf}); }
     setEtfBusy(false);
   };
+  // 🔴 A RENEWAL MOVES THEM ONTO THE CURRENT TERMS (Bryson, 2026-09-02: "for future clients not Sebastian until he
+  // renews"), and since v9 the current terms have no minimum and no renewal menu (Bryson, 2026-11-07: "renewals after
+  // the first 3 months will only be month to month"). So renewing stamps v9, clears the minimum, and keeps the end
+  // date where it is: the first term is long over, so from that date the agreement simply runs month to month.
+  // A monthly subscription charging the old minimum is set to stop at the end of the month already paid for.
   const handleRenew=async()=>{
-    const months=parseInt(renewMonths)||3;
-    const base=new Date(client.contractEnd||new Date());
-    const newEnd=addMonths(base,months);  // proper calendar months, not *30 days
-    const monthly=termMonthly(baseMonthly,months);
-    // Same percentage, the other number. Scaled from the stored base so renewals never compound.
-    const perLead=basePerLead>0?termMonthly(basePerLead,months):null;
-    const spendPct=basePct>0?termPct(basePct,months):null;
-    setRenewNote("");
-    // v2 — if a live subscription is active, push the new rate to Stripe so the
-    // renewal actually changes what auto-charges (no manual Stripe edit needed).
-    let note="";
-    if(client.stripeSubscriptionId && client.billingStatus==="active" && monthly!==effMonthly){
+    setRenewNote(""); let note="";
+    if(client.stripeSubscriptionId && client.billingStatus==="active" && effMonthly>0){
       setRenewBusy(true);
       try{
-        await stripeBilling("update-subscription",{customerId:client.stripeCustomerId,subscriptionId:client.stripeSubscriptionId,monthlyAmount:monthly,packageName:pkg&&pkg.name});
-        note=`Stripe subscription updated — now auto-charging $${monthly.toLocaleString()}/mo.`;
-      }catch(e){
-        note=`Contract renewed, but the Stripe update failed (${e.message}). Update the amount manually in Stripe.`;
-      }
+        await stripeBilling("end-minimum",{customerId:client.stripeCustomerId,subscriptionId:client.stripeSubscriptionId});
+        note=`Their ${money0(effMonthly)}/mo subscription stops at the end of the month they've paid for. Lead fees go on a monthly invoice after that.`;
+      }catch(e){ note=`Renewed, but stopping the old subscription failed (${e.message}). Cancel it in Stripe at the end of this month.`; }
       setRenewBusy(false);
     }
-    // 🔴 A RENEWAL MOVES THEM ONTO THE CURRENT TERMS, and it has to be written down here
-    // because nothing else can work it out. Renewing sets `contractSigned` again but leaves
-    // `contractSignedAt` on the ORIGINAL signature date, so the contract's own inference
-    // would keep a client on the terms of the day they first signed for ever. Bryson,
-    // 2026-09-02, on the new delay-and-abandonment clause: "this will be for future clients
-    // not Sebastian until he renews his contract". This line is the "until he renews" half.
-    onRenew(fmt(newEnd),{contractTermMonths:months,billingMonthly:monthly,contractTermsVersion:CONTRACT_TERMS_VERSION,contractLateFee:chargedLateFee(client),...(perLead!=null?{billingPerLead:perLead,billingPerLeadBase:basePerLead}:{}),...(spendPct!=null?{billingSpendPct:spendPct}:{})});
-    setRenewNote(note);
-    setRenewSaved(true);
-    setTimeout(()=>{ setShowRenewal(false);setRenewSaved(false);setRenewNote(""); },note?4000:1500);
+    onRenew(client.contractEnd||fmt(new Date()),{billingMonthly:0,contractTermsVersion:CONTRACT_TERMS_VERSION,contractLateFee:chargedLateFee(client)});
+    setRenewNote(note); setRenewSaved(true);
+    setTimeout(()=>{ setShowRenewal(false);setRenewSaved(false);setRenewNote(""); },note?5000:1500);
   };
   // Live preview of the new end date using calendar months
   const renewalPreviewDate = ()=>{
@@ -16139,63 +16501,44 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
     return fmt(addMonths(base,months));
   };
   const showRenewBtn = days<=30;
+  // v9: no end to renew (KB complete-plan). `days` still counts down the first term for the card above.
+  const rolling = rollingTerm(client,pkg);
+  const money0=(n)=>"$"+Number(n||0).toLocaleString();
   return (
     <div style={S.col11}>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
         <Card style={{textAlign:"center"}}><Label>Status</Label><Chip label={client.contractStatus==="active"?"Signed & Active":client.contractStatus==="pending"?"Pending Signature":"Expired"} color={client.contractStatus==="active"?C.green:client.contractStatus==="pending"?C.amber:C.red}/></Card>
-        <Card style={{textAlign:"center"}}><Label>Days Remaining</Label><div style={{fontSize:22,fontWeight:800,color:days<=7?C.red:days<=30?C.amber:C.green,lineHeight:1}}>{Math.max(0,days)}</div></Card>
+        {rolling?<Card style={{textAlign:"center"}}><Label>{days>0?"First Term Left":"Term"}</Label><div style={{fontSize:days>0?22:15,fontWeight:800,color:C.green,lineHeight:1.2}}>{days>0?`${days} days`:"Month to month"}</div></Card>:<Card style={{textAlign:"center"}}><Label>Days Remaining</Label><div style={{fontSize:22,fontWeight:800,color:days<=7?C.red:days<=30?C.amber:C.green,lineHeight:1}}>{Math.max(0,days)}</div></Card>}
       </div>
-      {/* Renewal button — appears when ≤30 days left or expired */}
-      {showRenewBtn&&!showRenewal&&(
+      {/* 🔴 v9 (KB complete-plan): nothing to renew. After the first term it runs month to month by itself. An
+          agreement signed before the new pricing renews ONTO it: no monthly minimum, month to month from here. */}
+      {rolling&&<Card>
+        <div style={{fontSize:12,fontWeight:700,color:C.textDim,marginBottom:4}}>{days>0?`First term ends ${client.contractEnd}`:"Month to month"}</div>
+        <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>{days>0
+          ? <>After that it carries on month to month by itself. There's nothing to renew. Either side can end it with {NOTICE_DAYS} days' notice.</>
+          : <>Their first {firstTermMonths(client)===12?"12 months are":"3 months are"} done, so it now runs month to month. There's nothing to renew. Either side can end it with {NOTICE_DAYS} days' notice.</>}</div>
+      </Card>}
+      {!rolling&&showRenewBtn&&!showRenewal&&(
         <button onClick={()=>setShowRenewal(true)} style={{width:"100%",padding:"12px",fontSize:13,fontWeight:700,borderRadius:10,border:`1px solid ${C.green}44`,backgroundColor:`${C.green}12`,color:C.green,cursor:"pointer"}}>
           ✓ Renew This Contract
         </button>
       )}
-      {showRenewal&&(
+      {!rolling&&showRenewal&&(
         <Card style={{backgroundColor:"rgba(16,185,129,.06)",borderColor:"rgba(16,185,129,.25)"}}>
-          <div style={{fontSize:13,fontWeight:700,color:C.green,marginBottom:10}}>Renew Contract for {client.name}</div>
-          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:5}}>Renewal Length &amp; Rate</div>
-          <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
-            {["1","3","6","12"].map(m=>{
-              const sel=renewMonths===m;
-              const mo=termMonthly(baseMonthly,parseInt(m));
-              return (
-                <button key={m} onClick={()=>setRenewMonths(m)} style={{flex:1,padding:"8px 4px",borderRadius:9,border:`1px solid ${sel?C.green:C.border}`,backgroundColor:sel?`${C.green}15`:"rgba(255,255,255,.03)",cursor:"pointer",minWidth:56,textAlign:"center"}}>
-                  <div style={{fontSize:12,fontWeight:700,color:sel?C.green:C.textDim}}>{m==="12"?"1 yr":m+" mo"}</div>
-                  <div style={{fontSize:11,fontWeight:700,color:sel?C.green:C.textMuted,marginTop:2}}>${mo.toLocaleString()}</div>
-                  <div style={{fontSize:8,fontWeight:700,letterSpacing:".03em",color:parseInt(m)===1?C.amber:parseInt(m)>3?C.green:C.textMuted,marginTop:1}}>{termRateLabel(parseInt(m))}</div>
-                </button>
-              );
-            })}
-          </div>
-          <div style={{fontSize:11,color:C.textDim,marginBottom:12,lineHeight:1.65}}>
-            {(()=>{
-              const m=parseInt(renewMonths)||3;
-              const mo=termMonthly(baseMonthly,m);
-              const m2m=termMonthly(baseMonthly,1);
-              const saved=(m2m-mo)*m;
-              return <>
-                <div>Renewing for <strong style={{color:C.text}}>{monthsLabel(m)}</strong> at <strong style={{color:C.green}}>${mo.toLocaleString()}/mo</strong> ({termRateLabel(m)})</div>
-                {/* 🔴 BOTH numbers, because under the greater-of rule the client only ever
-                    pays one of them and it is usually the per-lead one. Showing only the
-                    minimum meant the discount on a good month was invisible, which is the
-                    same as it not existing when he is trying to close a longer term. */}
-                {basePerLead>0&&<div style={{marginTop:3}}>Per qualified {client.billingResultKind==="sale"?"sale":"lead"}: <strong style={{color:C.green}}>${termMonthly(basePerLead,m).toLocaleString()}</strong>{termRate(m)!==0&&<span style={{color:C.textMuted}}> (was ${basePerLead.toLocaleString()})</span>}</div>}
-                {basePct>0&&<div style={{marginTop:3}}>Fee on ad spend: <strong style={{color:C.green}}>{termPct(basePct,m)}%</strong>{termRate(m)!==0&&<span style={{color:C.textMuted}}> (was {basePct}%)</span>}</div>}
-                {m===1&&termRate(1)>0&&<div style={{marginTop:3,fontSize:10,color:C.amber}}>Month-to-month includes a flexibility premium on both the minimum and the per-lead rate.</div>}
-                {saved>0&&<div style={{marginTop:3,fontSize:10,color:C.green}}>Saves ${saved.toLocaleString()} on the minimum alone over the term vs. month-to-month, before any per-lead saving.</div>}
-                <div style={{marginTop:3}}>New end date: <strong style={{color:C.green}}>{renewalPreviewDate()}</strong></div>
-                {client.billingStatus==="active"&&mo!==effMonthly&&<div style={{marginTop:3,fontSize:10,color:C.textMuted}}>Their live Stripe subscription will update to this rate automatically.</div>}
-              </>;
-            })()}
+          <div style={{fontSize:13,fontWeight:700,color:C.green,marginBottom:8}}>Renew {client.name} onto the new terms</div>
+          <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.65,marginBottom:12}}>
+            <div>Renewals are month to month now. From the end of their current term:</div>
+            <div style={{marginTop:4}}>• <strong style={{color:C.text}}>No monthly minimum.</strong> They pay {basePerLead>0?<><strong style={{color:C.green}}>${basePerLead.toLocaleString()}</strong> per qualified {client.billingResultKind==="sale"?"sale":"lead"}</>:basePct>0?<><strong style={{color:C.green}}>{basePct}%</strong> of their ad spend</>:"their performance fee"} and nothing else.</div>
+            <div>• <strong style={{color:C.text}}>Month to month,</strong> and either side can stop with {NOTICE_DAYS} days' notice.</div>
+            {client.stripeSubscriptionId&&client.billingStatus==="active"&&<div style={{marginTop:6,fontSize:10.5,color:C.textMuted}}>Their {money0(effMonthly)}/mo subscription stops at the end of the month they've already paid for. After that, lead fees go on one invoice a month to the card they already have on file.</div>}
           </div>
           <div style={S.row7}>
             <button onClick={()=>setShowRenewal(false)} disabled={renewBusy} style={{flex:1,padding:"9px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:renewBusy?"default":"pointer"}}>Cancel</button>
-            <button onClick={handleRenew} disabled={renewBusy||renewSaved} style={{flex:2,padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:renewSaved?"#059669":C.green,color:"#fff",cursor:renewBusy?"default":"pointer",opacity:renewBusy?.7:1,transition:"background .2s"}}>
-              {renewBusy?"Updating…":renewSaved?"✓ Contract Renewed":"Confirm Renewal"}
+            <button onClick={handleRenew} disabled={renewBusy||renewSaved} style={{flex:2,padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:renewSaved?"#059669":C.green,color:"#fff",cursor:renewBusy?"default":"pointer",opacity:renewBusy?.7:1}}>
+              {renewBusy?"Updating…":renewSaved?"✓ Renewed":"Renew onto the new terms"}
             </button>
           </div>
-          {renewNote&&<div style={{fontSize:10,color:renewNote.startsWith("Contract renewed, but")?C.amber:C.green,marginTop:8,lineHeight:1.55}}>{renewNote}</div>}
+          {renewNote&&<div style={{fontSize:10,color:renewNote.includes("failed")?C.amber:C.green,marginTop:8,lineHeight:1.55}}>{renewNote}</div>}
         </Card>
       )}
       {/* Early termination — auto-calculates the Agreement's ETF (1 month fee + term-discount clawback) */}
@@ -16208,8 +16551,8 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
         <Card style={{backgroundColor:"rgba(239,68,68,.05)",borderColor:"rgba(239,68,68,.25)"}}>
           <div style={{fontSize:13,fontWeight:700,color:C.red,marginBottom:8}}>Early Termination — {client.name}</div>
           <div style={{fontSize:11,color:C.textDim,lineHeight:1.7,marginBottom:10}}>
-            <div style={{display:"flex",justifyContent:"space-between"}}><span>Early-termination fee (1 month&rsquo;s fee)</span><strong style={{color:C.text}}>${etfCalc.etfFee.toLocaleString()}</strong></div>
-            <div style={{display:"flex",justifyContent:"space-between"}}><span>Term-discount clawback ({etfCalc.clawPerMonth>0?`$${etfCalc.clawPerMonth.toLocaleString()}/mo × ${etfCalc.monthsBilled} month${etfCalc.monthsBilled!==1?"s":""} billed`:"no discounted rate — none"})</span><strong style={{color:C.text}}>${etfCalc.clawback.toLocaleString()}</strong></div>
+            <div style={{display:"flex",justifyContent:"space-between"}}><span>{etfCalc.v9?(planOf(client)==="complete"&&!isStorePkgId(client)?`Rest of the free website build (${"$"}${COMPLETE_PLAN.exitPerMonth} × months left in the first year)`:waivedSetupOf(client,pkg)>0?`Pay back the free setup (a third of ${"$"}${waivedSetupOf(client,pkg).toLocaleString()} for each month left of the first 3)`:"Nothing to pay: they paid their setup"):<>Early-termination fee (1 month&rsquo;s fee)</>}</span><strong style={{color:C.text}}>${etfCalc.etfFee.toLocaleString()}</strong></div>
+            {!etfCalc.v9&&<div style={{display:"flex",justifyContent:"space-between"}}><span>Term-discount clawback ({etfCalc.clawPerMonth>0?`$${etfCalc.clawPerMonth.toLocaleString()}/mo × ${etfCalc.monthsBilled} month${etfCalc.monthsBilled!==1?"s":""} billed`:"no discounted rate — none"})</span><strong style={{color:C.text}}>${etfCalc.clawback.toLocaleString()}</strong></div>}
             <div style={{display:"flex",justifyContent:"space-between",borderTop:`1px solid ${C.border}`,marginTop:5,paddingTop:5}}><span style={{fontWeight:700,color:C.text}}>Total owed (per Agreement)</span><strong style={{color:C.red,fontSize:14}}>${etfCalc.total.toLocaleString()}</strong></div>
             <div style={{fontSize:10,color:C.textMuted,marginTop:6}}>Recording sets the contract end to 30 days out (the notice period) if that is sooner than the current end date. Fees already accrued still bill normally.</div>
           </div>
@@ -16234,6 +16577,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
       )}
       {/* 🔴 ABOVE the send button on purpose. These are the terms that go INTO the document
           being sent, so meeting them after the Send button is meeting them too late. */}
+      <PlanCard client={client} pkg={pkg} onUpdate={onUpdate}/>
       <SpecialTermsCard client={client} pkg={pkg} onUpdate={onUpdate}/>
       <AddOnsCard client={client} pkg={pkg} onUpdate={onUpdate}/>
       {client.contractSigned&&!client.internal&&<ReplaceAgreementCard client={client} onUpdate={onUpdate}/>}
@@ -16834,7 +17178,7 @@ function ARIAPanel({clients,onClose,onDelete,onUpdate,initialAsk,speakReplies}) 
   const MRR=realClients.reduce((s,c)=>s+((findPkg(c.packageId) && findPkg(c.packageId).price)||0),0);
   const upgradeRequests=realClients.filter(c=>c.upgradeRequest);
   const SYSTEM=`You are ARIA, BoldLine Media's agency AI. Full system access. Bryson runs a pay-per-lead agency (roofing, med spas, auto detailing).
-STATE: ${realClients.length} clients | ${realClients.filter(c=>c.stage==="active").length} active | guaranteed monthly floor $${MRR.toLocaleString()} (the MINIMUM billed; actual revenue is whichever is higher of that or the month's lead fees) | ${realClients.flatMap(c=>getAlerts(c)).length} alerts | ${upgradeRequests.length} upgrade requests
+STATE: ${realClients.length} clients | ${realClients.filter(c=>c.stage==="active").length} active | guaranteed monthly $${MRR.toLocaleString()} (old-terms minimums plus Complete plan fees; new ad clients have no minimum and pay per lead on top) | ${realClients.flatMap(c=>getAlerts(c)).length} alerts | ${upgradeRequests.length} upgrade requests
 CLIENTS:
 ${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${(p && p.name)}(${(p && p.platform)}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}${isOwned(c)?" [OWNED: a business Bryson owns himself, run from the OS. Not BoldLine and not a client — help run/optimize its ads, website and landing pages for its own customers, but never propose upgrades, billing, or contract actions on it, and don't count it as client revenue]":c.internal?" [INTERNAL: BoldLine's OWN house ad account, not a paying client — help run/optimize its ads, but never propose upgrades, billing, or contract actions on it, and don't count it as client revenue]":""}`; }).join("\n")}
 Be direct, opinionated. Flag problems Bryson hasn't noticed.
@@ -22399,8 +22743,8 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
   const isDismissed = (cl,key) => (cl.dismissedAlerts||[]).includes(key);
   const dismiss = (cl,key) => onUpdate({...cl, dismissedAlerts:[...(cl.dismissedAlerts||[]), key]});
   const upgradeClients = clients.filter(c=>c.upgradeRequest);
-  const urgentClients  = clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=7 && !isDismissed(c,`c7:${c.contractEnd}`); });
-  const expiringSoon   = clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>7&&d<=30 && !isDismissed(c,`c30:${c.contractEnd}`); });
+  const urgentClients  = clients.filter(c=>{ const d=daysToRenewal(c); return d>=0&&d<=7 && !isDismissed(c,`c7:${c.contractEnd}`); });
+  const expiringSoon   = clients.filter(c=>{ const d=daysToRenewal(c); return d>7&&d<=30 && !isDismissed(c,`c30:${c.contractEnd}`); });
   const intakeClients  = clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding"&&!isDismissed(c,"intake"));
   const pendingApprovals = clients.flatMap(c=>(c.pendingActions||[]).map(a=>({...a,client:c})));
   const [confirming,setConfirming]=useState(null);
@@ -22619,7 +22963,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                 Urgent — Contract Expiring
               </div>
               {urgentClients.map(cl=>{
-                const d=daysUntil(cl.contractEnd);
+                const d=daysToRenewal(cl);
                 return (
                   <div key={cl.id} onClick={()=>goTo(cl,"contract")} style={{backgroundColor:C.bg3,border:`1px solid ${C.red}33`,borderRadius:11,padding:"13px 14px",marginBottom:8,cursor:"pointer"}}>
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -22646,7 +22990,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                 Contract Renewals Coming Up
               </div>
               {expiringSoon.map(cl=>{
-                const d=daysUntil(cl.contractEnd);
+                const d=daysToRenewal(cl);
                 return (
                   <div key={cl.id} onClick={()=>goTo(cl,"contract")} style={{backgroundColor:C.bg3,border:`1px solid ${C.amber}33`,borderRadius:11,padding:"13px 14px",marginBottom:8,cursor:"pointer"}}>
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -23793,8 +24137,8 @@ function App({onLogout}) {
 
   const _dism = (c,k) => (c.dismissedAlerts||[]).includes(k);
   const notifCount = clients.filter(c=>c.upgradeRequest).length
-    + clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=7 && !_dism(c,`c7:${c.contractEnd}`); }).length
-    + clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>7&&d<=30 && !_dism(c,`c30:${c.contractEnd}`); }).length
+    + clients.filter(c=>{ const d=daysToRenewal(c); return d>=0&&d<=7 && !_dism(c,`c7:${c.contractEnd}`); }).length
+    + clients.filter(c=>{ const d=daysToRenewal(c); return d>7&&d<=30 && !_dism(c,`c30:${c.contractEnd}`); }).length
     + clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding"&&!_dism(c,"intake")).length
     + clients.reduce((s,c)=>s+(c.pendingActions||[]).length,0);
   const newLeadsCount = leads.filter(l => l.status === "new").length;

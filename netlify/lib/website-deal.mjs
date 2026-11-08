@@ -29,7 +29,13 @@
 //   launchedAt
 
 import { WEBSITE_OFFER, WEBSITE_SIGNATURE, GOOGLE_PROFILE } from "./pricing-shared.mjs";
-import { gbpCareClauses } from "./contract-shared.cjs";
+import { gbpCareClauses, planOf, isStorePkgId } from "./contract-shared.cjs";
+// A Complete client (KB complete-plan) gets the website inside their ONE ads agreement: built free on the 12-month
+// first term, hosting, care and the blog inside the $500. So there is no website agreement to send, nothing to pay
+// here, and no care plan to start: the build unlocks when THAT agreement is signed. 🔴 Anything that bills a website
+// (care plan at launch, a website invoice) must ask this first, or a Complete client pays twice for the same site.
+// A store's Complete plan has no website (we don't build online stores), so it covers nothing here.
+export const completeCovered = (cl) => planOf(cl) === "complete" && !isStorePkgId(cl);
 
 export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: WEBSITE_OFFER.care };
 // WA-2 (2026-10-06): section 6 spells out that BoldLine manages the client's domain settings through access the
@@ -172,6 +178,7 @@ export const fullyPaid = (cl) => amountsOf(termsOf(cl)).stages.every((s) => stag
 // Null when unlocked, else the plain-English reason shown on the button.
 export function buildLock(cl) {
   if (exempt(cl)) return null;
+  if (completeCovered(cl)) return cl.contractSigned ? null : "A Complete client: the website is part of their one agreement and built free. The build unlocks once that agreement (Contract tab) is signed.";
   const a = dealOf(cl).agreement;
   if (!a || !LIVE_AGREEMENT.includes(a.status)) return "Send the website agreement first. The build unlocks once it is signed and the first payment is in.";
   if (a.status !== "completed") return "Waiting for the client to sign the website agreement.";
@@ -182,6 +189,7 @@ export function publishLock(cl) {
   if (exempt(cl)) return null;
   const b = buildLock(cl);
   if (b) return b;
+  if (completeCovered(cl)) return null;   // built free: nothing to be paid before it goes live
   if (!fullyPaid(cl)) return `Waiting for the final payment (${money(amountsOf(termsOf(cl)).final)}). The site can't go live until it's paid.`;
   return null;
 }
@@ -189,6 +197,7 @@ export function publishLock(cl) {
 // What happens next, for the OS card. One line, plain English.
 export function nextStep(cl) {
   if (exempt(cl)) return "This is BoldLine's own site, so there is nothing to sign or pay.";
+  if (completeCovered(cl)) return !cl.contractSigned ? "Complete client. Send their Complete agreement from the Contract tab; the build unlocks when they sign." : !dealOf(cl).launchedAt ? "Covered by Complete: build it, then put it live. Nothing to invoice." : "Live.";
   const d = dealOf(cl), t = termsOf(cl), m = amountsOf(t), a = d.agreement;
   if (!a || !LIVE_AGREEMENT.includes(a.status)) return "Set the price and payment plan, then send the agreement.";
   if (a.status !== "completed") return "Agreement sent. As soon as they sign, the first invoice goes to them by itself.";

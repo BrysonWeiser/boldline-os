@@ -235,7 +235,16 @@ ok("no ROAS bonus survives in the contract copy", !/roas/i.test(contractSrc) || 
 {
   const g = osPkgs["g-growth"];       // $700 floor, per lead
   const e = osPkgs["e-growth"];       // $700 floor, 15% of ad spend
-  const bill = (pkg, args) => os.calcMonthlyBill(pkg, args);
+  // The greater-of arithmetic, as every agreement signed before 2026-11-07 still bills (`noMinimum: false`).
+  const bill = (pkg, args) => os.calcMonthlyBill(pkg, { noMinimum: false, ...args });
+  // 🔴 And the new terms (KB complete-plan): no floor at all, so the bill IS what was earned, a dead month is $0.
+  const now = (pkg, args) => os.calcMonthlyBill(pkg, args);
+  eq("new terms: a quiet month bills only its leads", now(g, { qualifiedLeads: 4, perLeadFee: 45 }).billed, 180);
+  eq("new terms: a dead month bills nothing", now(g, { qualifiedLeads: 0, perLeadFee: 45 }).billed, 0);
+  eq("new terms: a store pays its share of spend, no floor", now(e, { adSpend: 3000 }).billed, 450);
+  eq("new terms: nothing is ever 'under the minimum'", now(g, { qualifiedLeads: 1, perLeadFee: 45 }).atFloor, false);
+  for (const [label, fn] of [["pricing-shared", shared.calcMonthlyBill], ["the OS", os.calcMonthlyBill]])
+    eq(`${label}: the new terms are the default`, fn(g, { qualifiedLeads: 4, perLeadFee: 45 }).floor, 0);
 
   eq("under the floor bills the floor", bill(g, { qualifiedLeads: 4, perLeadFee: 45 }).billed, 700);
   eq("under the floor is flagged", bill(g, { qualifiedLeads: 4, perLeadFee: 45 }).atFloor, true);
@@ -357,9 +366,10 @@ for (const p of os.ALL_PKGS) {
 // The quote block a model reads aloud must not describe a retainer PLUS a fee.
 {
   const block = shared.packagesPromptBlock(75);
-  ok("the quote block says MINIMUM", /MINIMUM/.test(block));
-  ok("the quote block says whichever is higher", /whichever is higher/i.test(block));
-  ok("the quote block says never both", /never both/i.test(block));
+  // Since 2026-11-07 (KB complete-plan) there is no minimum for anyone, so the model must not be told one exists.
+  ok("the quote block says there is no monthly fee", /NO monthly fee/.test(block));
+  ok("the quote block never mentions a minimum", !/MINIMUM|minimum/.test(block.replace(/no minimum/g, "")));
+  ok("the quote block never describes a greater-of rule", !/whichever is higher/i.test(block));
   ok("the quote block never says management fee", !/management/i.test(block));
   ok("the quote block never mentions a ROAS bonus", !/roas/i.test(block));
   ok("the quote block covers every package", os.ALL_PKGS.every((p) => block.includes(p.id)));
@@ -526,12 +536,17 @@ eq("site split-testing bullets match splitTesting packages", bulletCount("split-
 //
 // Two price shapes: a managed plan quotes a monthly minimum, a one-time build quotes a
 // single fee. Both are captured so neither can drift unnoticed.
-const CARD_RE = /<h3>([^<]+)<\/h3>[\s\S]{0,400}?class="price">(?:From <b>\$([\d,]+)\/mo<\/b>|<b>\$([\d,]+)<\/b> once)[\s\S]{0,60}?class="pnote">([\s\S]*?)<\/div>[\s\S]{0,240}?Typical ad budget: ([^<]+)</g;
+// 🔴 Since 2026-11-07 (KB complete-plan) a managed plan quotes NO monthly fee at all ("No monthly fee"). The
+// old "From $X/mo" shape is still captured, so if it ever comes back on a card the price check fails.
+// Card order since 2026-11-07: title, the ad budget that qualifies for it, what you pay, the note. A lead-gen card
+// leads with "Pay only for results", a store card with its share of ad spend; both are "no fee" shapes.
+const CARD_RE = /<h3>([^<]+)<\/h3>\s*<div class="budget">For ad budgets of <b>([^<]+)<\/b><\/div>\s*<div class="price">(?:From <b>\$([\d,]+)\/mo<\/b>|<b>\$([\d,]+)<\/b> once|<b>(Pay only for results|\d+% of your ad spend)<\/b>)<\/div>\s*<div class="pnote">([\s\S]*?)<\/div>/g;
 const cardsIn = (panelName) => [...panelOfSite(panelName).matchAll(CARD_RE)].map((m) => ({
-  title: m[1].trim(),
-  price: m[2] ? Number(m[2].replace(/,/g, "")) : 0,
-  once: m[3] ? Number(m[3].replace(/,/g, "")) : null,
-  perf: m[4].trim(), budget: m[5].trim(),
+  title: m[1].trim(), budget: m[2].trim(),
+  price: m[3] ? Number(m[3].replace(/,/g, "")) : 0,
+  once: m[4] ? Number(m[4].replace(/,/g, "")) : null,
+  noFee: !!m[5], headline: m[5] || "",
+  perf: (m[5] || "") + " " + m[6].trim(),
 }));
 // 🔴 THE HAND-OFF IS DELIBERATELY NOT ON THE SITE.
 // Bryson, 2026-08-19: "i dont want to advertise it i just want it as an option for sales
@@ -574,7 +589,10 @@ PUBLIC_PKGS.forEach((p) => {
     eq(`${p.id} one-time fee matches the site`, c.once, p.setup);
     eq(`${p.id} advertises no monthly`, c.price, 0);
   } else {
-    eq(`${p.id} price matches the site`, c.price, p.price);
+    // Since 2026-11-07 (KB complete-plan, terms v9) no new client has a monthly minimum: the agreement, billing and
+    // Deal Prep all read the minimum through `minimumOf`, which is zero on v9. The catalog's `price` survives ONLY as
+    // the minimum of agreements signed before v9, so it is deliberately not what the public site shows.
+    ok(`${p.id} advertises no monthly fee`, c.noFee && c.price === 0, JSON.stringify(c));
     eq(`${p.id} is not sold as a one-time build`, c.once, null);
   }
   eq(`${p.id} ad budget matches the site`, c.budget.replace(/–|—/g, "-"), String(p.adSpend).replace(/–|—/g, "-"));
@@ -589,8 +607,13 @@ PUBLIC_PKGS.forEach((p) => {
   // comma-joined clause into two sentences, and a single regex pinned to the old punctuation
   // would have forced the copy back rather than the copy forcing the test. What must survive
   // is the MEANING: it is the greater of the two, and they are never charged together.
-  ok(`${p.id} states the greater-of rule on the site`, /whichever is higher/i.test(c.perf), c.perf);
-  ok(`${p.id} says the two fees are never both charged`, /never both/i.test(c.perf), c.perf);
+  // Since 2026-11-07 there is no minimum to compare against, so the old "whichever is higher" must be GONE,
+  // and the card must say what a month with nothing costs.
+  ok(`${p.id} no longer claims a greater-of rule`, !/whichever is higher|never both/i.test(c.perf), c.perf);
+  ok(`${p.id} says a quiet month is not topped up`, /nothing in a month with none|no minimum/i.test(c.perf), c.perf);
+  // "Pay only for results" is true of a per-lead plan and NOT of a store, which pays a share of its spend whatever
+  // happens. So the headline must match the model.
+  ok(`${p.id} leads with the right headline`, p.pricingModel === "ad_spend_pct" ? c.headline === `${p.adSpendPct}% of your ad spend` : c.headline === "Pay only for results", c.headline);
   if (isOneTime(p)) { /* no performance half to check */ }
   else if (p.pricingModel === "ad_spend_pct")
     ok(`${p.id} quotes ${p.adSpendPct}% of ad spend on the site`, c.perf.includes(`${p.adSpendPct}% of your ad spend`), c.perf);
@@ -603,7 +626,7 @@ ok("the site no longer advertises a performance bonus", !/performance bonus/i.te
 // The two rules a prospect must not be able to miss.
 ok("the site states the $5,000 combined unlock", /both platforms starts at \$5,000 a month/i.test(site));
 ok("the site states the minimum ad budget", /smallest budget we'?.{0,3}ll take on is \$500 a month/i.test(site));
-ok("the site says the two fees are never added together", /Never both added together/i.test(site));
+ok("the site explains how you pay, with no monthly fee for ads", /There's no monthly fee for ads/i.test(site) && !/Never both added together/i.test(site));
 // The recommender must not be able to recommend a combined system below the unlock.
 ok("the recommender gates combined on the ad-budget band", /COMBO_MIN_BAND/.test(site));
 ok("the recommender no longer offers a combined Launch tier", !/Full System: Launch/.test(site));

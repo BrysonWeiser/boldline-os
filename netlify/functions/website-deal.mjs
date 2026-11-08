@@ -31,7 +31,7 @@ import { promises as dnsp } from "node:dns";
 import { cleanDomain, altHost, isApex, dnsRecords, checkDomain, addNetlifyAlias, addressTaken, netlifyStatus, sitesTarget } from "../lib/site-domain.mjs";
 import {
   dealOf, termsOf, agreementLive, websiteAgreementHTML, AGREEMENT_VERSION, createWebsiteInvoice, startCarePlan,
-  publishLock, amountsOf, exempt, buildTotal, monthlyTotal, isSigned, cleanSpecial,
+  publishLock, amountsOf, exempt, buildTotal, monthlyTotal, isSigned, cleanSpecial, completeCovered,
 } from "../lib/website-deal.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -217,7 +217,8 @@ export default async (req) => {
         // 🔴 Bought outright is never hosted by us: the agreement says they get the files instead (WA-8, KB demo-sites).
         if (termsOf(cl).mgmt === "own") return json({ ok: false, error: "They bought it outright, so we don't host it. Download their site files on the Website tab and send them over." }, 409);
         if (exempt(cl)) { const next = await save({ launchedAt: deal.launchedAt || new Date().toISOString() }); return json({ ok: true, deal: next }); }
-        const r = await startCarePlan(cl, api);
+        // 🔴 Complete (KB complete-plan): hosting and care are inside the $500, so no care plan starts here.
+        const r = completeCovered(cl) ? null : await startCarePlan(cl, api);
         const care = monthlyTotal(termsOf(cl));
         const first = !deal.launchedAt && !(cl.emailAuto || {}).websiteLive;
         let next = await save({ launchedAt: deal.launchedAt || new Date().toISOString(), ...(r ? { customerId: r.customerId, careSub: r.careSub } : {}) },

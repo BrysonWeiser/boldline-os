@@ -109,9 +109,17 @@ const os = readFileSync("index.html", "utf8");
   const project = (pkgId, budget, cpl, fee) => {
     const pkg = shared.PACKAGES.find((p) => p.id === pkgId);
     const leads = Math.max(0, Math.round(budget / cpl));
-    const b = shared.calcMonthlyBill(pkg, { qualifiedLeads: leads, perLeadFee: fee });
+    // The greater-of arithmetic, as an agreement signed before 2026-11-07 bills it (`noMinimum: false`).
+    const b = shared.calcMonthlyBill(pkg, { qualifiedLeads: leads, perLeadFee: fee, noMinimum: false });
     return { leads, ...b, pctOfSpend: Math.round((b.billed / budget) * 100) };
   };
+  // 🔴 What the fee finder actually shows today (KB complete-plan): no floor, so the bill is exactly the leads.
+  {
+    const pkg = shared.PACKAGES.find((p) => p.id === "g-growth");
+    const now = shared.calcMonthlyBill(pkg, { qualifiedLeads: 20, perLeadFee: 15 });
+    eq("new terms: a low fee is simply a low bill, never topped up to a minimum", now.billed, 300);
+    ok("new terms: and nothing is flagged as under a floor", !now.atFloor && now.floor === 0);
+  }
   // A roofer at $3,000 of budget, leads costing $150, fee $75: 20 leads, $1,500 earned,
   // comfortably over the $700 minimum.
   const good = project("g-growth", 3000, 150, 75);
@@ -207,7 +215,8 @@ const os = readFileSync("index.html", "utf8");
     { id: "h-handoff", name: "Launch & Hand Off", platform: "Google Ads", price: 0, setup: 1500,
       pricingModel: "one_time", adSpend: "Any budget", optimizationFreq: "none" }, "");
   const managed = makeContractHTML(
-    { name: "B Client", niche: "Roofing", packageId: "g-growth", contractTermMonths: 3, id: "g1", email: "c@d.com" },
+    // Pinned to v8: "managed" here means an agreement with a monthly minimum (KB complete-plan made v9 minimum-free).
+    { name: "B Client", niche: "Roofing", packageId: "g-growth", contractTermMonths: 3, id: "g1", email: "c@d.com", contractTermsVersion: 8 },
     { id: "g-growth", name: "Growth System", platform: "Google Ads", price: 700, setup: 1500,
       pricingModel: "per_lead", adSpend: "$2,500–$10,000/mo", optimizationFreq: "weekly" }, "");
 
@@ -361,7 +370,7 @@ ok("the dashboard calls it a floor", /Guaranteed Monthly Floor/.test(os));
 ok("the revenue screen separates the floor from what was invoiced",
   /Guaranteed floor by client/.test(os) && /What you actually invoiced/.test(os));
 ok("the revenue screen only compares finished months", /isCurrent/.test(os));
-ok("ARIA is told the floor is a minimum, not revenue", /guaranteed monthly floor/.test(os));
+ok("ARIA is told the floor is a minimum, not revenue", /guaranteed monthly \$\$\{MRR\.toLocaleString\(\)\} \(old-terms minimums plus Complete plan fees; new ad clients have no minimum and pay per lead on top\)/.test(os));
 
 console.log(fails.length ? `✕ ${fails.length} failed, ${pass} passed\n  ` + fails.join("\n  ")
   : `✓ verify-pricing-tools: ${pass} checks passed`);

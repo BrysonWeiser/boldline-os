@@ -257,3 +257,15 @@ buttons inside it went soft as the picture grows on scroll.
 - Ads page gallery pictures re-shot with the matched landing pages and real fonts.
 - Audit scripts used (scratchpad, not committed): page errors, sideways overflow, overlapping text, stretched pictures,
   buttons whose text wraps or spills, at 1440, 390 and 320.
+
+## 2026-11-07: every sample website opens in LIGHT (test copy, with the new pricing). Was dark for an hour, see below
+Bryson: "lets either have all of the previews start in dark mode or light mode im thinking dark". Before, each design
+opened in its natural mode (Showcase/Editorial light, Cinematic dark), so the three pictures on /websites/ looked
+mismatched. Now `SAMPLE_MODE = "dark"` in `scripts/site-showcase-demo.mjs` is the one switch: every /examples/* sample
+and the photographed pictures (`node scripts/build-site-showcase.cjs`, run with
+NODE_PATH=/opt/node22/lib/node_modules) open dark; the Light/dark button on each sample still flips it. Reasoning given:
+matches our site, the eye goes to the photos instead of three white boxes on a black page, and light is one tap away.
+A light-vs-dark comparison picture was sent to him first. To switch back: change SAMPLE_MODE, rebuild, re-shoot.
+- FINAL (same afternoon): after the light-vs-dark comparison picture Bryson chose LIGHT: "lets do light to start off
+  with and then they can change it when they open up each website like normal". `SAMPLE_MODE = "light"`, pictures
+  re-shot light. My recommendation had been dark; his call. Aurora (retired, unlinked) stays dark, it has no light.

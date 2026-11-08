@@ -58,12 +58,14 @@ export const PACKAGES = [
 ];
 
 // The one billing calculation — "whichever is more". Mirrors index.html's copy.
-export const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 } = {}) => {
+// `noMinimum` (default TRUE since 2026-11-07, KB complete-plan): a quote to a prospect today has no floor. Pass
+// false only to reproduce a bill under an agreement signed before the new pricing.
+export const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0, noMinimum = true } = {}) => {
   if (!pkg) return { floor: 0, earned: 0, billed: 0, atFloor: false, model: "none" };
   // A one-time build has no monthly side at all.
   if (pkg.pricingModel === "one_time")
     return { floor: 0, earned: 0, billed: 0, atFloor: false, model: "one_time" };
-  const floor = Number(pkg.price) || 0;
+  const floor = noMinimum ? 0 : (Number(pkg.price) || 0);
   const pctModel = pkg.pricingModel === "ad_spend_pct";
   const earned = pctModel
     ? Math.round(((Number(adSpend) || 0) * (Number(pkg.adSpendPct) || 0)) / 100)
@@ -106,11 +108,11 @@ import { FOUNDING_CLIENT_COUNT } from "./founding.mjs";
 // `active` comes from the live client count; falsey means the block disappears entirely.
 export const foundingTermsBlock = (active = true) =>
   !active ? "" : `
-🔴 FOUNDING CLIENT OFFER — THIS OVERRIDES THE SETUP FEE AND THE MONTHLY MINIMUM ABOVE.
+🔴 FOUNDING CLIENT OFFER — THIS OVERRIDES THE SETUP FEE ABOVE.
 BoldLine is signing its first ${FOUNDING_CLIENT_COUNT} clients on founding terms, and this prospect would be one of them. Quote THESE terms, not the standard prices:
 - The one-time setup fee is WAIVED entirely. Not reduced, waived. Say the normal figure so they know what it is worth, then say it is free for them.
-- There is NO monthly minimum. They pay ONLY the per-qualified-lead fee, in arrears, after the leads are delivered. If BoldLine delivers nothing in a month, they owe nothing that month.
-- Everything else is unchanged: the client keeps their own ad account in their own name, pays their ad spend directly to Google, and BoldLine never holds or fronts it.
+- Their FIRST MONTH OF LEAD FEES IS FREE: no fee for qualified leads that come in during the first 30 days after the ads go live. Say it exactly that way. Their ad spend is still theirs, so NEVER call the service itself "free" or "a free month".
+- Everything else is the standard deal. There is NO monthly minimum: they pay ONLY the per-qualified-lead fee, in arrears, after the leads are delivered. If BoldLine delivers nothing in a month, they owe nothing that month. The client keeps their own ad account in their own name, pays their ad spend directly to Google or Meta, and BoldLine never holds or fronts it.
 Lead with the risk reversal, because it is the whole point: they pay only for results, so there is no way for them to lose money on a month that does not work. It is also the honest reason the offer is limited: BoldLine wants the case studies.
 DO NOT invent a deadline or a countdown. If asked how many places are left, the honest answer is that the offer covers the first ${FOUNDING_CLIENT_COUNT} clients.
 `;
@@ -142,6 +144,29 @@ export const WEBSITE_SIGNATURE = { build: 3500, care: 150, pages: 8, includedExt
 // owning the profile and adds BoldLine as a manager. Monthly, no setup fee.
 export const GOOGLE_PROFILE = { monthly: 130 };
 
+// ─── THE NEW PRICING (decided by Bryson, Sat 2026-11-07, KB `complete-plan`) ─────────────────────────────────
+// 1. No monthly minimum for anyone: ads are paid per qualified lead only (stores: a share of ad spend, no minimum).
+// 2. The first five clients get their first month of LEAD FEES free (their ad spend is still theirs).
+// 3. Every agreement starts with a 3-month term; Complete starts with 12 (it pays back the free website build).
+// 4. After the first term it runs month to month, no renewal to sign, and either side ends it with 30 days' notice.
+// The marketing site reads these; the agreement, Deal Prep and billing follow in the same build.
+export const TERMS = { adsFirstTermMonths: 3, completeFirstTermMonths: 12, noticeDays: 30, afterFirstTerm: "month_to_month" };
+// The Complete plan: one monthly price for everything that is always on, plus the ad lead fee per qualified lead.
+// $500 with the blog included (without the blog it would cost more than the parts bought separately).
+// One ad platform; Google AND Meta together still needs COMBO_MIN_BUDGET of ad budget, the same as Combined.
+// The Standard website build is waived on the 12-month first term; leaving early pays the rest of the build,
+// pro-rated by the months left (build / 12 a month).
+export const COMPLETE_PLAN = { id: "complete", name: "Complete", monthly: 500, platforms: 1,
+  websiteBuildWaived: WEBSITE_OFFER.build, earlyExitPerMonthLeft: Math.round(WEBSITE_OFFER.build / 12),
+  blogPostsPerMonth: WEBSITE_OFFER.blogPostsPerMonth };
+// Complete for ONLINE STORES (Bryson, 2026-11-07): $300 a month plus the store's share of ad spend (15%, 12% at the top
+// tier). Ads, shop landing pages, emails that bring past buyers back, Google profile care if they have a location.
+// No website (BoldLine doesn't build online stores), so no 12-month lock: 3 months, then month to month.
+export const COMPLETE_STORE = { id: "complete-store", name: "Complete for online stores", monthly: 300, termMonths: 3 };
+// Ads (and the store Complete) cancellation fee: leaving in the first 3 months pays back the setup fee BoldLine waived,
+// less a third for each month they stayed. A client who paid their setup owes nothing extra (Bryson, 2026-11-07).
+export const SETUP_PAYBACK = { months: 3 };
+
 export const websitePromptBlock = () => `
 BoldLine ALSO BUILDS WEBSITES, sold to anyone, with or without ads:
 - A ${WEBSITE_OFFER.pages}-page website (Home, Services, About, Reviews, Contact) with modern motion and design, three designs for them to choose from, a contact form that sends them every enquiry, and ${WEBSITE_OFFER.revisionRounds} rounds of changes before launch.
@@ -150,17 +175,31 @@ BoldLine ALSO BUILDS WEBSITES, sold to anyone, with or without ads:
 - Add-ons: extra pages beyond the five at $${WEBSITE_OFFER.extraPage} each (for example service areas, a gallery, pricing), and a blog: $${WEBSITE_OFFER.blogSetup} to add it, then $${WEBSITE_OFFER.blogMonthly}/mo for about ${WEBSITE_OFFER.blogPostsPerMonth} new articles a month written for them. Mention the blog when they care about showing up on Google over time.
 - Business email setup add-on: $${WEBSITE_OFFER.emailSetup} once. BoldLine sets up email on their own domain (like hello@theirbusiness.com) with the provider they choose, paid by them directly to that provider. Connecting their domain to the website is always included in the build, never charged for.
 - Premium tier, the Signature website: $${WEBSITE_SIGNATURE.build.toLocaleString("en-US")} to build, designed around their own brand (their logo, colours and typefaces, sections and layout made for them rather than one of the three designs), ${WEBSITE_SIGNATURE.pages} pages, ${WEBSITE_SIGNATURE.revisionRounds} rounds of changes, then $${WEBSITE_SIGNATURE.care}/mo care with up to ${WEBSITE_SIGNATURE.carePlanEdits} small edits a month. Pitch it to a business that cares how it looks next to competitors or has a strong brand already; the standard site is the default.
-- It is a separate agreement from the ads. Ending one does not end the other.
+- Bought on its own it is a separate agreement from the ads. A client who wants ads AND a website is usually better served by the Complete plan below, where the build is free.
 WHEN TO PITCH IT. Pitch a website when their current site is missing, broken, slow, outdated, not mobile friendly, or plainly not built to turn a visitor into a call. Say what you actually saw. Pitch it ALONE (no ads) only if they plainly cannot fund $${MIN_AD_BUDGET}/mo of ad spend but their site is the bigger problem. Do NOT pitch it when their site is genuinely good: say so, because recommending something they do not need costs Bryson the trust he needs for the ads.
+`;
+
+// The Complete plan, for the sales prompt (KB complete-plan). Every figure from the price list.
+export const completePromptBlock = (leadFee) => `
+THE COMPLETE PLAN, for a business that wants BoldLine to handle ALL its marketing:
+- $${COMPLETE_PLAN.monthly} a month PLUS the same per-qualified-lead fee as the ads (about $${leadFee} for this niche). The lead fee is on top of the $${COMPLETE_PLAN.monthly}, never inside it.
+- Includes: their ads on ONE platform (Google or Meta; both platforms still needs $${COMBO_MIN_BUDGET.toLocaleString("en-US")}/mo of ad budget, same as Combined), a ${WEBSITE_OFFER.pages}-page website BUILT FREE (normally $${WEBSITE_OFFER.build.toLocaleString("en-US")}), hosting and care, Google Business Profile care (normally $${GOOGLE_PROFILE.monthly}/mo), a blog with about ${COMPLETE_PLAN.blogPostsPerMonth} articles a month (normally $${WEBSITE_OFFER.blogMonthly}/mo), emails that bring past customers back, and online booking with deposits.
+- 12 months to start (that is what pays for the free website), then month to month, either side can stop with ${TERMS.noticeDays} days' notice. Leaving early: they pay the rest of the build, $${COMPLETE_PLAN.earlyExitPerMonthLeft} for each month left, and keep the website.
+- Never quote a total "value" figure. If asked what it is worth, list the parts and their normal prices.
+FOR AN ONLINE STORE there is a store version: $${COMPLETE_STORE.monthly} a month plus their share of ad spend (15%, 12% at $10,000+), with the ads, shop landing pages, emails that bring past buyers back, and Google profile care if they have a location customers visit. No website (BoldLine does not build online stores), so 3 months, then month to month.
+LEAVING EARLY on Ads or the store version: in the first 3 months they pay back the setup fee that was waived, less a third for each month they stayed. If they paid their setup, nothing extra. Only mention it if asked.
+WHEN TO RECOMMEND COMPLETE: they need ads AND their website is weak, missing or not built to convert, or they want one team and one bill for everything. Recommend plain ADS when their website is genuinely good and they only need more leads. Recommend WEBSITE alone only when they cannot fund $${MIN_AD_BUDGET}/mo of ad spend but their site is the bigger problem.
 `;
 
 export const packagesPromptBlock = (leadFee) =>
   PACKAGES.map((p) =>
     p.pricingModel === "one_time"
       ? `- ${p.id} — "${p.name}" (${p.platform}): $${p.setup} ONCE and nothing after that. No monthly fee, no per-lead fee, no contract term. BoldLine builds the campaign and the landing page in the client's own account, runs two optimization passes over the first 30 days, hands over a written playbook and a training call, and then it is entirely theirs to run. This is the option for a business below the $${MIN_AD_BUDGET}/mo ad-budget floor, or one that wants the build without the monthly. If they move onto a managed plan within 6 months, the managed setup fee is waived because they already paid for the build.`
-      : `- ${p.id} — "${p.name}" (${p.platform}): $${p.setup} one-time setup, then $${p.price}/mo MINIMUM or ${
-          p.leadFee ? `$${leadFee}/qualified lead` : `${p.adSpendPct}% of ad spend`
-        }, whichever is higher (never both). Client ad budget: ${p.adSpend}.`
+      // 🔴 Since 2026-11-07 (KB complete-plan) there is NO monthly minimum for anyone. A model told "$400/mo
+      // minimum" would quote it on a live call, against the agreement the client then signs.
+      : `- ${p.id} — "${p.name}" (${p.platform}): $${p.setup} one-time setup, then NO monthly fee: ${
+          p.leadFee ? `$${leadFee} per qualified lead, and nothing in a month with no leads` : `${p.adSpendPct}% of that month's ad spend, no minimum`
+        }. 3 months to start, then month to month. Client ad budget: ${p.adSpend} (the budget decides the tier).`
   ).join("\n");
 
 // Which package an ad budget qualifies for. `family` is "g" | "m" | "c" | "e".
