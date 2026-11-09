@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 245 task-keyed entries under `knowledge/`. They surface automatically via the
+> 246 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**245 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**246 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -207,6 +207,12 @@
 - **[springbok-wellness-deal](../knowledge/springbok-wellness-deal.md)** &mdash; &#9989; verified &middot; 2026-10-19  
   UPDATE 2026-10-19: Brendon said YES to the pay-per-show terms ($40 per new patient who shows up within 30 days, monthly yes/no with no health info, his team contacts leads within 1 business day), does NOT want review requests (the feature that emails HIS patients asking for Google reviews, `declinedFeatures: review_requests`; BoldLine asking Brendon himself for a review of BoldLine, KB client-review-ask, is a separate thing and still applies), and wants the ads limited to Gilbert, Mesa and Chandler AZ (replaces the 10 mile radius). Next is the replacement agreement. UPDATE 2026-10-09: Brendon signed an envelope Bryson thought was voided; a replacement agreement (KB contract-replace) is how it gets redone, and a signed contract is now on the record. Older text follows. 🔴 NOT A CLIENT YET, AND MUST NOT BE COUNTED AS ONE (standing rule in CLAUDE.md, Bryson 2026-09-14: "until they are in the os still act as if we only have one"). This entry used to open "BoldLine's SECOND client", which is the exact wording that leaks into a banner, an offer or a number quoted back to him. Brendon, owner of Springbok Wellness, a chiropractor, closed VERBALLY on a call Thursday 2026-09-10 and the signed contract is not on the record; contract not yet sent as of Friday evening. A deeper call is set for later the week of 15 Sep to answer the intake questions. His one stated worry is what counts as a qualified lead, because he has been burned before by people booking an appointment and never becoming a patient, and by sales enquiries coming through his ads. Bryson promised a monthly Google Meet before invoicing to agree qualified leads, the same as Sebastian. He wants to market TMJ and symptom searches; Bryson's instinct to open as a chiropractor rather than one service is right, with a caveat about which searches to buy first.  
   <sub>*task:* work on Springbok Wellness, Brendon's chiropractic ads, or the qualified-lead definition for a clinic &nbsp;|&nbsp; *keywords:* springbok, springbok wellness, brendon, chiropractor, chiropractic, second client, client two, TMJ, jaw pain, lower back pain, neck pain, sciatica, qualified lead definition, monthly call before invoice, solicitors, spam form fills, appointment but not a patient, symptom searches</sub>
+
+## Clients and compliance
+
+- **[hipaa-health-clients](../knowledge/hipaa-health-clients.md)** &mdash; &#9989; verified &middot; 2026-11-09  
+  Bryson asked 2026-11-09 how BoldLine handles HIPAA for medical niches. Answer: today it is handled by hand per client (Springbok rules), not enforced by the OS. Plan recommended - stay OUT of holding patient health details (a "health mode" switch per client), and only become a HIPAA business associate (BAA + HIPAA-eligible vendors + written safeguards) if medical becomes a main niche. Get a healthcare lawyer to check the setup once before signing health clients routinely; this is general guidance, not legal advice.  
+  <sub>*task:* take on or run a medical / health client (chiropractor, dentist, med spa, therapy, clinic) where HIPAA and the ad platforms' health rules apply &nbsp;|&nbsp; *keywords:* hipaa, phi, patient information, business associate agreement, baa, medical clients, health clients, chiropractor, med spa, dental, meta pixel health, google healthcare policy, personal attributes, legitscript, health mode</sub>
 
 ## Contracts
 
