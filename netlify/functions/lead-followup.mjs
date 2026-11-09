@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { healthBlocks } from "../lib/health-mode.mjs";
 import { SUPABASE_URL, retryQuery, sendEmail, sendSMS, leadEmailHTML, handoffIsFinished } from "../lib/report-shared.mjs";
 
 const DAY = 864e5;
@@ -70,6 +71,8 @@ const processClient = async (supabaseAdmin, row) => {
   // Hand-off clients run their own follow-up after settle-in. Ours chasing their
   // leads would put BoldLine's name in front of a customer it no longer represents.
   if (handoffIsFinished(client)) return { id: row.id, skipped: "handed off" };
+  // Health clients: no automated messages to would-be patients (KB hipaa-health-clients).
+  if (healthBlocks(client, "autoReply")) return { id: row.id, skipped: "health client" };
   const leadsLog = client.leadsLog || [];
   if (!leadsLog.length) return { id: row.id, skipped: "no leads" };
 

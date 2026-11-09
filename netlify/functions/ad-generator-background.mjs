@@ -15,7 +15,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import {
-  TOOL_FOR, MAX_TOKENS_FOR, runTool, cleanGoogle, cleanMeta, brief, systemFor, promptFor, friendlyError,
+  TOOL_FOR, MAX_TOKENS_FOR, runTool, cleanGoogle, cleanMeta, brief, systemFor, promptFor, friendlyError, healthForAds,
 } from "../lib/ad-gen-shared.mjs";
 import { getLocalConditions } from "../lib/local-conditions.mjs";
 
@@ -61,9 +61,10 @@ export default async (req) => {
     // real demand (an active heat warning, the season) instead of generic benefits. Facts
     // only, fetched here because the model has no live data of its own. Never fatal.
     const cond = await getLocalConditions({ locations: body.locations });
+    const health = await healthForAds(supabase, body);   // KB hipaa-health-clients
     const { data, model } = await runTool({
       tool: TOOL_FOR[action], maxTokens: MAX_TOKENS_FOR[action],
-      system: systemFor(!!body.agency),
+      system: systemFor(!!body.agency, health),
       prompt: `${promptFor(action, brief(body))}
 
 WHAT IS HAPPENING IN THE SERVICE AREA RIGHT NOW:

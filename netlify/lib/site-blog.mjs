@@ -17,6 +17,7 @@ import { termsOf, isSigned, fullyPaid, dealOf, completeCovered } from "./website
 import { brandName } from "./site-render.mjs";
 import { humanizeDeep } from "./humanize.mjs";
 
+import { healthModeOf } from "./health-mode.mjs";
 export const BLOG_BUCKET = "site-blog";
 export const REVIEW_HOURS = 48;
 
@@ -132,7 +133,7 @@ export const POST_SCHEMA = {
   },
 };
 
-const isHealth = (cl) => /chiro|dental|med ?spa|medical|clinic|therap|physio|wellness|dermatolog|optom|audiolog|counsel|psych/i.test(`${cl.niche} ${cl.name}`);
+const isHealth = (cl) => healthModeOf(cl).on;   // ./health-mode.mjs (KB hipaa-health-clients)
 
 // No dashes anywhere in this prompt, on purpose: a model mirrors the style it is given.
 export function postPrompt(cl, titles = []) {

@@ -12,6 +12,7 @@ import { intakeOf } from "../lib/booking.mjs";
 import { bookingWidgetHTML, bookingWidgetJS, BOOKING_WIDGET_CSS } from "../lib/booking-widget.mjs";
 import { brandFonts, withFont, fontLinks, brandAccents, beforeAfterPairs, beforeAfterHTML, BEFORE_AFTER_CSS, BEFORE_AFTER_JS } from "../lib/brand-style.mjs";
 
+import { healthBlocks } from "../lib/health-mode.mjs";
 // 🔴 NO ZOOM ON AN IPHONE (Bryson, 2026-10-08, screenshot of the contact page cut off after sending).
 // Safari on iPhone zooms the page in when someone taps a form box whose text is under 16px, and it
 // stays zoomed after they submit, so the page reads as cut off. Every form box on a phone is 16px.
@@ -1141,7 +1142,8 @@ a{color:inherit}
   // Digits only: a pasted id routinely arrives with stray spaces or quotes around it, and a
   // malformed id in this snippet is a script error that takes the rest of the page's scripts
   // down with it.
-  const metaPixelId = String((cl && cl.metaPixelId) || "").replace(/[^0-9]/g, "");
+  // 🔴 Never on a health client's page, even with an id set: it tells Meta who visited a health page (KB hipaa-health-clients).
+  const metaPixelId = healthBlocks(cl, "pixel") ? "" : String((cl && cl.metaPixelId) || "").replace(/[^0-9]/g, "");
   const metaPixelTag = metaPixelId ? `<script>
 (function(){if(String(location.href).indexOf('about:')===0)return;
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
