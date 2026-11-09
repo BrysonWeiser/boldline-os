@@ -420,3 +420,20 @@ CSV → Deal Prep hand-off asserted to prefill — **no horizontal scroll at any
 sibling cards equal width**. Live end-to-end (real web research) is Bryson's to confirm after running
 the SQL. See `deal-prep` for the sibling tool and `pricing-shared.mjs` for the per-lead fees the
 scoring quotes.
+
+## 2026-11-09: COMPLETE mode, and the "can they pay" math on the new pricing (dev branch, waiting on Bryson's go)
+Bryson: "add a category where it searches not only for website leads or ad leads but also for the complete package".
+- "What are you selling?" has a third choice, **Complete**: hunts for businesses that live on calls, have a solid
+  reputation, a missing/weak website (and ideally a neglected Google profile), and can fund ads plus the plan fee; no
+  franchises, no strong modern sites. Shares website mode's FREE website check first (`website = pitch === "website" ||
+  pitch === "complete"`), so nothing is paid for a business whose site is fine, and the site check scores the gap.
+  Research brief `enrichCompleteSystem` (Google profile, ads, website; package pick = the ad plan inside Complete).
+- Stored as `pitch: "both"` (ads AND a website), shown as **Complete** everywhere (pitch.mjs PITCHES, OUT_PITCHES,
+  SCOUT_PITCH_LABEL, CSV, the saved-list and Outreach filters with `counts.both`), Deal Prep handoff note says
+  "Selling them: the Complete plan", outreach drafts describe Complete.
+- 🔴 **Affordability fixed for the new pricing** (`scout-scoring.mjs`): it still priced everyone at the old minimum + ad
+  spend. Now `monthlyCostOf(pkg, complete)` = smallest ad budget + BoldLine's fee on it (stores: their %; lead-gen:
+  `LEAD_FEE_SHARE` 0.4 of the budget, labelled an estimate) + $500 Complete ($300 for a store). Ads entry ~$700/mo,
+  Complete ~$1,200/mo. "Don't pitch above their budget" compares ad budgets (minBudget), not old minimums. The ratio line
+  now reads "Their budget covers that N times over" (it used to say "N× their capacity", backwards).
+- Tests: NEW `tests/verify-complete-scout.mjs` (35 checks, 4/4 mutations); verify-website-prospects updated. 188/188.

@@ -6467,7 +6467,7 @@ const scoutSiteSummary=(sc)=>{ if(!sc||typeof sc!=="object") return "";
   if(sc.state==="ok") return "Passed the checks (works on phones, has a padlock, nothing obviously out of date)";
   return sc.note||""; };
 const SCOUT_SITE_PILL={none:["No website","red"],broken:["Website down","red"],weak:["Website needs work","amber"],ok:["Website OK","green"],unknown:["Website not checked","muted"]};
-const SCOUT_PITCH_LABEL={ads:"Ads lead",website:"Website lead",both:"Ads + website lead"};
+const SCOUT_PITCH_LABEL={ads:"Ads lead",website:"Website lead",both:"Complete lead"};   // "both" = ads + website = Complete
 const SCOUT_NICHES = [
   { g:"Home Services & Trades", k:"service", n:["Roofing","HVAC / Heating & Air","Plumbing","Electrical","Garage Door","Pest Control","Landscaping / Lawn Care","Hardscaping & Pavers","Tree Service","Fencing","Deck & Patio Builders","Painting (Residential)","Painting (Commercial)","Flooring","Windows & Doors","Siding","Gutters","Concrete & Paving","Epoxy / Garage Floor Coating","Pressure Washing","Window Cleaning","House Cleaning / Maid Service","Carpet & Upholstery Cleaning","Water Damage Restoration","Mold Remediation","Fire & Smoke Restoration","Foundation Repair","Insulation","Solar Installation","Pool Construction","Pool Service & Repair","Septic Services","Well Drilling","Chimney Sweep","Locksmith","Handyman","Appliance Repair","Junk Removal","Dumpster Rental","Moving Company","Self Storage","Home Remodeling (General)","Kitchen Remodeling","Bathroom Remodeling","Custom Home Builder","General Contractor","Smart Home / AV Install","Security & Alarm Install"] },
   { g:"Legal", k:"service", n:["Personal Injury Law","Car Accident Law","Truck Accident Law","Workers Compensation Law","Medical Malpractice Law","Mass Tort / Class Action","Criminal Defense","DUI Defense","Family Law / Divorce","Estate Planning & Probate","Bankruptcy Law","Immigration Law","Employment Law","Business & Corporate Law","Real Estate Law","Intellectual Property / Patent Law","Social Security Disability","Elder Law"] },
@@ -7315,7 +7315,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
       d.rating?`Rating: ${d.rating}★${d.reviewCount?` (${d.reviewCount} reviews)`:""}`:"",
       `Ads: Google ${d.googleAds||"unknown"}, Meta ${d.metaAds||"unknown"}`,
       scoutSiteSummary(d.siteCheck)?`Website check: ${scoutSiteSummary(d.siteCheck)}`:"",
-      outPitchOf({data:d})!=="ads"?`Selling them: ${outPitchOf({data:d})==="website"?"a new website":"ads and a new website"}`:"",
+      outPitchOf({data:d})!=="ads"?`Selling them: ${outPitchOf({data:d})==="website"?"a new website":"the Complete plan (ads plus a new website built free, Google profile and the rest)"}`:"",
       (d.gaps&&d.gaps.length)?`Gaps found: ${d.gaps.join("; ")}`:"" ].filter(Boolean).join("\n");
     onDealPrep({companyName:d.name,niche:d.niche||fallbackNiche||"",website:d.websiteRaw||d.website||"",
       location:[d.city,d.state].filter(Boolean).join(", "),notes:known});
@@ -7358,7 +7358,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
       ["Affordability",p=>p.affordability?(p.affordability.band||"unknown"):""],
       ["Rating",p=>p.rating],["Reviews",p=>p.reviewCount],
       ["Google ads",p=>p.googleAds],["Meta ads",p=>p.metaAds],
-      ["Selling",p=>({ads:"Ads",website:"Website",both:"Both"})[outPitchOf({data:p})]],["Website check",p=>scoutSiteSummary(p.siteCheck)],
+      ["Selling",p=>({ads:"Ads",website:"Website",both:"Complete"})[outPitchOf({data:p})]],["Website check",p=>scoutSiteSummary(p.siteCheck)],
       ["Score",p=>p.score],["Score reasons",p=>(p.scoreFactors||[]).map(f=>`${f.label} ${f.points}${f.max?"/"+f.max:""}: ${f.why}`).join(" | ")],
       ["Capped",p=>p.capReason||""],
       ["Recommended package",p=>p.recommendedPackageId],
@@ -7640,9 +7640,10 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
                 <div style={lbl}>What are you selling?</div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,200px),1fr))",gap:8}}>
                   {[["ads","Ads","Businesses worth running Google or Meta ads for."],
-                    ["website","A website","Businesses with no website, or one that's costing them customers."]].map(([v,t,sub])=>{ const on=pitch===v; return (
+                    ["website","A website","Businesses with no website, or one that's costing them customers."],
+                    ["complete","Complete","Good reputation, weak website, and big enough to fund ads plus $500 a month. Your best customers."]].map(([v,t,sub])=>{ const on=pitch===v; return (
                     <button key={v} onClick={()=>setPitch(v)} aria-pressed={on}
-                      style={{textAlign:"left",font:"inherit",cursor:"pointer",padding:"11px 13px",borderRadius:11,minWidth:0,
+                      style={{textAlign:"left",font:"inherit",cursor:"pointer",padding:"11px 13px",borderRadius:11,minWidth:0,gridColumn:v==="complete"?"1 / -1":undefined,
                         border:`1px solid ${on?C.gold+"88":C.border}`,background:on?"rgba(200,168,75,0.10)":"rgba(255,255,255,.03)"}}>
                       <span style={{display:"block",fontSize:13.5,fontWeight:800,color:on?C.gold:C.text}}>{t}</span>
                       <span style={{display:"block",fontSize:11,color:C.textMuted,lineHeight:1.45,marginTop:3}}>{sub}</span>
@@ -7694,7 +7695,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
               </div>
 
               <button onClick={()=>setShowAdv(v=>!v)} style={{background:"none",border:"none",color:C.textDim,fontSize:11.5,fontWeight:700,cursor:"pointer",padding:"2px 0",textAlign:"left"}}>
-                {showAdv?"− Hide filters":pitch==="website"?"+ Narrow it down (ads, size)":"+ Narrow it down (website, ads, size)"}
+                {showAdv?"− Hide filters":pitch!=="ads"?"+ Narrow it down (ads, size)":"+ Narrow it down (website, ads, size)"}
               </button>
               {showAdv&&(
                 <div style={{display:"flex",flexDirection:"column",gap:12,padding:"12px 13px",borderRadius:11,background:C.bg3,border:`1px solid ${C.border}`}}>
@@ -7730,10 +7731,12 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
               <button onClick={run} disabled={runState==="running"}
                 style={{width:"100%",padding:"12px",fontSize:14,fontWeight:800,borderRadius:11,border:"none",
                   background:runState==="running"?"rgba(255,255,255,.06)":C.gradB,color:runState==="running"?C.textMuted:"#1a1400",cursor:runState==="running"?"default":"pointer"}}>
-                {runState==="running"?"Scouting…":pitch==="website"?"🔎 Find website prospects":"🔎 Find prospects"}
+                {runState==="running"?"Scouting…":pitch==="complete"?"🔎 Find Complete prospects":pitch==="website"?"🔎 Find website prospects":"🔎 Find prospects"}
               </button>
               <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,textAlign:"center"}}>
-                {pitch==="website"
+                {pitch==="complete"
+                  ? "Every website is checked first, for free, and only businesses whose site is missing or weak get researched. Each one is scored on whether they can fund ads plus the $500 a month. Expect 2 to 6 minutes."
+                  : pitch==="website"
                   ? "Every website is checked first, for free. Only the businesses with no website or a weak one get researched, so you never pay to look into one whose site is already fine. Expect 2 to 6 minutes."
                   : "A run does live web research on every business it finds — expect 2–6 minutes and a few cents to about a dollar of API usage depending on how many you ask for."}
               </div>
@@ -7856,6 +7859,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
                   <option value="">Everything</option>
                   <option value="ads">Ads</option>
                   <option value="website">Websites</option>
+                  <option value="both">Complete</option>
                 </select>
               </div>
               <div style={{flex:"1 1 140px",minWidth:0}}>
@@ -8204,7 +8208,7 @@ const OUT_WEAK_SITE=["none","poor","dated"];
 // Ads, a website or both: what he is selling this company (KB `website-prospects`). Mirrors
 // netlify/lib/pitch.mjs. Everything found before this existed came from the ads search, so an unlabelled
 // company counts as ads, and "both" shows under either filter.
-const OUT_PITCHES=[{id:"ads",label:"Ads"},{id:"website",label:"Website"},{id:"both",label:"Both"}];
+const OUT_PITCHES=[{id:"ads",label:"Ads"},{id:"website",label:"Website"},{id:"both",label:"Complete"}];   // "both" is stored, "Complete" is shown (KB complete-plan)
 const outPitchOf=(p)=>{ const v=String((p&&p.data&&p.data.pitch)||""); return ["ads","website","both"].includes(v)?v:"ads"; };
 const outMatchesPitch=(p,f)=>{ if(!f) return true; const v=outPitchOf(p); return v===f||v==="both"; };
 const OUT_MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -8402,7 +8406,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
   const [histById,setHistById]=useState({});     // full history per company, fetched when it comes on screen
   // What he is calling about: everyone, ads, or websites (KB `website-prospects`). Remembered on this
   // device only, as a convenience; the label itself lives on each company.
-  const [pitchF,setPitchF]=useState(()=>{ try{ const v=localStorage.getItem("bl-outreach-pitch")||""; return ["ads","website"].includes(v)?v:""; }catch(e){ return ""; } });
+  const [pitchF,setPitchF]=useState(()=>{ try{ const v=localStorage.getItem("bl-outreach-pitch")||""; return ["ads","website","both"].includes(v)?v:""; }catch(e){ return ""; } });
   const [pitchCounts,setPitchCounts]=useState(null);
   const [pitchBusy,setPitchBusy]=useState("");
   const [addPitch,setAddPitch]=useState("");
@@ -8568,7 +8572,8 @@ function OutreachScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
       setQueue(q=>q.map(x=>x.id===id?{...x,data:r.data}:x));
       setPitchCounts(c=>c?{...c,
         ads:c.ads-(outMatchesPitch(was,"ads")?1:0)+(outMatchesPitch(now,"ads")?1:0),
-        website:c.website-(outMatchesPitch(was,"website")?1:0)+(outMatchesPitch(now,"website")?1:0)}:c);
+        website:c.website-(outMatchesPitch(was,"website")?1:0)+(outMatchesPitch(now,"website")?1:0),
+        both:(c.both||0)-(outPitchOf(was)==="both"?1:0)+(outPitchOf(now)==="both"?1:0)}:c);
     }catch(e){ setQueue(q=>q.map(x=>x.id===id?{...x,data:before}:x)); setMsg("That label didn't save: "+e.message); }
     setPitchBusy("");
   };
@@ -8681,7 +8686,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep,onCreateClient}){
       {tab!=="numbers"&&(
         <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
           <span style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginRight:2}}>Selling</span>
-          {[["","Everything",pitchCounts&&pitchCounts.all],["ads","Ads",pitchCounts&&pitchCounts.ads],["website","Websites",pitchCounts&&pitchCounts.website]].map(([id,label,n])=>(
+          {[["","Everything",pitchCounts&&pitchCounts.all],["ads","Ads",pitchCounts&&pitchCounts.ads],["website","Websites",pitchCounts&&pitchCounts.website],["both","Complete",pitchCounts&&pitchCounts.both]].map(([id,label,n])=>(
             <button key={id||"all"} onClick={()=>{ if(pitchF!==id){ setPitchF(id); setPending(null); setDrafts(null); } }} style={chip(pitchF===id)}>{label}{typeof n==="number"?` (${n})`:""}</button>))}
         </div>)}
 

@@ -105,7 +105,7 @@ export const researchLines = (p, extra = {}) => {
     : sc.state === "weak" ? (Array.isArray(sc.problems) ? sc.problems.map((x) => x && x.label).filter(Boolean).join("; ") : "")
     : sc.state === "ok" ? "passed: works on phones, has a padlock, nothing obviously out of date" : "");
   const pitch = pitchOf(p);
-  add("What Bryson is selling them", pitch === "website" ? "a new website (not ads)" : pitch === "both" ? "ads and a new website" : "");
+  add("What Bryson is selling them", pitch === "website" ? "a new website (not ads)" : pitch === "both" ? "the Complete plan: their ads plus a new website built free, their Google profile and the rest, for one monthly fee" : "");
   add("Services", Array.isArray(d.services) ? d.services.slice(0, 5).join(", ") : "");
   add("Marketing gaps our research found", Array.isArray(d.gaps) ? d.gaps.slice(0, 3).join("; ") : "");
   add("Research verdict", d.verdict);

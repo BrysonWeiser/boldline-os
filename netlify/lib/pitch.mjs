@@ -11,7 +11,9 @@
 export const PITCHES = [
   { id: "ads", label: "Ads" },
   { id: "website", label: "Website" },
-  { id: "both", label: "Both" },
+  // "both" = ads AND a website, which since 2026-11-07 is the Complete plan (KB complete-plan). Stored as "both" so
+  // nothing already labelled needed changing; shown as "Complete".
+  { id: "both", label: "Complete" },
 ];
 export const cleanPitch = (v) => (["ads", "website", "both"].includes(String(v)) ? String(v) : "");
 export const pitchOf = (p) => cleanPitch(p && p.data && p.data.pitch) || "ads";
@@ -24,5 +26,5 @@ export const matchesPitch = (p, filter) => {
 };
 export const pitchCounts = (list) => {
   const rows = Array.isArray(list) ? list : [];
-  return { all: rows.length, ads: rows.filter((p) => matchesPitch(p, "ads")).length, website: rows.filter((p) => matchesPitch(p, "website")).length };
+  return { all: rows.length, ads: rows.filter((p) => matchesPitch(p, "ads")).length, website: rows.filter((p) => matchesPitch(p, "website")).length, both: rows.filter((p) => pitchOf(p) === "both").length };
 };

@@ -252,7 +252,8 @@ const sanitize = (p, ctx) => {
       return ai;
     })(),
     siteCheck: siteCheck || null,
-    pitch: pitch === "website" ? "website" : "ads",
+    // Complete is stored as "both" (ads AND a website), the label Outreach already had for it (KB complete-plan).
+    pitch: pitch === "website" ? "website" : pitch === "complete" ? "both" : "ads",
     services: list(p.services, 6),
     gaps: list(p.gaps, 4),
 
@@ -268,7 +269,7 @@ const sanitize = (p, ctx) => {
 
   // ── The money math + the score, computed here rather than guessed ────────
   const aff = assessAffordability({ employeesEstimate: out.employeesEstimate, revenueEstimate: out.revenueEstimate, nicheGroup, kind, pitch });
-  const scored = buildScore(p.score_factors, aff, pitch === "website" ? { site: siteNeed(siteCheck) } : {});
+  const scored = buildScore(p.score_factors, aff, pitch === "website" || pitch === "complete" ? { site: siteNeed(siteCheck) } : {});
   out.affordability = aff;
   out.scoreFactors = scored.factors;
   out.scoreSubtotal = scored.subtotal;
@@ -290,7 +291,8 @@ const sanitize = (p, ctx) => {
   else if (aff.known && aff.affordableId && out.recommendedPackageId) {
     const rec = PACKAGES.find((x) => x.id === out.recommendedPackageId);
     const afford = PACKAGES.find((x) => x.id === aff.affordableId);
-    if (rec && afford && rec.price > afford.price) {
+    // By ad budget, not by the catalog's old minimum (there is none since 2026-11-07).
+    if (rec && afford && (Number(rec.minBudget) || 0) > (Number(afford.minBudget) || 0)) {
       out.packageDowngradedFrom = rec.id;
       out.recommendedPackageId = afford.id;
     }
@@ -323,8 +325,10 @@ const pool = async (items, limit, worker) => {
 // ─── The run ─────────────────────────────────────────────────────────────────
 const doRun = async (supabase, id, input) => {
   const { niche, nicheGroup, nicheKind, areas, count, filters, notes } = input;
-  const pitch = input.pitch === "website" ? "website" : "ads";
-  const website = pitch === "website";
+  const pitch = ["website", "complete"].includes(input.pitch) ? input.pitch : "ads";
+  // Complete hunts for a weak website too, so it shares the free website check (only the money math and the brief differ).
+  const website = pitch === "website" || pitch === "complete";
+  const complete = pitch === "complete";
   const leadFee = getNicheLeadFee(niche);
   const setProgress = (progress) =>
     supabase.from("scout_runs").update({ progress, updated_at: new Date().toISOString() }).eq("id", id);
@@ -363,10 +367,10 @@ const doRun = async (supabase, id, input) => {
   let aiRan = false;
   const aiDiscover = async (n, already) => {
     aiRan = true;
-    await setProgress({ stage: "searching", message: website ? `Searching the web for ${niche} businesses that need a website…` : `Searching the web for more ${niche} businesses…`, found: rawCandidates.length, enriched: 0, total: 0 });
+    await setProgress({ stage: "searching", message: complete ? `Searching the web for ${niche} businesses that need their marketing handled…` : website ? `Searching the web for ${niche} businesses that need a website…` : `Searching the web for more ${niche} businesses…`, found: rawCandidates.length, enriched: 0, total: 0 });
     const discovery = await runToolCall({
       system: discoverySystem({ niche, nicheGroup, kind: nicheKind, areas, count: n, exclude: excludeNames.concat(already), filters, pitch }),
-      userText: `Find up to ${n} ${niche} businesses${website ? " that have no website or a weak one" : ""}${(areas || []).length ? ` in: ${areas.join(" | ")}` : " (online brands, any location)"}.${notes ? `\n\nExtra context from Bryson: ${notes}` : ""}\n\nSearch the web now, then call emit_candidates.`,
+      userText: `Find up to ${n} ${niche} businesses${complete ? " with a good reputation but no website or a weak one" : website ? " that have no website or a weak one" : ""}${(areas || []).length ? ` in: ${areas.join(" | ")}` : " (online brands, any location)"}.${notes ? `\n\nExtra context from Bryson: ${notes}` : ""}\n\nSearch the web now, then call emit_candidates.`,
       tool: CANDIDATE_TOOL, maxUses: 14, maxTokens: 20000,
     });
     coverageNote = [coverageNote, clean(discovery.coverage_note)].filter(Boolean).join(" ");
@@ -645,7 +649,7 @@ export default async (req) => {
     areas,
     count: Math.max(3, Math.min(MAX_COUNT, Math.round(Number(body.count) || 12))),
     notes: String(body.notes || "").trim().slice(0, 800),
-    pitch: body.pitch === "website" ? "website" : "ads",
+    pitch: ["website", "complete"].includes(body.pitch) ? body.pitch : "ads",
     filters: {
       websiteState: ["any", "has", "none"].includes(body.filters && body.filters.websiteState) ? body.filters.websiteState : "any",
       adsState: ["any", "running", "not"].includes(body.filters && body.filters.adsState) ? body.filters.adsState : "any",
