@@ -8,7 +8,26 @@ export { CAL, CAL_WEB };
 export const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
 export const SITE_URL = "https://boldlinemedia.com";
-export const PAGE_SIZE = 24;
+// Bryson, 2026-11-09: "every blog just makes me scroll ... only a handful of the top most recent blogs and then a way
+// to see the next page". Page one is the newest post shown big plus six more (two rows of three); every page after
+// that is nine (three rows). Was 24 on one page.
+export const FIRST_PAGE_SIZE = 7, PAGE_SIZE = 9;
+// Which posts a page holds, and how many pages there are, for `count` posts.
+export const pageWindow = (page, count) => {
+  const n = Math.max(0, Number(count) || 0), p = Math.max(1, Math.floor(Number(page) || 1));
+  const totalPages = n <= FIRST_PAGE_SIZE ? 1 : 1 + Math.ceil((n - FIRST_PAGE_SIZE) / PAGE_SIZE);
+  const from = p === 1 ? 0 : FIRST_PAGE_SIZE + (p - 2) * PAGE_SIZE;
+  return { from, to: from + (p === 1 ? FIRST_PAGE_SIZE : PAGE_SIZE) - 1, totalPages };
+};
+// The page numbers to show: all of them when there are few, else the first, the last and the two either side of
+// the current one, with a gap marker (null) between.
+export const pageNumbers = (page, totalPages) => {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  const keep = new Set([1, totalPages, page - 1, page, page + 1].filter((n) => n >= 1 && n <= totalPages));
+  const out = []; let last = 0;
+  [...keep].sort((a, b) => a - b).forEach((n) => { if (n - last > 1) out.push(null); out.push(n); last = n; });
+  return out;
+};
 
 export const getSupabase = () => createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 

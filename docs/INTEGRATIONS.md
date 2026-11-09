@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 243 task-keyed entries under `knowledge/`. They surface automatically via the
+> 244 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**243 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**244 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -390,6 +390,9 @@
 - **[ambient-background-micro-motion](../knowledge/ambient-background-micro-motion.md)** &mdash; &#9989; verified &middot; 2026-07-03  
   Site-wide "living canvas" background (3 aurora orbs + gold constellation canvas + film grain + 4 large "campaign blueprint" wireframes, fixed z-index -1) plus a micro-motion pass (safe scroll-settle reveals, divider draw-in, progress hairline, parallax, hover polish). .alt bands are transparent — the background flows uniformly. All decorative/additive — no-JS and reduced-motion get a fully visible static page.  
   <sub>*task:* change or tune the site background graphics (orbs, constellation, grain) or the scroll micro-animations &nbsp;|&nbsp; *keywords:* ambient, bgNet, constellation, orb, orbDrift, grain, feTurbulence, sr-in, scroll-settle, progress hairline, parallax, rootMargin, stagger, srd, blueprint, bp-card, bp-ret, bp-fun, bp-cur, ow-g, alt band</sub>
+- **[blog-pages](../knowledge/blog-pages.md)** &mdash; &#9989; verified &middot; 2026-11-09  
+  Bryson, 2026-11-09 - "every blog just makes me scroll ... only a handful of the top most recent blogs and then a way to see the next page". The listing was 24 posts on one page. Now page one is the newest post shown big plus six more (two rows of three) and every later page is nine; a pager (Newer, numbered pages, Older, 44px tap targets) sits under the posts. Topic chips became real links over the WHOLE blog (/blog/?topic=X), and paging keeps the topic. On a phone the older posts are compact rows (small cover beside title, no excerpt), so page one went from ~5,100px to ~3,300px including header, newsletter and footer.  
+  <sub>*task:* change how the blog listing pages work (how many posts per page, the Newer/Older pager, topic links, the phone layout of the list) &nbsp;|&nbsp; *keywords:* blog pagination, blog pages, pager, pageWindow, pageNumbers, FIRST_PAGE_SIZE, PAGE_SIZE, bx-pages, bx-pg, topic links, ?topic=, blog-index.mjs, blog scroll, compact cards</sub>
 - **[blog-redesign-2026-10](../knowledge/blog-redesign-2026-10.md)** &mdash; &#9989; verified &middot; 2026-10-07  
   Bryson, 2026-10-07 - the blog "seems outdated and not worth anyones time". Found 6 LIVE posts broken (two paragraphs then ~65 empty h2s): the writer forced a tool call on claude-opus-4-8 and published whatever came back. Writer now claude-opus-5-5 with structured JSON output, a shape check + one retry, an HTML check, rotating topic lanes (ads / websites / a trade / lead follow-up) and updated facts; blog-autopublish never publishes a broken draft and repairs one broken PUBLISHED post per run (same topic, same date and address, email to Bryson). Redesign: blog pages now use the site's own stylesheet, header, footer and scripts (generated site-chrome.mjs), drawn cover art per post, featured post, topic filters, contents sidebar, author box, topic-matched offer, related posts.  
   <sub>*task:* change the blog's look, its cover pictures, the weekly AI writer, or fix/rewrite broken or weak blog posts &nbsp;|&nbsp; *keywords:* blog redesign, blog covers, blog-cover.mjs, coverSVG, site-chrome.mjs, bx-card, art-body, broken blog posts, empty h2, blog writer, generateBlogPost, postProblems, htmlProblems, repairOneBrokenPost, blog lanes, BLOG_FACTS, blog-autopublish, newsletter dash, author bio local</sub>

@@ -3,7 +3,7 @@
 // redirects that feed both shapes into this one function via ?page=).
 
 import {
-  getSupabase, html, esc, headerHTML, footerHTML, headTags, notFoundPage, SITE_URL, PAGE_SIZE,
+  getSupabase, html, esc, headerHTML, footerHTML, headTags, notFoundPage, SITE_URL, pageWindow, pageNumbers,
 } from "../lib/blog-render.mjs";
 import { coverSVG } from "../lib/blog-cover.mjs";
 
@@ -35,38 +35,49 @@ export default async (req) => {
   }
 
   const supabase = getSupabase();
-  const from = (page - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
-  const { data: posts, count, error } = await supabase
+  // Every topic that has a published post, so the topic buttons cover the whole blog, not just this page. A topic in
+  // the address that isn't one of these is ignored rather than trusted.
+  const { data: catRows } = await supabase.from("blog_posts").select("category").eq("status", "published");
+  const cats = [...new Set((catRows || []).map((r) => r.category).filter(Boolean))].sort();
+  const rawTopic = String(url.searchParams.get("topic") || "").trim();
+  const topic = cats.includes(rawTopic) ? rawTopic : "";
+  const withTopic = (href) => (topic ? `${href}?topic=${encodeURIComponent(topic)}` : href);
+  const pageHref = (n) => withTopic(n === 1 ? "/blog/" : `/blog/page/${n}/`);
+
+  // Count first, so a page past the end is a 404 and the window is right for this topic.
+  let countQ = supabase.from("blog_posts").select("slug", { count: "exact", head: true }).eq("status", "published");
+  if (topic) countQ = countQ.eq("category", topic);
+  const { count, error: countErr } = await countQ;
+  if (countErr) return html("<!DOCTYPE html><html><body><p>Blog temporarily unavailable.</p></body></html>", 500);
+  const { from, to, totalPages } = pageWindow(page, count);
+  if (page > totalPages) return notFoundPage();
+  let listQ = supabase
     .from("blog_posts")
-    .select("slug, title, category, excerpt, published_at, read_minutes", { count: "exact" })
-    .eq("status", "published")
-    .order("published_at", { ascending: false })
-    .range(from, to);
+    .select("slug, title, category, excerpt, published_at, read_minutes")
+    .eq("status", "published");
+  if (topic) listQ = listQ.eq("category", topic);
+  const { data: posts, error } = await listQ.order("published_at", { ascending: false }).range(from, to);
 
   if (error) return html("<!DOCTYPE html><html><body><p>Blog temporarily unavailable.</p></body></html>", 500);
 
-  const totalPages = Math.max(1, Math.ceil((count || 0) / PAGE_SIZE));
-  if (page > 1 && (!posts || posts.length === 0)) return notFoundPage();
-
-  const canonical = page === 1 ? `${SITE_URL}/blog/` : `${SITE_URL}/blog/page/${page}/`;
-  const title = page === 1 ? "Blog | BoldLine Media" : `Blog | Page ${page} | BoldLine Media`;
+  const canonical = SITE_URL + pageHref(page);
+  const title = `Blog${topic ? ` | ${topic}` : ""}${page > 1 ? ` | Page ${page}` : ""} | BoldLine Media`;
   const description = "Straight answers on Google and Meta ads, websites and getting more calls, from the team that builds and runs them.";
 
-  const prevHref = page <= 1 ? null : page - 1 === 1 ? "/blog/" : `/blog/page/${page - 1}/`;
-  const nextHref = page >= totalPages ? null : `/blog/page/${page + 1}/`;
-
+  // Numbered pages, Newer and Older either side, every link keeping the topic. Big enough to tap.
   const pagination = totalPages > 1 ? `
 <nav class="bx-pages" aria-label="Blog pages">
-  ${prevHref ? `<a href="${prevHref}">Newer posts</a>` : ""}
-  <span>Page ${page} of ${totalPages}</span>
-  ${nextHref ? `<a href="${nextHref}">Older posts</a>` : ""}
+  ${page > 1 ? `<a class="bx-pg bx-pg-step" href="${esc(pageHref(page - 1))}" rel="prev"><span aria-hidden="true">&larr;</span> Newer</a>` : `<span class="bx-pg bx-pg-step bx-pg-off" aria-hidden="true"><span>&larr;</span> Newer</span>`}
+  <span class="bx-pg-nums">${pageNumbers(page, totalPages).map((n) => n === null ? `<span class="bx-pg-gap" aria-hidden="true">&hellip;</span>`
+    : n === page ? `<span class="bx-pg bx-pg-on" aria-current="page">${n}</span>` : `<a class="bx-pg" href="${esc(pageHref(n))}" aria-label="Page ${n}">${n}</a>`).join("")}</span>
+  ${page < totalPages ? `<a class="bx-pg bx-pg-step" href="${esc(pageHref(page + 1))}" rel="next">Older <span aria-hidden="true">&rarr;</span></a>` : `<span class="bx-pg bx-pg-step bx-pg-off" aria-hidden="true">Older <span>&rarr;</span></span>`}
 </nav>` : "";
   const list = posts || [];
-  const cats = [...new Set(list.map((p) => p.category).filter(Boolean))].sort();
-  const chips = cats.length > 1 ? `<div class="bx-chips reveal" role="toolbar" aria-label="Filter by topic">
-    <button class="bx-chip on" type="button" data-cat="">All</button>${cats.map((c) => `<button class="bx-chip" type="button" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}
-  </div>` : "";
+  // Topics are links now (the whole blog, paged), not a filter over the posts already on screen.
+  const chips = cats.length > 1 ? `<nav class="bx-chips reveal" aria-label="Topics">
+    <a class="bx-chip${topic ? "" : " on"}" href="/blog/"${topic ? "" : ' aria-current="page"'}>All</a>${cats.map((c) => `<a class="bx-chip${c === topic ? " on" : ""}" href="/blog/?topic=${encodeURIComponent(c)}"${c === topic ? ' aria-current="page"' : ""}>${esc(c)}</a>`).join("")}
+  </nav>` : "";
+  const where = page > 1 ? `<div class="bx-where">Page ${page} of ${totalPages}${topic ? ` &middot; ${esc(topic)}` : ""}</div>` : "";
   const top = page === 1 && list.length ? featured(list[0]) : "";
   const rest = page === 1 ? list.slice(1) : list;
 
@@ -97,18 +108,14 @@ ${chips}
 </section>
 
 <section class="bx-sec"><div class="wrap-x">
+  ${where}
   ${top}
   <div class="bx-grid">
   ${rest.map(postCard).join("\n  ")}
   </div>
-  <p class="bx-empty" hidden>Nothing on this page in that topic yet.</p>
+  ${list.length ? "" : `<p class="bx-empty">No posts here yet.</p>`}
   ${pagination}
 </div></section>
-<script>
-(function(){var bar=document.querySelector('.bx-chips');if(!bar)return;var items=[].slice.call(document.querySelectorAll('.bx-card,.bx-feature')),empty=document.querySelector('.bx-empty');
-bar.addEventListener('click',function(e){var b=e.target.closest('.bx-chip');if(!b)return;[].forEach.call(bar.children,function(x){x.classList.toggle('on',x===b);});
-var c=b.getAttribute('data-cat'),n=0;items.forEach(function(it){var show=!c||it.getAttribute('data-cat')===c;it.hidden=!show;if(show)n++;});if(empty)empty.hidden=n>0;});})();
-</script>
 
 ${footerHTML()}
 
