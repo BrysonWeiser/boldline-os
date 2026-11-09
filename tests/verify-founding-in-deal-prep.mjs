@@ -45,7 +45,9 @@ ok("the standing pricing sentence warns the model it is overridden",
   ok("🔴 and that there is NO monthly minimum", /NO monthly minimum/.test(block),
     "the monthly minimum is the exact thing a burned prospect is afraid of");
   // Since 2026-11-07 (KB complete-plan) "no minimum" is everyone's deal; what founding ADDS is the free first month.
-  ok("🔴 the founding extra is the first month of LEAD FEES free", /FIRST MONTH OF LEAD FEES IS FREE/.test(block) && /first 30 days after the ads go live/.test(block));
+  // Since 2026-11-09 the free first month is a closer he MAY offer on a call, never the advertised offer.
+  ok("🔴 the free first month is a closer he may offer, not part of the offer", /A CLOSER BRYSON MAY USE, NOT PART OF THE OFFER/.test(block) && /FIRST MONTH OF LEAD FEES/.test(block) && /never lead with it/.test(block));
+  ok("and it never carries a deadline", /Never attach a deadline to it/.test(block));
   ok("🔴 and it is never sold as the service being free", /NEVER call the service itself "free"/.test(block));
   ok("it says they are billed in arrears, after delivery", /in arrears/.test(block));
   ok("it spells out the zero-delivery case in plain words",

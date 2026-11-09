@@ -94,6 +94,19 @@ Both live in `TERMS` in `netlify/lib/pricing-shared.mjs` (with `COMPLETE_PLAN`),
    that bring past buyers back, Google profile care if they have a location customers visit. NO website (we don't build
    online stores), so no 12-month lock: 3 months then month to month, and the same setup payback as Ads.
 
+## 🔁 CHANGED Mon 2026-11-09: the free first month is a CALL-ONLY closer, not advertised
+Bryson asked for a brutally honest view on showing "first month free for the first 5" on the site vs saying it on calls.
+Advice given (and he agreed, after seeing a before/after picture of the banner): keep it, but off the website. It is a
+small offer dressed as a big one (month one is the learning month, fewest leads), it does not touch the client's real
+risk (their ad spend), and on the banner it diluted the strong, concrete offer (the free setup, $1,500 to $4,900). On a
+call it is something to GIVE a hesitant owner. Conditions: always ticked on the Plan card so it is in the agreement, never
+a verbal-only promise, never tied to an invented deadline.
+- Banners (home + get-started) = free setup only. `verify-complete-plan-site` fails if "first month" reappears on them.
+- Plan card box: "Free first month of lead fees (only if you offered it on the call)", never pre-ticked;
+  `withQuotedPlan` no longer sets `foundingFreeMonth`.
+- Deal Prep prompt: "A CLOSER BRYSON MAY USE, NOT PART OF THE OFFER", objection handling only, no deadline. Deal Prep
+  screen notes say the same. Agreement clause 4.5 and billing unchanged (they apply whenever it IS ticked).
+
 ## 📸 OS screenshots shown before going live (Sun 2026-11-08, Bryson: "is there anything different in the os if so I want screenshots first")
 Taken by running the real OS locally against a FAKE Supabase (scratchpad os-shots: fake-supabase.js serves made-up
 clients from window.__FIX, every write discarded, all outside hosts blocked except the served React/Babel copies; Playwright
