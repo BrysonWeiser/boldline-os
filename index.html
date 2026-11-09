@@ -10967,14 +10967,14 @@ function HealthPrivacyCard({client,onUpdate}){
       </div>
       <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,marginTop:4}}>{h.why}.{h.on?" We keep patient health details out of our hands for this client.":""}</div>
       {show&&<>
-        <div style={{display:"flex",gap:6,marginTop:10}}>{seg("auto","Auto (by niche)")}{seg("on","Always on")}{seg("off","Off")}</div>
-        {h.mode==="auto"&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.5}}>Auto turns on for medical niches: chiropractors, dentists, med spas, therapists, clinics and the like.</div>}
+        <div style={{display:"flex",gap:6,marginTop:10}}>{seg("auto","Auto")}{seg("on","Always on")}{seg("off","Off")}</div>
+        {h.mode==="auto"&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.5}}>Auto follows the niche: on for medical niches: chiropractors, dentists, med spas, therapists, clinics and the like.</div>}
         {h.on&&<div style={{display:"grid",gap:6,marginTop:12}}>
           {HEALTH_SAFEGUARDS.map(s=>{ const on=h.active.includes(s.key); return (
             <label key={s.key} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"9px 11px",borderRadius:10,border:`1px solid ${on?C.border:C.red+"55"}`,backgroundColor:on?"rgba(255,255,255,.02)":"rgba(239,68,68,.05)",cursor:"pointer"}}>
               <input type="checkbox" checked={on} onChange={e=>setSafe(s.key,e.target.checked)} style={{marginTop:2,accentColor:C.gold}}/>
               <span><span style={{display:"block",fontSize:12.5,fontWeight:700,color:on?C.text:C.red}}>{s.label}{on?"":" (off)"}</span>
-                <span style={{display:"block",fontSize:11,color:C.textMuted,lineHeight:1.5,marginTop:2}}>{s.plain}</span></span>
+                <span style={{display:"block",fontSize:11,color:C.textMuted,lineHeight:1.5,marginTop:2}}>{on?s.plain:"Switched off for this client, so this protection is not in force. Tick it to turn it back on."}</span></span>
             </label>); })}
           <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55,marginTop:4}}>If the practice asks us to sign a privacy agreement (a BAA), say yes, but tell Claude first: some of the services the OS uses need upgrading before we can hold patient details.</div>
         </div>}
