@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 244 task-keyed entries under `knowledge/`. They surface automatically via the
+> 245 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**244 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**245 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -417,6 +417,9 @@
 - **[glossary-popover](../knowledge/glossary-popover.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Marketing jargon gets a gold dotted underline; hover (desktop) or tap (mobile) opens a plain-English popover. Shared marketing-site/glossary.css + glossary.js (one dict/runtime). Homepage terms are pre-wrapped in markup; blog posts get them via glossary.js autolink() wrapping the first occurrence of each known term.  
   <sub>*task:* work on the plain-English jargon popover glossary on the marketing site or blog &nbsp;|&nbsp; *keywords:* glossary.js, glossary.css, data-term, autolink, article-body, term-span</sub>
+- **[how-it-works-page](../knowledge/how-it-works-page.md)** &mdash; &#9989; verified &middot; 2026-11-09  
+  Bryson, 2026-11-09 - How it works was "the only page where it doesnt look nor feel like its at the same level as the rest of the website". Old page was a plain five-line timeline, a row of icons and a checklist, and still said clients start around $1,000/month with no mention of websites or Complete. Rebuilt as marketing-src/how.html: a hero with a "Your part / Our part" box (call, approve + connect ad account, answer the phone vs everything else), a six-step timeline (call, plan, build, launch, every week, every month) where a gold line fills as you scroll and each step's small picture plays once (invite, written plan, checklist ticking, leads arriving, the week's change log, monthly report), three ways in (Ads / Complete / Website, prices from pricing-shared), a two-sided fit check (strong fit / probably not yet) with the trades strip, and the FAQ in the same header style as other pages.  
+  <sub>*task:* change the How it works page (/how-it-works/): its steps, the your-part/our-part box, the three ways in, the fit check, or its scroll motion &nbsp;|&nbsp; *keywords:* how it works, how-it-works, process page, hw-steps, hw-step, hw-rail, hw-split, hw-ways, hw-fit, how.html, howPage, fit section, timeline, step pictures, Example label</sub>
 - **[marketing-aesthetic-pass-2](../knowledge/marketing-aesthetic-pass-2.md)** &mdash; &#9989; verified &middot; 2026-07-18  
   Aesthetic pass 2 — BUILT+VERIFIED 2026-07-18 (Bryson approved all 7 proposals). Timeline stuck-hidden IO fix, gold .sxd section dividers (8), mobile sticky Book-a-Call pill, rotating conic gold ring on the featured package, hero platform marquee (replaced static pills), founder pull-quote glow-up, live lead ticker in the showcase inbox. All additive + reduced-motion-safe; verified headless 390/768/1280/1600 incl. behavioral asserts.  
   <sub>*task:* change the section dividers, mobile sticky CTA, featured-package ring, platform marquee, founder quote, or lead-feed ticker on the marketing site &nbsp;|&nbsp; *keywords:* sxd, divider, sticky-cta, sticky CTA, marquee, hero-mq, mq-track, mq-set, pkgOrbit, conic-gradient, featured package, most popular ring, founder blockquote, pull quote, lead ticker, inbox-row, tick-in, timeline observer, stuck hidden, rootMargin</sub>
