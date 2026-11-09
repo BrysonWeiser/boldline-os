@@ -17,7 +17,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import {
-  TOOL_FOR, MAX_TOKENS_FOR, runTool, cleanCreatives, brief, systemFor, promptFor, friendlyError,
+  TOOL_FOR, MAX_TOKENS_FOR, runTool, cleanCreatives, brief, systemFor, promptFor, friendlyError, healthForAds,
   LIMITS, stripDashes,
 } from "../lib/ad-gen-shared.mjs";
 import { getLocalConditions } from "../lib/local-conditions.mjs";
@@ -55,6 +55,7 @@ export default async (req) => {
   }
 
   if (!process.env.ANTHROPIC_API_KEY) return json({ ok: false, error: "Missing ANTHROPIC_API_KEY in Netlify." }, 500);
+  const health = await healthForAds(supabase, body);   // KB hipaa-health-clients
 
   if (action === "creatives") {
     try {
@@ -63,7 +64,7 @@ export default async (req) => {
       const cond = await getLocalConditions({ locations: body.locations });
       const { data, model } = await runTool({
         tool: TOOL_FOR.creatives, maxTokens: MAX_TOKENS_FOR.creatives,
-        system: systemFor(!!body.agency),
+        system: systemFor(!!body.agency, health),
         prompt: `${promptFor("creatives", brief(body))}
 
 WHAT IS HAPPENING IN THE SERVICE AREA RIGHT NOW:
@@ -96,7 +97,7 @@ ${cond.block}`,
     try {
       const { data, model } = await runTool({
         tool: TOOL_FOR.shorten, maxTokens: MAX_TOKENS_FOR.shorten,
-        system: systemFor(!!body.agency),
+        system: systemFor(!!body.agency, health),
         prompt: `Each line below is too long for where it runs. Rewrite each one so it says the SAME THING in ${max} characters or fewer.
 
 THE BUSINESS:

@@ -19,6 +19,7 @@
 import { createHash, createHmac, createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from "node:crypto";
 import { humanize } from "./humanize.mjs";
 
+import { healthBlocks, HEALTH_REPLY_RULE } from "./health-mode.mjs";
 export const SCOPES = "https://www.googleapis.com/auth/business.manage openid email";
 export const CONN_PATH = "gbp/connection.json";
 export const SECRET_BUCKET = "client-contracts";        // private; where the Square keys and signed contracts live too
@@ -192,7 +193,7 @@ export function replyPrompt(cl, rv) {
   const tone = rv.stars >= 4 ? "Thank them by first name if a name is given, mention one specific thing they said, and invite them back. 2 to 3 short sentences."
     : rv.stars === 3 ? "Thank them, take the criticism seriously in one sentence, and say what you'll do better. 2 to 4 sentences."
     : "Stay calm and kind, never argue or blame. Apologise for their experience, don't repeat private details, and offer to make it right offline by asking them to call or message the business. 2 to 4 sentences.";
-  return { system: `You reply to Google reviews for a small business, as the business. ${VOICE}`,
+  return { system: `You reply to Google reviews for a small business, as the business. ${VOICE}${healthBlocks(cl, "reviewReplies") ? ` ${HEALTH_REPLY_RULE}` : ""}`,
     prompt: `${businessFacts(cl)}\n\nReview (${rv.stars} stars) from ${rv.reviewer}:\n"${rv.comment || "(no written comment, just a rating)"}"\n\n${tone}\nReturn only the reply text.` };
 }
 export function postPrompt(cl, recent = [], idea = "") {

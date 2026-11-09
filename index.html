@@ -10925,6 +10925,64 @@ function gbpTrend(now, before){
   if (now === before) return `Level with the 28 days before (${before})`;
   return `${now > before ? "▲ Up" : "▼ Down"} from ${before} the 28 days before`;
 }
+// ─── HEALTH CLIENTS (HIPAA safeguards) ── KB hipaa-health-clients ─────────────────────────────────────────────
+// 🔴 A COPY of netlify/lib/health-mode.mjs for this screen. verify-health-mode fails if the lists drift apart.
+// healthMode "auto" | "on" | "off"; healthSafeguards {key:false} for any safeguard switched off.
+const HEALTH_NICHE_SRC = "chiro|dental|dentist|orthodon|endodon|periodon|med ?spa|medical|clinic|therap|physio|wellness|dermatolog|optom|ophthalm|eye care|vision care|lasik|audiolog|hearing|\\baba\\b|counsel|psych|mental health|behavioral health|doctor|physician|pediatric|podiat|acupunct|urgent care|primary care|family practice|pharm|hospice|home health|home care|nursing|\\bnurse|fertility|ivf|obgyn|ob-gyn|gynecolog|urolog|cardiolog|oncolog|orthoped|sleep center|weight loss|bariatric|hormone|\\bhrt\\b|\\biv (?:drip|hydration|therapy)|botox|aesthetic (?:clinic|medicine)|rehabilitation|rehab center|physical rehab|addiction|recovery center|detox|telehealth|health ?care|healthcare|hospital|surgery|surgeon|cosmetic surg|plastic surg|lab testing|diagnostic|imaging|radiolog|chiropract";
+const HEALTH_NOT_SRC = "veterinar|\\bvets?\\b|\\banimals?\\b|\\bpets?\\b|\\bdogs?\\b|\\bcats?\\b|equine|\\bauto\\b|automotive|\\bcars?\\b|\\btrucks?\\b|\\blawns?\\b|\\btrees?\\b|\\bplants?\\b|\\bpools?\\b|computer|phone repair|appliance|\\blaw\\b|lawyers?|attorneys?|\\blegal\\b|insurance agen|\\bmassage\\b|day spa|spa (?:&|and) wellness";
+const HEALTH_SAFEGUARDS = [
+  { key: "form", label: "No symptom box on forms", plain: "Their landing page and website ask for name, phone and email only. Anything typed about a condition is dropped before it is saved." },
+  { key: "pixel", label: "No Meta tracking pixel", plain: "The Meta Pixel is left off their pages, so Meta never learns who visited a health page." },
+  { key: "autoReply", label: "No automatic texts or emails to their leads", plain: "Our instant reply and follow-up messages are off. The practice contacts the lead itself." },
+  { key: "patientEmails", label: "No emails to their patients", plain: "Review requests and past-customer emails are off (a patient list is patient information)." },
+  { key: "reviewReplies", label: "Review replies never confirm a patient", plain: "Drafted Google review replies thank people without confirming they were treated or mentioning a condition." },
+  { key: "adRules", label: "Health ad rules when writing ads", plain: "Ad copy never implies the reader has a condition (Meta rejects that), and avoids drug names and claims that need certification." },
+];
+const healthText=(cl)=>[cl&&cl.niche,cl&&cl.nicheGroup,cl&&cl.industry,cl&&cl.name].filter(Boolean).join(" ");
+const looksHealth=(cl)=>{ const t=healthText(cl); return !!t&&new RegExp(HEALTH_NICHE_SRC,"i").test(t)&&!new RegExp(HEALTH_NOT_SRC,"i").test(t); };
+const healthModeOf=(cl)=>{
+  const mode=["on","off"].includes(cl&&cl.healthMode)?cl.healthMode:"auto", auto=looksHealth(cl), on=mode==="on"||(mode==="auto"&&auto);
+  const off=(cl&&cl.healthSafeguards)||{}, active=on?HEALTH_SAFEGUARDS.map(s=>s.key).filter(k=>off[k]!==false):[];
+  const why=mode==="on"?"Switched on by hand":mode==="off"?"Switched off by hand":auto?`On automatically: "${(cl&&(cl.niche||cl.name))||""}" reads as a health business`:"Off: not a health business";
+  return {mode,auto,on,active,why};
+};
+const healthBlocks=(cl,key)=>healthModeOf(cl).active.includes(key);
+
+// Health and privacy card (client Overview). Bryson, 2026-11-09: "make sure it's automatically turned on ... I also
+// want a way to be able to change them if I want". Auto follows the niche; On / Off override it; each safeguard
+// can be switched off on its own. Saved on the client record, read by every part of the OS that could touch patient details.
+function HealthPrivacyCard({client,onUpdate}){
+  const h=healthModeOf(client);
+  const [open,setOpen]=useState(false);
+  const show=h.on||open;
+  const setMode=(m)=>onUpdate&&onUpdate({...client,healthMode:m});
+  const setSafe=(k,v)=>{ const cur={...(client.healthSafeguards||{})}; if(v) delete cur[k]; else cur[k]=false; onUpdate&&onUpdate({...client,healthSafeguards:cur}); };
+  const seg=(m,label)=>{ const on=h.mode===m; return <button key={m} onClick={()=>setMode(m)} aria-pressed={on} style={{flex:1,padding:"9px 10px",fontSize:12,fontWeight:700,borderRadius:8,cursor:"pointer",border:`1px solid ${on?C.borderAccent:C.border}`,backgroundColor:on?"rgba(200,168,75,.14)":"rgba(255,255,255,.03)",color:on?C.gold:C.textDim}}>{label}</button>; };
+  return (
+    <Card style={{borderColor:h.on?`${C.gold}55`:C.border}}>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <Label>Health and privacy (HIPAA)</Label><div style={{flex:1}}/>
+        <span style={{fontSize:10.5,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",padding:"4px 9px",borderRadius:999,border:`1px solid ${h.on?C.borderAccent:C.border}`,color:h.on?C.gold:C.textMuted}}>{h.on?`On · ${h.active.length} of ${HEALTH_SAFEGUARDS.length}`:"Off"}</span>
+        {!h.on&&<button onClick={()=>setOpen(o=>!o)} style={{fontSize:11,fontWeight:700,color:C.gold,background:"none",border:"none",cursor:"pointer"}}>{open?"Hide":"Change"}</button>}
+      </div>
+      <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,marginTop:4}}>{h.why}.{h.on?" We keep patient health details out of our hands for this client.":""}</div>
+      {show&&<>
+        <div style={{display:"flex",gap:6,marginTop:10}}>{seg("auto","Auto")}{seg("on","Always on")}{seg("off","Off")}</div>
+        {h.mode==="auto"&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.5}}>Auto follows the niche: on for medical niches: chiropractors, dentists, med spas, therapists, clinics and the like.</div>}
+        {h.on&&<div style={{display:"grid",gap:6,marginTop:12}}>
+          {HEALTH_SAFEGUARDS.map(s=>{ const on=h.active.includes(s.key); return (
+            <label key={s.key} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"9px 11px",borderRadius:10,border:`1px solid ${on?C.border:C.red+"55"}`,backgroundColor:on?"rgba(255,255,255,.02)":"rgba(239,68,68,.05)",cursor:"pointer"}}>
+              <input type="checkbox" checked={on} onChange={e=>setSafe(s.key,e.target.checked)} style={{marginTop:2,accentColor:C.gold}}/>
+              <span><span style={{display:"block",fontSize:12.5,fontWeight:700,color:on?C.text:C.red}}>{s.label}{on?"":" (off)"}</span>
+                <span style={{display:"block",fontSize:11,color:C.textMuted,lineHeight:1.5,marginTop:2}}>{on?s.plain:"Switched off for this client, so this protection is not in force. Tick it to turn it back on."}</span></span>
+            </label>); })}
+          <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55,marginTop:4}}>If the practice asks us to sign a privacy agreement (a BAA), say yes, but tell Claude first: some of the services the OS uses need upgrading before we can hold patient details.</div>
+        </div>}
+      </>}
+    </Card>
+  );
+}
+
 function GoogleListingCard({client}){
   const [st,setSt] = useState(null);            // {ready, connected, email}
   const [link,setLink] = useState(client.gbp||null);
@@ -14604,13 +14662,14 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
 
       <div style={{flex:1,overflowY:"auto",padding:isDesktop?"22px 28px 60px":"13px 13px 60px",width:"100%",maxWidth:isDesktop?1000:"none",margin:isDesktop?"0 auto":undefined}}>
         {tab==="overview"&&isWebsiteOnly(client)&&<WebsiteOnlyOverview client={client} onUpdate={onUpdate} onOpen={setTab}/>}
-        {tab==="overview"&&isWebsiteOnly(client)&&<div style={{marginTop:11}}><GoogleListingCard client={client}/><GbpCareBilling client={client}/>{custEmailsClientOS(client)&&<div style={{marginTop:11}}><CustomerEmailsCard client={client} onUpdate={onUpdate}/></div>}</div>}
+        {tab==="overview"&&isWebsiteOnly(client)&&<div style={{marginTop:11}}><GoogleListingCard client={client}/><GbpCareBilling client={client}/><div style={{height:11}}/><HealthPrivacyCard client={client} onUpdate={onUpdate}/>{custEmailsClientOS(client)&&<div style={{marginTop:11}}><CustomerEmailsCard client={client} onUpdate={onUpdate}/></div>}</div>}
         {tab==="overview"&&!isWebsiteOnly(client)&&(
           <div style={S.col11}>
             {isOwned(client)&&<BusinessPortalCard client={client} onUpdate={onUpdate}/>}
             {isOwned(client)&&<BrandKitCard client={client} onUpdate={onUpdate} onOpenAssets={()=>setTab("portal")}/>}
             {(isOwned(client)||custEmailsClientOS(client))&&<CustomerEmailsCard client={client} onUpdate={onUpdate}/>}
             {isOwned(client)&&<ShowcaseCard client={client} onUpdate={onUpdate}/>}
+            {!client.internal&&<HealthPrivacyCard client={client} onUpdate={onUpdate}/>}
             <GoogleListingCard client={client}/>
             <GbpCareBilling client={client}/>
             <LaunchChecklistCard client={client}/>
@@ -19332,7 +19391,7 @@ function AdCreativeStudio({client,onUpdate}){
   const generateAngles = async () => {
     setAngleState("working"); setAngleMsg("");
     try{
-      const d = await adGenCall({ action:"creatives", agency: !!isHouse(client),
+      const d = await adGenCall({ action:"creatives", agency: !!isHouse(client), clientId: client.id, health: healthBlocks(client,"adRules"),
         name: isHouse(client) ? "BoldLine Media" : client.name,
         niche: niche || (isHouse(client) ? "any business owner" : (client.niche||"")),
         locations: city, offer: isHouse(client) ? "Google and Meta ad management plus the landing pages behind them" : ((client.campaignSetup&&client.campaignSetup.mainOffer)||""),

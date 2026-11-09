@@ -27,7 +27,10 @@ const NOON = Date.UTC(2026, 9, 6, 18);
 const NIGHT = Date.UTC(2026, 9, 7, 6);   // 11pm Phoenix
 const LINK = "https://g.page/r/CAbc123/review";
 const CLIENT = { id: "c1", name: "Springbok Chiropractic, LLC", reviewSenderName: "Springbok Wellness", email: "owner@springbok.com",
-  googleReviewUrl: LINK, businessAddress: "1400 N Gilbert Rd, Suite M, Gilbert, AZ 85234", niche: "Chiropractic" };
+  googleReviewUrl: LINK, businessAddress: "1400 N Gilbert Rd, Suite M, Gilbert, AZ 85234", niche: "Chiropractic",
+  // These checks are about sending (caps, reminders, opt-outs), so the sample's health safeguards are switched off
+  // here. A real chiropractor's patients are never emailed: that is pinned in verify-health-mode (KB hipaa-health-clients).
+  healthMode: "off" };
 const row = (o) => ({ id: "r" + Math.random().toString(36).slice(2, 8), client_id: "c1", name: "Jane Smith", email: "jane@x.com",
   status: "queued", token: "ab".repeat(18), attempts: 0, created_at: new Date(NOON - 3600e3).toISOString(), ...o });
 
@@ -138,7 +141,7 @@ const row = (o) => ({ id: "r" + Math.random().toString(36).slice(2, 8), client_i
   ok("the From line is the business name at our verified address",
     R.fromAddress(CLIENT, "BoldLine Media <hello@boldlinemedia.com>") === '"Springbok Wellness" <hello@boldlinemedia.com>');
   ok("no From address configured means no From, not a guess", R.fromAddress(CLIENT, "") === "");
-  ok("health clinics are flagged for the privacy agreement", R.isHealthBusiness(CLIENT) && !R.isHealthBusiness({ niche: "Pool Construction", name: "Summit Pools" }));
+  ok("health clinics are flagged for the privacy agreement", R.isHealthBusiness({ ...CLIENT, healthMode: "auto" }) && !R.isHealthBusiness({ niche: "Pool Construction", name: "Summit Pools" }));
 }
 
 // ── 6. The sender, run with a fake database and a fake Resend ───────────────────────────────

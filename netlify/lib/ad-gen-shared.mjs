@@ -9,6 +9,18 @@ import Anthropic from "@anthropic-ai/sdk";
 import { dropSelfBlockingNegatives } from "./trade-playbooks.mjs";
 import { humanize, NO_DASH_RULE, fitWords, fitPhrase, isLeadIn } from "./humanize.mjs";
 
+import { HEALTH_AD_RULES, healthBlocks } from "./health-mode.mjs";
+
+// Is this a health client with the ad rules on? The OS says so (body.health), and when a client id comes with the
+// request the record itself is checked too, so the rules hold even if a screen forgets to send the flag.
+export const healthForAds = async (supabase, body) => {
+  if (body && body.agency) return false;
+  if (body && body.health === true) return true;
+  const id = String((body && body.clientId) || "");
+  if (!id || !supabase) return false;
+  try { const { data } = await supabase.from("clients").select("data").eq("id", id).maybeSingle(); return healthBlocks(data && data.data, "adRules"); }
+  catch { return false; }
+};
 const MODELS = ["claude-sonnet-5", "claude-opus-4-8"];
 
 // Google's real limits. Anything over is rejected by the API, so the model is told
@@ -274,7 +286,8 @@ export const cleanCreatives = (data, fallbackKicker = "") => {
 };
 
 // ── The two prompts, kept here so sync and background can never diverge ──────
-export const systemFor = (isAgency) => {
+// `health`: the client is a health business with the ad rules on (KB hipaa-health-clients).
+export const systemFor = (isAgency, health = false) => {
   const WHO = isAgency
     ? `You are writing ads for BoldLine Media, a marketing agency that runs Google and Meta ads for other businesses and builds the landing pages behind them. THE SEARCHER IS A BUSINESS OWNER looking for help getting customers. BoldLine has NO CLIENTS YET, so there are no results, testimonials or case studies to reference, and inventing any would be a lie. The honest differentiators you MAY use: the client owns and is billed for their own ad account so nothing is held hostage, every campaign gets a purpose-built landing page instead of pointing at a homepage, and the whole operation is run by software rather than a big retainer team. BoldLine works with businesses remotely and nationally, so NEVER say "local businesses".`
     : `You are writing ads for a business that hires customers directly. THE SEARCHER IS THAT BUSINESS'S CUSTOMER, looking for the service right now. Write to that person's actual problem, not to the business.`;
@@ -283,7 +296,7 @@ export const systemFor = (isAgency) => {
 ${WHO}
 
 ${HONESTY}
-
+${!isAgency && health ? `\n${HEALTH_AD_RULES}\n` : ""}
 ${VOICE}`;
 };
 

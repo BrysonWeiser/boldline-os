@@ -4,6 +4,7 @@ import { forwardLead, forwardResult } from "../lib/crm-forward.mjs";
 import { pickAttribution } from "../lib/attribution.mjs";
 import { pickConsent, mayTextLead, weSendTheText } from "../lib/sms-consent.mjs";
 import { notifyTeamOfLead } from "../lib/team-view.mjs";
+import { healthBlocks } from "../lib/health-mode.mjs";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +32,8 @@ const parseBody = async (req) => {
 // rather than waiting for the nurture cron — branded as the client's
 // business, since this goes straight to their customer.
 const notifyLead = async (client, lead) => {
+  // A health client's practice contacts its own leads; we send nothing to a would-be patient (KB hipaa-health-clients).
+  if (healthBlocks(client, "autoReply")) return;
   const firstName = lead.name ? lead.name.trim().split(/\s+/)[0] : "";
   const greeting = firstName ? `Hi ${firstName},` : "Hi,";
   const phoneLine = client.businessPhone ? ` Need something faster? Call us anytime at ${client.businessPhone}.` : "";
@@ -117,6 +120,11 @@ export default async (req) => {
     return json({ ok: false, error: "lookup failed" }, 500);
   }
   if (!data) return json({ ok: false, error: "Invalid token" }, 404);
+
+  // 🔴 HEALTH CLIENTS (KB hipaa-health-clients): anything a visitor typed about themselves is dropped BEFORE it is
+  // saved, alerted or forwarded, so no condition ever sits in our records, emails or texts. Their forms do not ask
+  // for it; this catches a form that still does (an old page, a hand-built one).
+  if (healthBlocks(data.data, "form")) lead.message = "";
 
   let nextData;
   try {

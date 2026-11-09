@@ -1,3 +1,4 @@
+import { healthBlocks } from "./health-mode.mjs";
 // Review requests: after a job, ask the client's customer for a Google review, by email.
 //
 // Bryson, 2026-10-05, after a car detailer told him his agency also manages his Google listing:
@@ -63,10 +64,9 @@ export const senderName = (client) => {
 // The client said no (Reviews tab switch, KB `service-add-ons`). Nothing is queued or sent for them.
 export const reviewsDeclined = (client) => Array.isArray(client && client.declinedFeatures) && client.declinedFeatures.includes("review_requests");
 
-// Health businesses: a patient's email in a vendor's hands is protected health information.
-export const isHealthBusiness = (client) =>
-  /chiro|dental|dentist|orthodon|med ?spa|medical|clinic|therap|physio|wellness|dermatolog|optom|audiolog|\baba\b|counsel|psych|doctor|physician|pharm|hospice|home health/i
-    .test(`${(client && client.niche) || ""} ${(client && client.name) || ""}`);
+// Health businesses: a patient's email in a vendor's hands is protected health information. The niche list and
+// Bryson's per-client override live in ./health-mode.mjs (KB hipaa-health-clients).
+export const isHealthBusiness = (client) => healthBlocks(client, "patientEmails");
 
 // ── Reading a pasted list ─────────────────────────────────────────────────────────────────
 // One customer per line, in whatever shape he copies it in: "Jane Doe, jane@x.com",
@@ -142,6 +142,8 @@ export const planReviewSends = (rows, { clientsById = {}, history = [], optedOut
     if (!client) { stops.push({ row: r, reason: "client_gone" }); continue; }
     // 🔴 They said no after rows were queued: stop them all, first emails and reminders alike.
     if (reviewsDeclined(client)) { stops.push({ row: r, reason: "declined" }); continue; }
+    // 🔴 A health client's patients are never emailed by us (KB hipaa-health-clients), even rows queued before.
+    if (isHealthBusiness(client)) { stops.push({ row: r, reason: "health" }); continue; }
     let kind = null;
     if (r.status === "queued") kind = "first";
     else if (r.status === "sent" && r.sent_at && now - new Date(r.sent_at).getTime() >= REMIND_AFTER_DAYS * DAY) kind = "reminder";

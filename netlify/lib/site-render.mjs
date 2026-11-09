@@ -43,6 +43,7 @@ import { bookingOn, bookingConfig, intakeOf } from "./booking.mjs";
 import { bookingWidgetHTML, bookingWidgetJS, BOOKING_WIDGET_CSS } from "./booking-widget.mjs";
 import { brandFonts, withFont, fontLinks, brandAccents, beforeAfterPairs, beforeAfterHTML, BEFORE_AFTER_CSS, BEFORE_AFTER_JS } from "./brand-style.mjs";
 
+import { healthBlocks } from "./health-mode.mjs";
 // 🔴 NO ZOOM ON AN IPHONE (Bryson, 2026-10-08, screenshot of the contact page cut off after sending).
 // Safari on iPhone zooms the page in when someone taps a form box whose text is under 16px, and it
 // stays zoomed after they submit, so the page reads as cut off. Every form box on a phone is 16px.
@@ -131,9 +132,9 @@ export const brandName = (cl) => {
   return raw.replace(/,?\s+(LLC|L\.L\.C\.|Inc\.?|PLLC|LLP|Corp\.?|Co\.)$/i, "").trim() || "Our Business";
 };
 
-// Health businesses get no free-text "message" box: a patient will describe symptoms in it.
-const isHealth = (cl) => /chiro|dental|dentist|orthodon|med ?spa|medical|clinic|therap|physio|wellness|dermatolog|optom|audiolog|\baba\b|counsel|psych|doctor|physician|hospice|home health/i
-  .test(`${(cl && cl.niche) || ""} ${(cl && cl.name) || ""}`);
+// Health businesses get no free-text "message" box: a patient will describe symptoms in it. Niche list and override
+// in ./health-mode.mjs (KB hipaa-health-clients).
+const isHealth = (cl) => healthBlocks(cl, "form");
 
 // ── Motion: a different mix for every client ──────────────────────────────────────────────
 export const MOTION = {
