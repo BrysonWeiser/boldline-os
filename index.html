@@ -5782,7 +5782,8 @@ function withQuotedPlan(cl, plan, foundingOpen) {
   const complete = plan === "complete";
   const months = complete && pk.pricingModel !== "ad_spend_pct" ? COMPLETE_PLAN.termMonths : ADS_FIRST_TERM_MONTHS;
   const st = new Date(cl.contractStart || ""), start = isNaN(st.getTime()) ? new Date() : st;
-  return { ...cl, plan: complete ? "complete" : "ads", contractTermMonths: months, contractEnd: fmt(addMonths(start, months)), foundingFreeMonth: !!foundingOpen };
+  // The free first month is NOT pre-ticked (Bryson, 2026-11-09): it is a closer he offers on the call, case by case.
+  return { ...cl, plan: complete ? "complete" : "ads", contractTermMonths: months, contractEnd: fmt(addMonths(start, months)) };
 }
 function clientFromMeeting(answers, brief, packageId) {
   const a = answers || {};
@@ -6152,7 +6153,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
               trade's lead fee, so what he says on the call is what the site and the agreement say. */}
           <div style={{fontSize:11,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.gold,margin:"22px 0 10px"}}>Plans {leadFee?`· $${leadFee}/lead for this niche`:""}</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8}}>
-            {[["ads","Ads",`$${leadFee||"?"}`,"per qualified lead, no monthly fee",`3 months, then month to month.${foundingOpen?" Founding: setup waived and the first month of lead fees free.":""}`],
+            {[["ads","Ads",`$${leadFee||"?"}`,"per qualified lead, no monthly fee",`3 months, then month to month.${foundingOpen?" Founding: setup waived. A free first month of lead fees is yours to offer if they hesitate.":""}`],
               ["complete","Complete",`$${COMPLETE_PLAN.monthly}/mo`,`plus $${leadFee||"?"} per qualified lead`,`Website built free (normally ${wdMoney(WEBSITE_OFFER.build)}), hosting and care, Google profile, blog, past-customer emails, booking. 12 months, then month to month. Online stores: $${COMPLETE_STORE.monthly}/mo plus their share of ad spend, no website, 3 months.`],
               ["website","Website",wdMoney(WEBSITE_OFFER.build),`to build, then ${wdMoney(WEBSITE_OFFER.care)}/mo`,"No ads. For a business that can't fund $500/mo of ad spend yet but needs the site."]].map(([k,label,big,small,note])=>{
               const rec=recPlan===k;
@@ -6243,7 +6244,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
           ))}
           {foundingOpen&&(
             <div style={{fontSize:10.5,color:C.gold,lineHeight:1.55,marginTop:4,padding:"8px 10px",borderRadius:8,background:C.goldDim,border:`1px solid ${C.gold}44`}}>
-              <strong>Founding client pricing is shown.</strong> {slotsLeft} of {FOUNDING_CLIENT_COUNT} {slotsLeft===1?"place":"places"} left: setup waived, and their first month of lead fees is free (their ad spend is still theirs). The standard setup is the crossed-out figure.
+              <strong>Founding client pricing is shown.</strong> {slotsLeft} of {FOUNDING_CLIENT_COUNT} {slotsLeft===1?"place":"places"} left: setup waived. Not on the website: you can also offer their first month of lead fees free, if they're on the fence. Tick it on their Plan card if you do. The standard setup is the crossed-out figure.
             </div>
           )}
           <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:4}}>AI research — verify anything you'll quote on the call. Per-lead fees are starter estimates; adjust as you like.</div>
@@ -16350,9 +16351,9 @@ function PlanCard({client,pkg,onUpdate}){
       </>}
       <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:C.text,cursor:"pointer",marginTop:12}}>
         <input type="checkbox" checked={!!client.foundingFreeMonth} onChange={e=>onUpdate&&onUpdate({...client,foundingFreeMonth:e.target.checked})}/>
-        Founding client: first month {store?"of fees on ad spend":"of lead fees"} free
+        Free first month {store?"of fees on ad spend":"of lead fees"} (only if you offered it on the call)
       </label>
-      <div style={{fontSize:10.5,color:C.textMuted,marginTop:3,marginLeft:24,lineHeight:1.5}}>Only for your first five clients. {store?"No share of ad spend is charged for the first 30 days after the ads go live.":"Leads in the first 30 days after the ads go live aren't charged."} Their ad spend is still theirs.</div>
+      <div style={{fontSize:10.5,color:C.textMuted,marginTop:3,marginLeft:24,lineHeight:1.5}}>Not on the website. Yours to offer to one of your first five clients if they're on the fence. Tick it only if you promised it, so it's in their agreement. {store?"No share of ad spend is charged for the first 30 days after the ads go live.":"Leads in the first 30 days after the ads go live aren't charged."} Their ad spend is still theirs.</div>
     </Card>);
 }
 

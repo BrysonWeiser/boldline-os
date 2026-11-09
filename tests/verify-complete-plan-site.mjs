@@ -92,11 +92,12 @@ for (const [name, src] of [["the site", SITE], ["get-started", GS], ["llms.txt",
 }
 ok("llms.txt describes the new pricing", /no monthly fee/i.test(LLMS) && LLMS.includes(`Complete plan is ${usd(COMPLETE_PLAN.monthly)}/month`));
 
-// ── The founding offer adds the free first month of lead fees, on BOTH banners, and nothing else changes ────────
+// ── The founding banners advertise the FREE SETUP ONLY (Bryson, 2026-11-09): the free first month of lead fees is a closer for calls ────────
 const WORD = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][FOUNDING_CLIENT_COUNT];
 for (const [name, src] of [["home", readPage("index.html")], ["get-started", GS]]) {
   const banner = (src.match(/<div hidden data-founding[\s\S]*?<\/div>/) || [""])[0];
-  ok(`${name}: the founding banner adds the free first month of lead fees`, new RegExp(`first ${WORD} clients it is free, and so is the first month of lead fees`).test(banner), banner.slice(0, 160));
+  ok(`${name}: the founding banner offers the free setup`, new RegExp(`first ${WORD} clients it is free\\.`).test(banner), banner.slice(0, 160));
+  ok(`🔴 ${name}: and does NOT advertise the free first month (a call-only closer)`, !/first month/i.test(text(banner)));
   ok(`${name}: and still never calls the whole service free`, !/completely free|free for a month|first month free/i.test(text(banner)));
 }
 
