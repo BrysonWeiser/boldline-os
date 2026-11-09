@@ -12,7 +12,7 @@
 // they physically cannot appear near the top of the call list no matter how good the
 // rest of their profile looks.
 
-import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE } from "./pricing-shared.mjs";
+import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE, COMPLETE_PLAN, COMPLETE_STORE } from "./pricing-shared.mjs";
 
 // ─── Revenue estimation ──────────────────────────────────────────────────────
 // Conservative annual revenue per employee by industry group. Deliberately on the
@@ -94,10 +94,21 @@ export const adSpendLow = (pkg) => {
 // came out "comfortable", the affordability cap never bit, and the card said "Infinity× their capacity".
 // This math is about whether they can carry BoldLine every month, so a one-time build is not an entry.
 const managed = (p) => p.pricingModel !== "one_time";
-const entryPackageFor = (kind) =>
-  kind === "ecom"
-    ? PACKAGES.filter((p) => p.id.startsWith("e-") && managed(p)).sort((a, b) => a.price - b.price)[0]
-    : PACKAGES.filter((p) => !p.id.startsWith("e-") && managed(p)).sort((a, b) => a.price - b.price)[0];
+
+// ── 🔴 WHAT A PLAN REALLY COSTS THEM EACH MONTH, ON THE NEW PRICING (2026-11-07, KB complete-plan) ──
+// There is no monthly minimum any more, so the old "minimum + ad spend" sum overstated the cost and capped decent
+// prospects as "can't afford". What they actually carry is their ad budget plus BoldLine's fee on it:
+//  - a store: its share of spend (15%, 12% at the top tier), exactly;
+//  - a lead-gen business: lead fees, which depend on how many leads come in. Planned at LEAD_FEE_SHARE of the ad
+//    budget, which is where a per-lead fee set the way the fee finder sets it (well under their cost per lead) lands.
+//    It is an estimate and every line that shows it says so.
+//  - Complete: plus its flat monthly fee ($500, or $300 for a store).
+export const LEAD_FEE_SHARE = 0.4;
+const feeOn = (p, budget) => p.pricingModel === "ad_spend_pct" ? budget * (Number(p.adSpendPct) || 0) / 100 : budget * LEAD_FEE_SHARE;
+const planFeeFor = (p, complete) => !complete ? 0 : (p.pricingModel === "ad_spend_pct" ? COMPLETE_STORE.monthly : COMPLETE_PLAN.monthly);
+export const monthlyCostOf = (p, complete = false) => { const b = adSpendLow(p); return Math.round(b + feeOn(p, b) + planFeeFor(p, complete)); };
+const poolFor = (kind) => PACKAGES.filter((p) => (kind === "ecom" ? p.id.startsWith("e-") : !p.id.startsWith("e-")) && managed(p));
+const entryPackageFor = (kind, complete = false) => poolFor(kind).sort((a, b) => monthlyCostOf(a, complete) - monthlyCostOf(b, complete))[0];
 
 const fmt = (n) => "$" + Math.round(n).toLocaleString();
 
@@ -152,11 +163,15 @@ export const assessAffordability = ({ employeesEstimate, revenueEstimate, nicheG
       : emp > 0 ? `${emp} employee${emp === 1 ? "" : "s"} × ~${fmt(perEmp)} revenue per employee (${nicheGroup || "general"} benchmark)` : "";
     return websiteAffordability({ annualRevenue, basis, pct: marketingPct(nicheGroup, kind), nicheGroup });
   }
-  const entry = entryPackageFor(kind) || PACKAGES[0];
-  // Monthly minimum (the floor BoldLine bills even in a dead month) + the smallest ad
-  // budget the package can actually work on. That sum is what the prospect must cover.
-  const entryMonthly = entry.price + adSpendLow(entry);
+  // Complete (KB complete-plan): the same ads, plus the flat plan fee, so it needs a bit more room.
+  const complete = pitch === "complete";
+  const entry = entryPackageFor(kind, complete) || PACKAGES[0];
+  // Their smallest workable ad budget + BoldLine's fee on it (+ the Complete fee). No minimum since 2026-11-07.
+  const entryMonthly = monthlyCostOf(entry, complete);
   const entrySetup = entry.setup;
+  const entryLabel = complete ? `Complete with ${entry.name}` : entry.name;
+  const feeWords = (p) => p.pricingModel === "ad_spend_pct" ? `${p.adSpendPct}% of it to BoldLine` : `about ${fmt(feeOn(p, adSpendLow(p)))} in lead fees (an estimate)`;
+  const costLine = (p) => `${fmt(adSpendLow(p))}/mo ad budget + ${feeWords(p)}${complete ? ` + ${fmt(planFeeFor(p, true))}/mo Complete` : ""} = ~${fmt(monthlyCostOf(p, complete))}/mo`;
 
   const statedRevenue = parseRevenue(revenueEstimate);
   const emp = Math.max(0, Math.round(Number(employeesEstimate) || 0));
@@ -169,9 +184,9 @@ export const assessAffordability = ({ employeesEstimate, revenueEstimate, nicheG
 
   if (!annualRevenue) {
     return {
-      known: false, entryId: entry.id, entryName: entry.name, entryMonthly, entrySetup,
-      note: `Company size unknown, so their budget could not be calculated. The cheapest way in is ${entry.name} at a ${fmt(entry.price)}/mo minimum plus at least ${fmt(adSpendLow(entry))}/mo of their own ad spend and a ${fmt(entrySetup)} setup — confirm they can cover roughly ${fmt(entryMonthly)}/mo before you spend real time on them.`,
-      lines: [`Cheapest entry: ${entry.name} — ${fmt(entryMonthly)}/mo all-in + ${fmt(entrySetup)} setup`, "Size unknown — verify budget on the call"],
+      known: false, entryId: entry.id, entryName: entryLabel, entryMonthly, entrySetup, pitch: complete ? "complete" : "ads",
+      note: `Company size unknown, so their budget could not be calculated. The cheapest way in is ${entryLabel}: ${costLine(entry)}, plus a ${fmt(entrySetup)} setup unless it is waived. Confirm they can cover roughly ${fmt(entryMonthly)}/mo before you spend real time on them.`,
+      lines: [`Cheapest way in: ${entryLabel}, ${costLine(entry)}`, "Size unknown, so check the budget on the call"],
     };
   }
 
@@ -187,22 +202,21 @@ export const assessAffordability = ({ employeesEstimate, revenueEstimate, nicheG
   else                   { band = "cannot";      points = 0;  cap = 15;  verdict = "Too small to afford BoldLine. Not worth your time."; }
 
   // What they could actually step up to, so Bryson never pitches above their budget.
-  const pool = (kind === "ecom" ? PACKAGES.filter((p) => p.id.startsWith("e-")) : PACKAGES.filter((p) => !p.id.startsWith("e-")))
-    .filter(managed).slice().sort((a, b) => b.price - a.price);
-  const affordable = pool.find((p) => monthlyCapacity >= p.price + adSpendLow(p)) || null;
+  const pool = poolFor(kind).slice().sort((a, b) => monthlyCostOf(b, complete) - monthlyCostOf(a, complete));
+  const affordable = pool.find((p) => monthlyCapacity >= monthlyCostOf(p, complete)) || null;
 
   return {
     known: true, annualRevenue, basis, monthlyCapacity, ratio,
     band, points, cap, verdict,
-    entryId: entry.id, entryName: entry.name, entryMonthly, entrySetup,
+    entryId: entry.id, entryName: entryLabel, entryMonthly, entrySetup, pitch: complete ? "complete" : "ads",
     affordableId: affordable ? affordable.id : null,
     affordableName: affordable ? `${affordable.name} (${affordable.platform})` : null,
     lines: [
       `Revenue estimate: ${fmt(annualRevenue)}/yr — ${basis}`,
       `Marketing budget capacity: ~${fmt(monthlyCapacity)}/mo (${Math.round(pct * 100)}% of revenue, ${nicheGroup || "general"} benchmark)`,
-      `Cheapest way in: ${entry.name} — ${fmt(entry.price)}/mo minimum + ${fmt(adSpendLow(entry))}/mo minimum ad spend = ${fmt(entryMonthly)}/mo, plus ${fmt(entrySetup)} setup`,
-      `That is ${ratio >= 1 ? `${ratio.toFixed(1)}× their capacity — ${band}` : `${Math.round(ratio * 100)}% of what they can afford — ${band}`}`,
-      affordable ? `Realistic ceiling: ${affordable.name} (${affordable.platform}) at ${fmt(affordable.price)}/mo` : "Cannot afford any package at a viable ad spend",
+      `Cheapest way in: ${entryLabel}, ${costLine(entry)} (no monthly minimum)`,
+      ratio >= 1 ? `Their budget covers that ${ratio.toFixed(1)} times over: ${band}` : `Their budget covers only ${Math.round(ratio * 100)}% of it: ${band}`,
+      affordable ? `Realistic ceiling: ${complete ? "Complete with " : ""}${affordable.name} (${affordable.platform}), ~${fmt(monthlyCostOf(affordable, complete))}/mo all in` : `Cannot afford ${complete ? "Complete" : "any package"} at a viable ad spend`,
     ],
   };
 };

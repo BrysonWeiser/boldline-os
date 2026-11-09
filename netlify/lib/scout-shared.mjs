@@ -16,7 +16,7 @@
 //    corroborate is dropped (and counted), so "strict to those areas" is a rule the
 //    code enforces, not a rule the prompt asks for politely.
 
-import { PACKAGES, getNicheLeadFee, WEBSITE_OFFER, WEBSITE_SIGNATURE } from "./pricing-shared.mjs";
+import { PACKAGES, getNicheLeadFee, WEBSITE_OFFER, WEBSITE_SIGNATURE, COMPLETE_PLAN, COMPLETE_STORE } from "./pricing-shared.mjs";
 
 // ─── NORMALIZATION ───────────────────────────────────────────────────────────
 const LEGAL_SUFFIXES = /\b(llc|l\.l\.c|inc|incorporated|corp|corporation|co|company|ltd|limited|plc|pllc|pc|lp|llp|group|holdings|enterprises|services|service|and|the)\b/g;
@@ -256,9 +256,15 @@ const excludeBlock = (names) =>
 // down, because the website is what Bryson is selling them. A business with a good modern site is not a fit.
 const WEBSITE_HUNT = `WHAT MAKES A BUSINESS A FIT ON THIS RUN: Bryson is selling them a NEW WEBSITE. The best finds have no website of their own (only a Facebook page, a directory listing or nothing at all), a website that does not load, or one that is plainly outdated or poor (not built for phones, years old, no padlock, on a free builder address). A business that already has a good, modern website is NOT a fit and should not be returned. Set "website" honestly for every result: "none" only if you saw no website of their own, otherwise the address you found.`;
 
+// Complete mode (Bryson, 2026-11-09, KB complete-plan): the businesses worth pitching EVERYTHING to. They live on the
+// phone, they have earned a good reputation, and their website (and usually their Google profile) is letting that
+// reputation down, while they are big enough to fund ads plus a flat monthly fee.
+const COMPLETE_HUNT = `WHAT MAKES A BUSINESS A FIT ON THIS RUN: Bryson is selling them the COMPLETE PLAN: BoldLine runs their ads AND builds and looks after their website, Google profile, blog, past-customer emails and booking, for one monthly fee plus a fee per lead. The best finds: (1) live on inbound calls and bookings (home services, trades, clinics, salons, contractors), (2) have a solid reputation (decent star rating and a fair number of reviews), (3) have NO website of their own, or one that is plainly outdated or poor, and ideally a neglected Google profile (no recent posts, unanswered reviews), and (4) are established enough to fund an ad budget, which means a real crew, trucks, staff or several years in business, not a one-person side job. A business with a strong modern website is NOT a fit on this run. Franchise and corporate-owned locations are NOT a fit.`;
+
 export const discoverySystem = ({ niche, nicheGroup, kind, areas, count, exclude, filters, pitch }) => {
   const f = filters || {};
-  const website = pitch === "website";
+  const complete = pitch === "complete";
+  const website = pitch === "website" || complete;
   const wants = [
     !website && f.websiteState === "has" ? "- Only include businesses that DO have their own website." : null,
     !website && f.websiteState === "none" ? "- Prioritise businesses with no website or only a social page — those are the easiest sells." : null,
@@ -267,12 +273,12 @@ export const discoverySystem = ({ niche, nicheGroup, kind, areas, count, exclude
     f.minEmployees > 0 ? `- Skip solo operators; aim for roughly ${f.minEmployees}+ employees.` : null,
   ].filter(Boolean);
 
-  return `You are a B2B prospecting researcher for BoldLine Media, a digital marketing agency (managed Google/Meta ads, custom landing pages and websites) run by Bryson Weiser. Your job on this run is DISCOVERY ONLY: find real businesses worth cold-calling${website ? " about a new website" : ""}. A later step does the deep research on each one.
+  return `You are a B2B prospecting researcher for BoldLine Media, a digital marketing agency (managed Google/Meta ads, custom landing pages and websites) run by Bryson Weiser. Your job on this run is DISCOVERY ONLY: find real businesses worth cold-calling${complete ? " about BoldLine handling all their marketing" : website ? " about a new website" : ""}. A later step does the deep research on each one.
 
 TARGET INDUSTRY: ${niche}${nicheGroup ? ` (${nicheGroup})` : ""}${kind === "ecom" ? " — this is an ONLINE / e-commerce brand category, not a local storefront trade." : ""}
 
 ${areasBlock(areas)}
-${excludeBlock(exclude)}${website ? `\n${WEBSITE_HUNT}\n` : ""}
+${excludeBlock(exclude)}${complete ? `\n${COMPLETE_HUNT}\n` : website ? `\n${WEBSITE_HUNT}\n` : ""}
 TARGET COUNT: find up to ${count} distinct businesses. Fewer real ones is better than padding the list.
 ${wants.length ? `\nPREFERENCES (soft — a great prospect that misses one of these is still worth returning):\n${wants.join("\n")}\n` : ""}
 HOW TO SEARCH: run several different searches — the industry term plus each area, map/directory listings, "best <industry> in <area>", local association or chamber listings, and industry-specific directories. Vary the wording so you are not just re-reading one results page. Confirm each business is currently operating and actually in the requested area before returning it.
@@ -315,7 +321,41 @@ why_not must never be empty. Name the real reason it might not work.
 
 When your research is done, call emit_prospects exactly once with one record per business, in the order given. Do not write a prose summary.`;
 
-export const enrichSystem = ({ niche, kind, leadFee, areas, pitch }) => pitch === "website" ? enrichWebsiteSystem({ niche, areas }) : `You are a B2B sales-intelligence analyst preparing a cold-call list for Bryson Weiser, owner of BoldLine Media — a digital marketing agency that runs managed Google Ads and Meta ads and builds custom landing pages. Pricing is a one-time setup fee, then a monthly MINIMUM or a per-qualified-lead fee (about $${leadFee}/lead in this industry) — whichever is higher, never both. E-commerce brands pay a percentage of their ad spend instead of a per-lead fee. The CLIENT always owns and pays for their own ad account — BoldLine never fronts ad spend.
+// Complete mode's brief: the ads brief's money facts plus the website brief's eye for a weak site.
+const enrichCompleteSystem = ({ niche, kind, leadFee, areas }) => `You are a B2B sales-intelligence analyst preparing a cold-call list for Bryson Weiser, owner of BoldLine Media. On THIS list he is selling the COMPLETE PLAN: $${kind === "ecom" ? COMPLETE_STORE.monthly : COMPLETE_PLAN.monthly} a month plus ${kind === "ecom" ? "a share of ad spend" : `a fee per qualified lead (about $${leadFee} in this industry)`}, no monthly minimum. For that BoldLine runs their Google or Meta ads${kind === "ecom" ? ", builds shop pages for the ads, emails their past buyers and looks after their Google profile if they have a location" : `, builds them a ${WEBSITE_OFFER.pages}-page website free (normally $${WEBSITE_OFFER.build.toLocaleString("en-US")}), hosts and looks after it, keeps their Google profile busy, writes a blog, emails past customers and adds online booking`}. The client pays their ad spend straight to Google or Meta.
+
+You will be given a small batch of businesses in the "${niche}" space${(areas || []).length ? ` around ${areas.join(", ")}` : ""}. For EACH one, research it on the web and fill in a complete record.
+
+RESEARCH EACH BUSINESS FOR:
+- Who owns/runs it. The STATE BUSINESS REGISTRY (Secretary of State or Corporation Commission entity search) is the best source for a small business, then the About page, LinkedIn, licensing boards and review replies signed by the owner. If the owner is not publicly named anywhere, the answer is "unknown".
+- EVERY phone number and email, tagged with whose it is and where you found it. Always include the main published business line if one exists.
+- Size: headcount, locations, trucks or chairs. This decides whether they can fund ads plus the monthly fee, so give the number you can support and 0 if you cannot tell.
+- Their website. Most businesses arrive with a WEBSITE CHECK in their VERIFIED FACTS: BoldLine read their homepage and lists exactly what it saw. That is ground truth; never contradict it. Add what a person would notice that a machine cannot.
+- Their Google profile: rating, review count, whether recent reviews get replies, whether there are recent posts. A good rating with unanswered reviews and no posts is a strong sign for this pitch.
+- Advertising: search their main commercial terms and see whether a paid result appears. Never answer "no" from absence of evidence; put the evidence in ads_evidence.
+- Years in business and any growth signals.
+
+SCORING. You return five factors in score_factors and BoldLine adds them up. Every factor needs a specific reason:
+- "demand" (0-25): does this business live or die on inbound calls and bookings?
+- "gap" (0-25): how much of their marketing is letting them down (website, Google profile, no ads). BoldLine replaces this with its own website check, so keep your reason about what you saw.
+- "reach" (0-15): can Bryson get the decision-maker on the phone? A named owner with a direct line is 15; a generic inbox is 3.
+- "momentum" (0-10): hiring, a new location, recent investment, growing reviews.
+- "risk" (0 to -40, NEGATIVE ONLY): franchise or corporate-owned, already with an agency that handles everything, a brand-new website, dormant, or a restricted vertical. No risk found = 0, and say so.
+Do NOT score "budget". BoldLine works out whether they can fund ads plus the monthly fee from their size.
+
+recommended_package_id is the AD PLAN inside Complete, sized to what they can realistically spend:
+${PACKAGES.filter((p) => p.pricingModel !== "one_time" && (kind === "ecom" ? p.id.startsWith("e-") : !p.id.startsWith("e-"))).map((p) => `- ${p.id}: "${p.name}" (${p.platform}), client ad budget ${p.adSpend}`).join("\n")}
+
+VERIFIED DATA: facts marked VERIFIED come from Google Places, Apollo or BoldLine's own website check. Treat them as ground truth.
+
+${HONESTY}
+
+best_hook must be something Bryson can say in the first 10 seconds of a cold call, grounded in something real about THEIR business (for example: great reviews, but the website doesn't work on a phone). Never insult the business.
+why_not must never be empty. Name the real reason it might not work.
+
+When your research is done, call emit_prospects exactly once with one record per business, in the order given. Do not write a prose summary.`;
+
+export const enrichSystem = ({ niche, kind, leadFee, areas, pitch }) => pitch === "complete" ? enrichCompleteSystem({ niche, kind, leadFee, areas }) : pitch === "website" ? enrichWebsiteSystem({ niche, areas }) : `You are a B2B sales-intelligence analyst preparing a cold-call list for Bryson Weiser, owner of BoldLine Media — a digital marketing agency that runs managed Google Ads and Meta ads and builds custom landing pages. Pricing is a one-time setup fee, then NO monthly fee: a fee per qualified lead (about $${leadFee}/lead in this industry). E-commerce brands pay a percentage of their ad spend instead of a per-lead fee. The CLIENT always owns and pays for their own ad account — BoldLine never fronts ad spend.
 
 You will be given a small batch of businesses in the "${niche}" space${(areas || []).length ? ` around ${areas.join(", ")}` : ""}. For EACH one, research it on the web and fill in a complete record.
 
