@@ -3,7 +3,7 @@ name: hipaa-health-clients
 topic: Clients and compliance
 task: take on or run a medical / health client (chiropractor, dentist, med spa, therapy, clinic) where HIPAA and the ad platforms' health rules apply
 keywords: [hipaa, phi, patient information, business associate agreement, baa, medical clients, health clients, chiropractor, med spa, dental, meta pixel health, google healthcare policy, personal attributes, legitscript, health mode]
-status: health switch BUILT 2026-11-09 (Bryson: "Yes ... automatically turned on for springbok wellness and for any niches that are medical ... a way to be able to change them"); screenshots sent, waiting on his go to merge live
+status: health switch LIVE 2026-11-09 (Bryson said go). Springbok Wellness on automatically.
 summary: Bryson asked 2026-11-09 how BoldLine handles HIPAA for medical niches. Answer: today it is handled by hand per client (Springbok rules), not enforced by the OS. Plan recommended - stay OUT of holding patient health details (a "health mode" switch per client), and only become a HIPAA business associate (BAA + HIPAA-eligible vendors + written safeguards) if medical becomes a main niche. Get a healthcare lawyer to check the setup once before signing health clients routinely; this is general guidance, not legal advice.
 verified: 2026-11-09
 ---
