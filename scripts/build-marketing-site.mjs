@@ -77,6 +77,16 @@ ${part("faq-web.html").trimEnd()}
 </div></section>
 `;
 
+// How it works (rebuilt 2026-11-09): the page is marketing-src/how.html, with its prices filled in from the one price
+// list so it can never quote a different number from the pricing page.
+const howPage = () => {
+  const money = (n) => Number(n).toLocaleString("en-US");
+  const fill = { MIN_AD: money(MIN_AD_BUDGET), COMPLETE: money(COMPLETE_PLAN.monthly), BUILD: money(WEBSITE_OFFER.build), CARE: money(WEBSITE_OFFER.care), CAL,
+    TRADES: TRADES.map((t) => `<a href="/industries/${t.slug}/">${t.label}</a>`).join("") };
+  const html = part("how.html").replace(/<!--[\s\S]*?-->\n/, "").replace(/\{\{(\w+)\}\}/g, (m, k) => { if (!(k in fill)) throw new Error(`how.html: unknown {{${k}}}`); return fill[k]; });
+  return html;
+};
+
 const ctaBand = (title = "Ready for a steadier phone?", sub = "A 30 minute call. We'll tell you straight whether we're a fit, and what we'd do first.", cal = CAL) => `
 <section class="cta-band"><div class="wrap-x"><div class="cta-box reveal">
   <div><h2>${title}</h2><p>${sub}</p></div>
@@ -487,7 +497,7 @@ const PAGES = [
   { id: "how", path: "/how-it-works/", file: "how-it-works/index.html",
     title: "How It Works | BoldLine Media",
     desc: "The same structure every time: discovery, build, launch and weekly optimization. Who we work with, and the questions people ask first.",
-    body: promote(part("process.html")) + part("fit.html") + faqHtml() + ctaBand(), ld: ["ld-org.html", "faq"] },
+    body: howPage() + faqHtml() + ctaBand(), ld: ["ld-org.html", "faq"] },
   { id: "about", path: "/about/", file: "about/index.html",
     title: "About BoldLine Media",
     desc: "BoldLine Media only makes more when your ads do. Meet the founder, read what clients say, and leave a review.",

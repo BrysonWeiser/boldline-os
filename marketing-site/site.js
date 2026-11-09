@@ -706,6 +706,8 @@
   var hero=document.querySelector('.h-hero'), pin=hero&&hero.querySelector('.h-pin'), vis=hero&&hero.querySelector('.h-visual');
   var ph=document.querySelector('.page-hero');
   var steps=document.querySelector('.steps3'), stl=steps&&steps.querySelector('.st-line'), sts=steps?steps.querySelectorAll('.st'):[];
+  /* How it works: the gold line fills as you scroll; a step lights (and its picture plays) once its middle passes 70% of the screen. */
+  var hw=document.querySelector('.hw-steps'), hws=hw?hw.querySelectorAll('.hw-step'):[];
   var pinned=false, vw=0, vh=0;
 
   /* Where the sample site has to travel to end up centred and filling most of the screen. */
@@ -743,6 +745,10 @@
       var sr=steps.getBoundingClientRect(), sp=clamp((vh*.85-sr.top)/(sr.height+vh*.25));
       steps.style.setProperty('--sp',sp.toFixed(4));
       for(var k=0;k<sts.length;k++) sts[k].classList.toggle('lit',sp>=(k+.5)/sts.length-.12);
+    }
+    if(hw){
+      var hr=hw.getBoundingClientRect(); hw.style.setProperty('--hp',clamp((vh*.7-hr.top)/(hr.height||1)).toFixed(4));
+      for(var m=0;m<hws.length;m++){ var rr=hws[m].getBoundingClientRect(); if(rr.top+rr.height*.3<vh*.7) hws[m].classList.add('lit'); }
     }
   }
   function kick(){ if(!q){ q=true; requestAnimationFrame(frame); } }
