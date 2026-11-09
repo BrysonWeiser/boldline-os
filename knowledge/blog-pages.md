@@ -3,7 +3,7 @@ name: blog-pages
 topic: Marketing site
 task: change how the blog listing pages work (how many posts per page, the Newer/Older pager, topic links, the phone layout of the list)
 keywords: [blog pagination, blog pages, pager, pageWindow, pageNumbers, FIRST_PAGE_SIZE, PAGE_SIZE, bx-pages, bx-pg, topic links, ?topic=, blog-index.mjs, blog scroll, compact cards]
-status: built 2026-11-09 on the test copy, waiting on Bryson's go before going live
+status: LIVE 2026-11-09 (Bryson said go)
 summary: Bryson, 2026-11-09 - "every blog just makes me scroll ... only a handful of the top most recent blogs and then a way to see the next page". The listing was 24 posts on one page. Now page one is the newest post shown big plus six more (two rows of three) and every later page is nine; a pager (Newer, numbered pages, Older, 44px tap targets) sits under the posts. Topic chips became real links over the WHOLE blog (/blog/?topic=X), and paging keeps the topic. On a phone the older posts are compact rows (small cover beside title, no excerpt), so page one went from ~5,100px to ~3,300px including header, newsletter and footer.
 verified: 2026-11-09
 ---

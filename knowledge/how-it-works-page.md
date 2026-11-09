@@ -3,7 +3,7 @@ name: how-it-works-page
 topic: Marketing site
 task: change the How it works page (/how-it-works/): its steps, the your-part/our-part box, the three ways in, the fit check, or its scroll motion
 keywords: [how it works, how-it-works, process page, hw-steps, hw-step, hw-rail, hw-split, hw-ways, hw-fit, how.html, howPage, fit section, timeline, step pictures, Example label]
-status: built 2026-11-09 on the test copy, waiting on Bryson's go before going live
+status: LIVE 2026-11-09 (Bryson said go)
 summary: Bryson, 2026-11-09 - How it works was "the only page where it doesnt look nor feel like its at the same level as the rest of the website". Old page was a plain five-line timeline, a row of icons and a checklist, and still said clients start around $1,000/month with no mention of websites or Complete. Rebuilt as marketing-src/how.html: a hero with a "Your part / Our part" box (call, approve + connect ad account, answer the phone vs everything else), a six-step timeline (call, plan, build, launch, every week, every month) where a gold line fills as you scroll and each step's small picture plays once (invite, written plan, checklist ticking, leads arriving, the week's change log, monthly report), three ways in (Ads / Complete / Website, prices from pricing-shared), a two-sided fit check (strong fit / probably not yet) with the trades strip, and the FAQ in the same header style as other pages.
 verified: 2026-11-09
 ---
