@@ -141,3 +141,13 @@ to hold it. Widening only the one card would have left a 980px card between two 
 against the sibling-width rule at the top of this file. And do NOT reach for "remove
 `overflow:hidden`": that stops the clipping by letting content spill outside the card's own
 border, which looks broken in a different way.
+
+## Short screens (Bryson, 2026-11-09, photo of a 1366x768 office monitor)
+Width is not the only axis. A section that holds the screen while you scroll (position: sticky, 100vh) must fit the
+screen's HEIGHT, or its bottom can never be scrolled into view. The Ads page's "journey of one lead" phone was a fixed
+658px tall; a 1366x768 monitor leaves ~625px once the taskbar and browser bars are gone, so step 6 and the phone's
+bottom were cut off. Fixed with height media queries in `marketing-src/new.css` (min-width:1001px and max-height
+900 / 760 / 660 / 540: the phone zooms .86 / .74 / .64 / .54, steps and heading tighten). Guard:
+`tests/verify-short-screens.mjs` scrolls every page at 1366x625 (and home + Ads at 1280x590, 1536x730) and fails if
+anything inside a held section sits off screen, or the page scrolls sideways. Check heights too, not just widths.
+
