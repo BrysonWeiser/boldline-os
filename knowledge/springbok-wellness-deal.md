@@ -338,3 +338,12 @@ records for show / no show; (3) a short form only as a fallback ("can't talk now
 Do NOT host his bookings in the OS's own booking widget: appointment details for a clinic are patient information
 and would make BoldLine a business associate (KB hipaa-health-clients). Open question to Bryson: which practice
 software Springbok uses.
+
+## 2026-11-09 — Springbok uses ChiroTouch
+ChiroTouch offers patient online scheduling (ChiroTouch Cloud lists self-booking; the CT Engage add-on markets online
+scheduling for new patients). Not confirmed: whether Springbok's version / plan includes it, its cost, or how to get
+the booking link (no public setup guide found). Next step given to Bryson: Brendon or the front desk asks ChiroTouch
+support whether online scheduling is on their plan and for the new-patient booking link. When the link arrives:
+landing page main button "Book online" to that link, second button "Call us"; Google counts taps on "Book online" as
+the conversion (no patient details reach BoldLine); the monthly show list = new patients ChiroTouch shows as booked
+online + the call-tracking list checked against their records.
