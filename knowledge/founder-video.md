@@ -114,3 +114,8 @@ clips (whisper word timings + pitch tracking), plus what the frames show:
   ("almost runs itself", never "runs itself").
 - Take-2 cheat sheet (2026-10-22): `docs/founder-video/cheat-sheet.html`, sent to him as a phone-sized image. Five
   talking points plus before/while-recording reminders. When take 2 arrives, cut it with the same recipe.
+
+## Take 3 talking points (2026-11-09, Bryson: "i want to refilm that but i need bullet points")
+Same five points as the take-2 cheat sheet, with one change: the closer can now say he only gets paid for results
+(true since the 2026-11-07 pricing: no monthly fee for ads, a set fee per qualified lead; KB complete-plan). OS
+footage is still made by Claude from sample businesses (`footage/film.cjs`), so he films only himself. Given in chat.
