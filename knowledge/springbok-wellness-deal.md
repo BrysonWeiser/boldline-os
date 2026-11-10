@@ -325,3 +325,16 @@ Brendon first.
 Count: unchanged. The 9 Oct mistaken signing already put a signed contract on the record and he stays counted
 while the replacement is out (KB contract-replace). Do not announce or change anything client-count related
 because of this yes.
+
+## 2026-11-09 — how patients get from the ad to an appointment (Bryson)
+Bryson: the front desk can't see who called, he does NOT want the front desk calling leads back, and wants the ad to
+lead straight to "call to be scheduled" or "schedule yourself online". Springbok today takes patients by walk-in or
+phone only (they bill insurance, e.g. BCBS, so they are a HIPAA covered entity).
+Recommended: (1) turn on online booking in the clinic's OWN practice software (most chiropractic systems have it:
+the patient's details then never touch BoldLine), landing page main button "Book online", second "Call us";
+(2) calls: tracking number logs caller number + time + length (names via caller-name lookup are mostly blank for
+cell phones, so don't promise names); the front desk checks the monthly list of numbers against their own patient
+records for show / no show; (3) a short form only as a fallback ("can't talk now?"), emailed to the front desk.
+Do NOT host his bookings in the OS's own booking widget: appointment details for a clinic are patient information
+and would make BoldLine a business associate (KB hipaa-health-clients). Open question to Bryson: which practice
+software Springbok uses.
