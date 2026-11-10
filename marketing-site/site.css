@@ -1361,6 +1361,36 @@ a.ind-card:hover{transform:translateY(-4px);border-color:var(--gold-line)}
 html.mo .lj{padding:0}
 html.mo .lj-pin{height:420vh}
 html.mo .lj-stick{position:sticky;top:0;height:100vh;padding-top:60px}
+/* Short screens (a 1366x768 monitor or a laptop at 125% leaves ~600px of page): the section holds the whole screen,
+   so everything in it must fit the height. The phone and the steps shrink with the screen's height, not its width. */
+@media (min-width:1001px) and (max-height:900px){
+  html.mo .lj-stick{padding-top:68px}
+  .lj-phone{zoom:.86}
+  .lj-copy h2{font-size:clamp(28px,2.9vw,38px);margin:12px 0 18px}
+  .lj-steps{gap:2px}
+  .lj-steps li{padding:10px 14px 10px 52px}
+  .lj-steps li::before{top:10px}
+}
+@media (min-width:1001px) and (max-height:760px){
+  .lj-phone{zoom:.74}
+  .lj-copy h2{font-size:clamp(26px,2.5vw,33px);margin:10px 0 14px}
+  .lj-steps li{padding:8px 14px 8px 50px}
+  .lj-steps li::before{top:8px;width:24px;height:24px;font-size:12px}
+  .lj-steps li b{font-size:15.5px}
+  .lj-steps li span{font-size:13.5px;line-height:1.5;margin-top:2px}
+}
+@media (min-width:1001px) and (max-height:660px){
+  html.mo .lj-stick{padding-top:62px}
+  .lj-phone{zoom:.64}
+  .lj-copy .eyebrow{display:none}
+  .lj-copy h2{font-size:clamp(24px,2.2vw,29px);margin:0 0 10px}
+  .lj-steps li{padding:6px 14px 6px 48px}
+  .lj-steps li::before{top:6px}
+}
+@media (min-width:1001px) and (max-height:540px){
+  .lj-phone{zoom:.54}
+  .lj-copy h2{display:none}
+}
 @media (max-width:1000px){
   .lj-stick{grid-template-columns:1fr;gap:28px}
   .lj-stage{order:-1}
