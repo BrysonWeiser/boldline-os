@@ -16407,7 +16407,7 @@ function PlanCard({client,pkg,onUpdate}){
       <div style={{fontSize:11,color:C.textMuted,lineHeight:1.55,margin:"2px 0 8px"}}>Pick before you send the agreement. It goes into the agreement as written here.</div>
       <div style={{display:"flex",gap:8}}>
         <button onClick={()=>setPlan("ads")} style={chip(plan==="ads")}><div style={{fontSize:13,fontWeight:800}}>Ads</div><div style={sub}>{store?`${pkg.adSpendPct}% of ad spend`:"Pay per qualified lead"}. No monthly fee. 3 months, then month to month.</div></button>
-        <button onClick={()=>setPlan("complete")} style={chip(plan==="complete")}><div style={{fontSize:13,fontWeight:800}}>Complete{store?" for stores":""}</div><div style={sub}>{store?`${wdMoney(fee)}/mo plus ${pkg.adSpendPct}% of ad spend. Shop pages, past-buyer emails, Google profile. 3 months, then month to month.`:`${wdMoney(fee)}/mo plus lead fees. Website built free. 12 months, then month to month.`}</div></button>
+        <button onClick={()=>setPlan("complete")} style={chip(plan==="complete")}><div style={{fontSize:13,fontWeight:800}}>Complete{store?" for stores":""}</div><div style={sub}>{store?`${wdMoney(fee)}/mo plus ${pkg.adSpendPct}% of ad spend. Shop pages, past-buyer emails, Google profile. 3 months, then month to month.`:`${wdMoney(fee)}/mo plus lead fees. Website built free. 12 months, then ${wdMoney(Math.max(0,fee-COMPLETE_PLAN.exitPerMonth))}/mo month to month.`}</div></button>
       </div>
       {<>
         <div style={head}>{plan==="complete"?"Their ad plan inside Complete":"Their ad plan"}</div>

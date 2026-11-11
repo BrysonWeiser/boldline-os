@@ -228,7 +228,24 @@ profile $130/mo + blog $300 + $150/mo):
   free build is paid off, and it is month to month then, so a sharp client downgrades. That is the real flaw.
 - A client who wants only website + Google profile (no blog): parts $4,260 year 1 / $2,760 after vs $6,000. Not a
   flaw: a bundle is only good value if you want most of it. Show the "just the pieces" path clearly instead.
-Recommended (awaiting Bryson): after the first 12 months Complete drops to $375/mo (the $125 a month that paid off the
+DECIDED by Bryson 2026-11-10 ("Let's change it to what you said"), BUILT same day: after the first 12 months Complete drops to $375/mo (the $125 a month that paid off the
 free website comes off: 375 + 125 = 500), so it is never dearer than the parts. Alternative $350 for a clearer
 discount. No Complete client exists yet, so changing it now costs nothing; it touches the pricing page, the v9
 agreement's month-to-month price, billing (price drops at month 13), Deal Prep and tests.
+
+## The step-down, as built (2026-11-10)
+- Price list: `COMPLETE_PLAN.monthlyAfterTerm` (375 = 500 - build/12) in pricing-shared; the contract-shared/index.html
+  mirror carries `monthlyAfterTerm: 375` too. Stores never step down (no website to pay back).
+- Agreement (both copies): (b) says the fee drops to $375 from the first month after the initial term; the summary
+  row reads "$500/mo, then $375/mo after the Initial Term". Frozen at send as `contractPlanMonthlyAfter`
+  (`planFeeAfterTermOf`); an agreement sent BEFORE this has no stamp and keeps its flat fee ("the same fee").
+  `planFeeNowOf(cl, now)` = this month's fee. No new terms version was needed (still v9) because of the stamp.
+- Billing: `netlify/lib/complete-stepdown.mjs` (`completeStepDownDue`, `applyStepDown`), run daily by billing-watch on
+  the ads subscription: lowers the Stripe price (proration none, idempotent) as soon as the NEXT invoice is the first
+  after the initial term, never raises a price, logs it on the client and emails Bryson (or emails him if Stripe refused).
+- Shown in: Package tab price box, Plan card (button, sent-agreement line, fee note), overview tile, Website tab line,
+  billing terms + invoice email (planFeeNowOf), Deal Prep plan card + sales prompt, cold-call objection card, Lead Scout
+  brief, client portal package line, pricing page (choices card, price box, terms), How it works, FAQ (2 answers),
+  industry pages, llms.txt, the blog writer's facts.
+- Guards: `tests/verify-complete-stepdown.mjs` (24), plus verify-new-pricing (168) and verify-complete-plan-site (59).
+
