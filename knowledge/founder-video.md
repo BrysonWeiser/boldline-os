@@ -128,3 +128,13 @@ footage is still made by Claude from sample businesses (`footage/film.cjs`), so 
   key words), HDR tone-map if his clips are HDR, stereo at -14 LUFS, 1080x1920, end card boldlinemedia.com.
 - Re-record the OS footage against the CURRENT OS before cutting (pricing changed 2026-11-07/10: no screen may show an
   old price). Wait for his clips; he uploads them in chat.
+
+## Take 3 REFRAMED (2026-11-10, Bryson): "instead of talking about the agency lets talk about how the automations help clients"
+Talking points given (no ARIA): (1) hook: most businesses lose leads after the click, not before it; (2) speed: the
+lead reaches them the moment it comes in and gets an instant reply in THEIR business's name (by email: text replies
+are not switched on, Twilio trial, KB call-tracking, so never say "texts them back"); (3) proof: every enquiry tied to
+the ad that brought it in, and Google told which ones became customers (KB conversion-loop); (4) watching: page and ads
+checked every day (daily-check, site-uptime, ad-access-watch), numbers in their own portal any time + a plain-English
+monthly report; (5) close: you only pay for qualified leads, boldlinemedia.com.
+Footage map: a lead arriving on a sample client's Leads tab, the lead's "from Google Ads" source, the portal weekly
+chart, the monthly report, the daily check / alerts screen. Sample businesses only.
