@@ -41,3 +41,13 @@ verified: 2026-11-10
   (OS demo site). Frame it as an upgrade that keeps their domain, photos and reviews, not a replacement.
 - Plan: established shop -> Complete (site built free). Solo detailer who mainly wants more jobs -> ads, because every
   ad plan comes with its own landing page, so the weak site is not in the way; offer the website later.
+
+## Worked example 2026-11-10: a brand-new solo mobile detailer (Phoenix/Avondale, bookable.bio link page)
+Profile: 3 posts, 21 followers, Meta Verified, owner on the account, link-in-bio page (bookable.bio) with services and
+prices ($200 first full detail, $80 recurring maintenance), Text Us / Call Us, gallery, hours. Verdict given: his link
+page already does a website's job (services, prices, booking by text), so DON'T lead with a website; his real gap is
+being found (21 followers, likely not on Google Maps yet). Probably not a buyer today: a one-person shop just starting
+usually cannot carry $500/mo of ad budget plus lead fees. Play: value first, no pitch in message one (compliment real
+work, ask where customers come from), give a free useful tip (set up a Google Business Profile), meet in person since
+he is in Phoenix, and come back with ads once he is doing steady jobs and wants more. The recurring $80 maintenance is
+the money angle later: one ad lead that becomes a regular is worth far more than one $200 detail.
