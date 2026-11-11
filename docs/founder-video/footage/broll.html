@@ -22,7 +22,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:#050608;color:va
 #orbimg{-webkit-mask-image:radial-gradient(ellipse 60% 62% at 50% 50%,#000 55%,transparent 100%);mask-image:radial-gradient(ellipse 60% 62% at 50% 50%,#000 55%,transparent 100%)}
 #end{position:absolute;inset:0;display:none;text-align:center}
 /* founder cut: the bottom of the phone screen fades to dark so the captions get a clean band of their own */
-.capfade .scr::after{content:"";position:absolute;inset:0;z-index:8;pointer-events:none;background:linear-gradient(to bottom,rgba(7,8,11,0) 0%,rgba(7,8,11,0) 57%,rgba(7,8,11,.82) 68%,rgba(7,8,11,.97) 76%,rgba(7,8,11,.97) 100%)}
+.capfade .scr::after{content:"";position:absolute;inset:0;z-index:8;pointer-events:none;background:linear-gradient(to bottom,rgba(7,8,11,0) 0%,rgba(7,8,11,0) 70%,rgba(7,8,11,.82) 79%,rgba(7,8,11,.97) 85%,rgba(7,8,11,.97) 100%)}
 </style></head><body>
 <canvas id="bg" width="1080" height="1920"></canvas>
 <div class="head" id="head"></div>
@@ -55,9 +55,10 @@ const SEGS={
   today:{head:[["My day,",0],["planned",1]],img:"home.png",zoom:true,chip:["Calls, bookings, what needs me",1.4,1640]},
   // Take 3 (2026-11-10): over his own lines.
   system:{head:[["One system,",0],["every step",1]],img:"pipeline-full.png",scroll:[[0.4,0],[2.9,110]]},
-  review:{head:[["Built by the system,",0],"\n",["checked by me",1]],seq2:["pipeline.png","landing-full.png"]},
+  review:{head:[["Built by the system,",0],"\n",["checked by me",1]],img:"alerts.png",zoom:true},
+  approve:{head:[["Sent to the client",0],"\n",["to approve",1]],img:"portal-review.png",zoom:true},
   traced:{head:[["Every lead,",0],"\n",["traced to its ad",1]],img:"client-leads.png",zoom:true},
-  reports:{head:[["Reports from",0],"\n",["live numbers",1]],img:"portal-full.png",scroll:[[0.3,470],[7.8,640]]},
+  reports:{head:[["Reports from",0],"\n",["live numbers",1]],img:"portal-reports.png",zoom:true},
   end:{end:true}
 };
 const seg=SEGS[SEG]; if(Q.get("chips")==="0"){ delete seg.chip; document.body.classList.add("capfade"); }   // his captions carry the words in the final cut

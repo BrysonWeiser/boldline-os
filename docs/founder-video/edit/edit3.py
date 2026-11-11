@@ -21,12 +21,12 @@ P = [
   {"k": "face",  "a": [(0.62, 2.52)], "z": 1.00},
   {"k": "face",  "a": [(3.10, 7.62)], "z": 1.10},
   {"k": "face",  "a": [(8.08, 8.52), (9.08, 11.15)], "z": 1.00},
-  {"k": "broll", "seg": "system",  "a": [(12.40, 14.08), (14.34, 15.75)]},
+  {"k": "broll", "seg": "system",  "a": [(12.40, 14.08), (14.34, 15.75), (16.30, 18.45)]},
   {"k": "face",  "a": [(19.22, 20.75), (21.58, 22.90), (23.22, 23.58), (24.50, 24.95)], "z": 1.10},
   {"k": "face",  "a": [(25.22, 29.52)], "z": 1.00},
   {"k": "face",  "a": [(30.56, 31.28), (32.32, 33.72), (34.55, 36.58)], "z": 1.10},
   {"k": "broll", "seg": "review",  "a": [(37.28, 42.18)]},
-  {"k": "broll", "seg": "traced",  "a": [(42.55, 47.66), (48.42, 50.90)]},
+  {"k": "broll", "seg": "approve", "a": [(42.55, 47.66), (48.42, 50.90)]},
   {"k": "face",  "a": [(51.24, 57.05)], "z": 1.00},
   {"k": "broll", "seg": "reports", "a": [(58.30, 59.58), (60.16, 67.45)]},
   {"k": "face",  "a": [(67.75, 72.52)], "z": 1.10},
@@ -48,7 +48,7 @@ ENC = ["-c:v", "libx264", "-preset", "medium", "-crf", "15", "-pix_fmt", "yuv420
 SCRIM = f"{D}/scrim.png"
 if not os.path.exists(SCRIM):
     from PIL import Image
-    yy = np.arange(1920, dtype=np.float32); xx = np.clip((yy - 1050) / (1600 - 1050), 0, 1)
+    yy = np.arange(1920, dtype=np.float32); xx = np.clip((yy - 1200) / (1720 - 1200), 0, 1)
     al = (xx * xx * (3 - 2 * xx)) * 0.62
     im = np.zeros((1920, 1080, 4), np.uint8); im[..., 3] = (al[:, None] * 255).astype(np.uint8); Image.fromarray(im, "RGBA").save(SCRIM)
 
@@ -144,7 +144,7 @@ CHUNKS = {
   "P0": "My agency / *almost runs itself*",
   "P1": "For those of you / who don't know / I'm Bryson / I run a marketing agency / called *BoldLine Media*",
   "P2": "Now / let me explain / what I mean",
-  "P3": "It literally / *almost runs itself* / I built a system",
+  "P3": "It literally / *almost runs itself* / I built a system / that is *fully automated*",
   "P4": "Now most of you guys / are thinking / you did that / to *cut corners* / right? / *No*",
   "P5": "I did it so my clients / get the results *faster* / and without the risk / of *human error*",
   "P6": "But Bryson / isn't that / a little bit risky? / Yes / that's why there's / still *human involved*",
@@ -186,7 +186,7 @@ def ts(x):
     return f"{h}:{m_:02d}:{s:05.2f}"
 WHITE, GOLD = "&HFFFFFF&", "&H7AD2F0&"
 VIS, HID = "\\1a&H00&\\3a&H88&\\4a&H70&", "\\1a&HFF&\\3a&HFF&\\4a&HFF&"
-CX, CY, RISE, RISE_T, FADE_IN = 540, 1430, 14, 0.18, 120
+CX, CY, RISE, RISE_T, FADE_IN = 540, 1560, 14, 0.18, 120   # v2: lower (Bryson), still clear of the apps' bottom text
 ev = []
 for gi, g in enumerate(groups):
     last = g["w"][-1][1]; nxt = groups[gi + 1]["w"][0][0] if gi + 1 < len(groups) else None

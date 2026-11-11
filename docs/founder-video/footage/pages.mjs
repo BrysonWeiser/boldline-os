@@ -23,7 +23,23 @@ const leadsLog = []; let k = 0;
 weekly.forEach((n, w) => { for (let i = 0; i < n; i++) leadsLog.push({ id: "L" + (k++), name: ["Sarah K.", "Mike O.", "Jen P.", "Chris D.", "Ana R.", "Luis M.", "Kim T.", "Rob S.", "Dee W."][i % 9], service: ["Roof repair", "Inspection", "Full replacement", "Leak repair"][i % 4], source: ["Google ad", "Landing page", "Meta ad", "Call"][i % 4], status: "new", receivedAt: new Date(now - (7 - w) * 7 * DAY - (i + 1) * 0.6 * DAY).toISOString() }); });
 const cl = { id: "c1", name: "Summit Roofing", contactName: "Marcus Bell", niche: "Roofing", packageId: "g-growth", stage: "optimizing", contractSigned: true, contractStatus: "active",
   contractStart: new Date(now - 60 * DAY).toISOString().slice(0, 10), contractEnd: new Date(now + 40 * DAY).toISOString().slice(0, 10), portalToken: "demo", leadsLog, commLog: [], alerts: [],
-  adBudget: "$1,500/mo", campaignSetup: { serviceArea: "Mesa, Gilbert and Chandler" }, landingPage: { published: true }, botStatuses: {} };
+  adBudget: "$1,500/mo", campaignSetup: { serviceArea: "Mesa, Gilbert and Chandler" }, landingPage: { published: true }, botStatuses: {},
+  // Take 3 footage: what the client is sent to approve, and their monthly report (the real wording the OS uses).
+  approvals: [{ id: "ap-1", kind: "campaign", status: "pending", createdAt: new Date(now - 2 * 3600e3).toISOString(), title: "Your Google ad campaign is ready to launch",
+    body: 'Your Google Search campaign "Roof Repair, Mesa" is built and ready to go live. Ad budget: $50/day (about $1,520/month), which you pay Google directly. We never touch it. Approve to launch, or request changes and we\'ll adjust before anything spends.' }],
+  reportHistory: [{ period: "monthly", sentAt: new Date(now - 2 * DAY).toISOString(), text: [
+    "Your October results",
+    "",
+    "**37 leads** came in this month, up from 24 in September. 31 were calls and 6 were forms.",
+    "",
+    "What worked",
+    "- Roof repair searches in Mesa brought in the most calls, at about $48 a lead.",
+    "- The new landing page turned more visitors into calls than the old one.",
+    "",
+    "What we're changing next",
+    "- Moving more of the budget to weekday mornings, when most calls come in.",
+    "- Pausing 14 searches that never turned into a call.",
+  ].join("\n") }] };
 const pkg = _internal.findPkg ? _internal.findPkg("g-growth") : { id: "g-growth", name: "Growth System", platform: "Google Ads", price: 700 };
 fs.writeFileSync(path.join(GEN, "portal.html"), _internal.makePortalHTML(cl, pkg, undefined));
 
@@ -45,6 +61,10 @@ for (const [name, url] of [["demo", "/demo.html"], ["landing", "/landing.html"],
   await pg.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 400) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 120)); } window.scrollTo(0, 0); });
   await pg.waitForTimeout(1200);
   await pg.screenshot({ path: path.join(OUT, name + ".png") }); await pg.screenshot({ path: path.join(OUT, name + "-full.png"), fullPage: true }); console.log("shot", name);
+  if (name === "portal") for (const [tab, shotName] of [["Review", "portal-review"], ["Reports", "portal-reports"]]) {
+    await pg.evaluate((t) => { const b = [...document.querySelectorAll(".nav .nb")].find((x) => x.textContent.trim().startsWith(t)); if (b) b.click(); window.scrollTo(0, 0); }, tab);
+    await pg.waitForTimeout(800); await pg.screenshot({ path: path.join(OUT, shotName + ".png") }); console.log("shot", shotName);
+  }
 }
 await browser.close(); server.close();
 if (errs.length) console.log("ERRORS:\n" + errs.slice(0, 8).join("\n"));
