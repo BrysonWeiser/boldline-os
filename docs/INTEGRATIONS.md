@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 246 task-keyed entries under `knowledge/`. They surface automatically via the
+> 247 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**246 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**247 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -375,6 +375,9 @@
 - **[site-coming-soon](../knowledge/site-coming-soon.md)** &mdash; &#9989; verified &middot; 2026-09-16  
   ✅ OVER — the site is NOT in a coming-soon state any more. **Meta granted standard access on 2026-09-14** and the site was flipped the same day (`138d809`); no `CS:META-SOON` sentinel survives and all 12 packages book a call. 🔴 Do not read this entry as a description of the live site, and do not tell Bryson that Meta packages are gated — that mistake was made on 2026-09-16 off this entry's stale summary. History: the Meta Ads, Combined Systems and E-Commerce tabs used to read "Coming soon — estimated October 2026" so Bryson could cold call for Google without over-promising; the whole change lived in one commit (`a4b83f0`) plus sentinel comments, with a CLAUDE.md standing rule and a weekly Routine (`trig_012hH9VLXchaMj7LUc461Wrb`) to revert it. `tests/verify-meta-flip.mjs` now asserts the FLIPPED state and fails if any gating returns.  
   <sub>*task:* the marketing site's temporary "Meta coming soon" state, and the automatic trigger that reverts it &nbsp;|&nbsp; *keywords:* coming soon, wizard lost meta, contact wizard platform options, pickFamily reachability, meta coming soon, site gating, CS:META-SOON, sentinel comments, revert a4b83f0, october 2026 estimate, google only, auto revert trigger, meta approval watch</sub>
+- **[video-editing-style](../knowledge/video-editing-style.md)** &mdash; &#9989; verified &middot; 2026-11-10  
+  Default for every video he sends - his face + captions + tight cuts, nothing else unless he asks. Captions in the house style (no box, Inter Bold, words appear as said, a few gold key words, soft edge and drop shadow) placed LOW (centre y=1560 of 1920). Cut long pauses and restarts but NEVER cut his words without asking first (suggest instead). Only add OS screens, end cards or other visuals when he says so; when he does, each screen must show the literal thing being said at that moment. 1080x1920, 30 fps, -14 LUFS stereo, no music baked in. Recipe in docs/founder-video/edit/edit3.py.  
+  <sub>*task:* edit any talking-head video Bryson sends (Instagram, TikTok, Reels, stories, YouTube Shorts) &nbsp;|&nbsp; *keywords:* video editing, captions, talking head, reels, tiktok, instagram video, edit my video, cut the video, b-roll, os screens in video, caption style, story preview, teaser</sub>
 
 ## Marketing Site
 

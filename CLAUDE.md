@@ -168,6 +168,10 @@ automated.
   from prospects who could still have had it, and he has quietly changed his own pitch on the
   strength of something that did not happen. **When in doubt, count lower.** Details in KB
   `founding-offer`.
+- **VIDEOS HE SENDS: HIS FACE + CAPTIONS + TIGHT CUTS, NOTHING ELSE UNLESS HE ASKS (Bryson, 2026-11-10: "remember
+  that editing style for future videos ... I'll tell you specifically when to add other things").** Captions in the house
+  style, placed low (y=1560 of 1920). Never cut his words without asking. When he asks for screens, each one shows the
+  literal thing he is saying. Full spec in KB `video-editing-style`.
 - **Confirm before irreversible or outward-facing actions.**
 - **Default to the cheaper model; flag when a task needs Opus (Bryson, 2026-07-02).**
   Bryson runs on **Sonnet** by default to control credit usage. Before ATTEMPTING a
