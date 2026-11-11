@@ -35,6 +35,7 @@ import { latePolicyFor, interestFor, lateStage, isBillingPaused } from "../lib/l
 import { pauseClientAds, resumeClientAds } from "../lib/billing-pause.mjs";
 import { runAddOnStarts, isAdsInvoice, adsSubscriptionOf } from "../lib/addon-billing.mjs";
 import { stripe as stripeApi, ensureCustomer, resolvePaymentMethod } from "../lib/stripe-shared.mjs";
+import { completeStepDownDue, applyStepDown } from "../lib/complete-stepdown.mjs";
 
 const SK = process.env.STRIPE_SECRET_KEY;
 // Interest starts after day 10 past due on v1-v5 agreements (Agreement §3.4). BILLING_GRACE_DAYS
@@ -223,6 +224,16 @@ export default withFailureAlert("billing-watch", async () => {
         const sub = adsSubscriptionOf(subs.data);
         const periodEndIso = sub && sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
         if (periodEndIso && periodEndIso !== cl.billingNextCharge) patch.billingNextCharge = periodEndIso;
+        // Complete steps down after its 12-month initial term ($500 to $375, KB complete-plan), from the next invoice.
+        const step = completeStepDownDue(cl, sub);
+        if (step) {
+          try {
+            await applyStepDown(stripeApi, sub, step.to, cl.name);
+            patch.billingPlanStepDown = { from: step.from, to: step.to, at: new Date().toISOString(), firstInvoice: periodEndIso };
+            patch.commLog = [{ date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), note: `Complete plan fee lowered from ${money(step.from)} to ${money(step.to)} a month from the next invoice (${periodEndIso ? new Date(periodEndIso).toLocaleDateString("en-US", { timeZone: "America/Phoenix" }) : "next cycle"}): the 12-month initial term is complete, as the agreement says.`, cat: "billing", ts: Date.now() }, ...(patch.commLog || cl.commLog || [])];
+            await ownerEmail(`${cl.name}: Complete fee drops to ${money(step.to)}/mo`, [`<b>${cl.name}</b> has finished the 12-month initial term of the Complete plan.`, `As the agreement says, the Complete Plan Fee drops from ${money(step.from)} to <b>${money(step.to)} a month</b> starting with the next invoice. Done automatically in Stripe, nothing for you to do.`]);
+          } catch (e) { console.error(`billing-watch: ${cl.name || row.id} Complete step-down failed:`, e.message); await ownerEmail(`${cl.name}: Complete step-down FAILED`, [`The Complete fee should drop to ${money(step.to)}/mo from the next invoice, but Stripe refused: ${String(e.message).replace(/</g, "&lt;")}.`, "Open the client's Contract tab and lower the monthly fee by hand before the invoice."]); }
+        }
         if (cl.billingStatus === "active" && periodEndIso) {
           const dLeft = Math.ceil((new Date(periodEndIso).getTime() - Date.now()) / 864e5);
           const undecided = (cl.leadsLog || []).filter((l) => !l.billed && !l.notBillable).length;

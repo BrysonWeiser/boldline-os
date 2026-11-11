@@ -140,8 +140,30 @@ for (const [label, cl, pkg] of [
   eq("a sent Complete price can't be changed afterwards", CS.planFeeOf({ ...sentC, billingPlanMonthly: 300 }), 500);
   eq("🔴 a voided envelope froze nothing", CS.planOf({ ...sent, docusignStatus: "voided", plan: "complete" }), "complete");
   ok("🔴 the OS stamps the plan, its price and the founding month when it sends",
-    /contractPlan:planOf\(client\),contractPlanMonthly:planFeeOf\(client\)\|\|null,contractFoundingFreeMonth:foundingFreeMonthOf\(client\),contractWaivedSetup:waivedSetupOf\(client,pkg\),contractLateFee:/.test(S));
-  ok("and replacing an agreement unfreezes them", /contractPlan:null,contractPlanMonthly:null,contractFoundingFreeMonth:null/.test(S));
+    /contractPlan:planOf\(client\),contractPlanMonthly:planFeeOf\(client\)\|\|null,contractPlanMonthlyAfter:planOf\(client\)==="complete"\?planFeeAfterTermOf\(client\):null,contractFoundingFreeMonth:foundingFreeMonthOf\(client\),contractWaivedSetup:waivedSetupOf\(client,pkg\),contractLateFee:/.test(S));
+  ok("and replacing an agreement unfreezes them", /contractPlan:null,contractPlanMonthly:null,contractPlanMonthlyAfter:null,contractFoundingFreeMonth:null/.test(S));
+}
+
+// ── 🔴 The step-down after year one (Bryson, 2026-11-10, KB complete-plan): $500 for the first 12 months, then $375,
+// so Complete is never dearer than buying the same pieces. Stores never step down. Agreements sent before keep their flat fee.
+{
+  const C = { name: "Summit", plan: "complete", packageId: "g-growth", contractTermsVersion: 9 };
+  eq("year one is $500", CS.planFeeOf(C), 500);
+  eq("🔴 after year one it is $375 (the $125 that paid back the build comes off)", CS.planFeeAfterTermOf(C), 500 - CS.COMPLETE_PLAN.exitPerMonth);
+  eq("the price list says the same", PS.COMPLETE_PLAN.monthlyAfterTerm, 375);
+  eq("a store never steps down (no website to pay back)", CS.planFeeAfterTermOf({ ...C, packageId: "e-growth" }), CS.planFeeOf({ ...C, packageId: "e-growth" }));
+  eq("ads only: no plan fee either way", CS.planFeeAfterTermOf({ ...C, plan: "ads" }), 0);
+  const oldSent = { ...C, contractSigned: true, contractPlan: "complete", contractPlanMonthly: 500 };
+  eq("🔴 an agreement sent before the change keeps the flat fee it says", CS.planFeeAfterTermOf(oldSent), 500);
+  const newSent = { ...oldSent, contractPlanMonthlyAfter: 375, contractStart: "2026-01-15" };
+  eq("a new one is frozen at what it said", CS.planFeeAfterTermOf({ ...newSent, billingPlanMonthly: 450 }), 375);
+  eq("month 12 is still $500", CS.planFeeNowOf(newSent, "2026-12-20"), 500);
+  eq("🔴 month 13 is $375", CS.planFeeNowOf(newSent, "2027-01-15"), 375);
+  eq("and stays $375", CS.planFeeNowOf(newSent, "2027-08-01"), 375);
+  const html = CS.makeContractHTML(C, PS.PACKAGES.find((p) => p.id === "g-growth"));
+  ok("🔴 the agreement says it drops to $375 after the initial term", /drops to \$375(\.00)? per month<\/strong> from the first month after the initial term/.test(html) && /\$500(\.00)?\/mo, then \$375(\.00)?\/mo after the Initial Term/.test(html));
+  const oldHtml = CS.makeContractHTML(oldSent, PS.PACKAGES.find((p) => p.id === "g-growth"));
+  ok("an old agreement still reads 'the same fee'", /continues month to month at the same fee/.test(oldHtml) && !/drops to/.test(oldHtml));
 }
 
 // ── 6. The founding month ───────────────────────────────────────────────────────────────────────────────

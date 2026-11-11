@@ -86,7 +86,7 @@ ok("nothing at all is safe input",
     /Founding terms\. The package lists/.test(UI),
     "a deal that reads like a mistake gets 'corrected' by somebody six months from now");
   ok("the Monthly minimum tile agrees with the card beside it",
-    /"Monthly minimum",v:pkg\?\(planOf\(client\)==="complete"\?`\$\$\{planFeeOf\(client\)\}\/mo \+ lead fees`:contractTerms\(client,pkg\)\.monthly>0/.test(UI));
+    /"Monthly minimum",v:pkg\?\(planOf\(client\)==="complete"\?`\$\$\{planFeeNowOf\(client\)\}\/mo \+ lead fees`:contractTerms\(client,pkg\)\.monthly>0/.test(UI));
   ok("🔴 the dashboard total counts contracted floors and Complete fees, not list prices",
     /clients\.reduce\(\(s,c\)=>\{ const t=contractTerms\(c,findPkg\(c\.packageId\)\); return s\+t\.monthly\+\(t\.planMonthly\|\|0\); \},0\)/.test(UI),
     "summing package prices reports money that will never be invoiced");

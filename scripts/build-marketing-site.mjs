@@ -81,7 +81,7 @@ ${part("faq-web.html").trimEnd()}
 // list so it can never quote a different number from the pricing page.
 const howPage = () => {
   const money = (n) => Number(n).toLocaleString("en-US");
-  const fill = { MIN_AD: money(MIN_AD_BUDGET), COMPLETE: money(COMPLETE_PLAN.monthly), BUILD: money(WEBSITE_OFFER.build), CARE: money(WEBSITE_OFFER.care), CAL,
+  const fill = { MIN_AD: money(MIN_AD_BUDGET), COMPLETE: money(COMPLETE_PLAN.monthly), COMPLETE_AFTER: money(COMPLETE_PLAN.monthlyAfterTerm), BUILD: money(WEBSITE_OFFER.build), CARE: money(WEBSITE_OFFER.care), CAL,
     TRADES: TRADES.map((t) => `<a href="/industries/${t.slug}/">${t.label}</a>`).join("") };
   const html = part("how.html").replace(/<!--[\s\S]*?-->\n/, "").replace(/\{\{(\w+)\}\}/g, (m, k) => { if (!(k in fill)) throw new Error(`how.html: unknown {{${k}}}`); return fill[k]; });
   return html;
@@ -148,7 +148,7 @@ const choices = () => `
       <span class="ch-tag">Everything, one bill</span>
       <div class="ch-k">Complete</div>
       <div class="ch-v">${usd(COMPLETE_PLAN.monthly)}<small>/mo</small></div>
-      <p class="ch-sub">Plus your lead fee for each qualified lead from the ads.</p>
+      <p class="ch-sub">Plus your lead fee for each qualified lead from the ads. Drops to ${usd(COMPLETE_PLAN.monthlyAfterTerm)}/mo after your first year.</p>
       <ul class="ch-list">
         <li><b>Your website, built free</b></li>
         <li>Your ads, run the same way as the Ads plan</li>
@@ -189,7 +189,7 @@ const completeSection = () => `
       <div class="eyebrow">The Complete plan</div>
       <h2>Your ads, your website and the rest, <em>on one bill.</em></h2>
       <p>One team looks after all of it. ${usd(COMPLETE_PLAN.monthly)} a month for everything that's always on, plus your lead fee for each qualified lead the ads bring in. Same as the Ads plan, there's no monthly fee for the ads themselves.</p>
-      <div class="cp-price"><span class="cp-v">${usd(COMPLETE_PLAN.monthly)}<small>/mo</small></span><span class="cp-n">+ your lead fee per qualified lead</span></div>
+      <div class="cp-price"><span class="cp-v">${usd(COMPLETE_PLAN.monthly)}<small>/mo</small></span><span class="cp-n">+ your lead fee per qualified lead<br>then ${usd(COMPLETE_PLAN.monthlyAfterTerm)}/mo after your first year</span></div>
       ${book("btn", "Book a Call")}
     </div>
     <ul class="cp-list">
@@ -197,7 +197,7 @@ const completeSection = () => `
     </ul>
   </div>
   <div class="cp-terms reveal">
-    <div><b>${firstTerm(TERMS.completeFirstTermMonths)} to start.</b> That's what lets us build your website free. After that it's month to month at ${usd(COMPLETE_PLAN.monthly)}, and either of us can stop with ${TERMS.noticeDays} days' notice.</div>
+    <div><b>${firstTerm(TERMS.completeFirstTermMonths)} to start.</b> That's what lets us build your website free. After that your website's paid off, so it drops to ${usd(COMPLETE_PLAN.monthlyAfterTerm)} a month, month to month, and either of us can stop with ${TERMS.noticeDays} days' notice.</div>
     <div><b>Leaving early?</b> You'd pay what's left of the ${usd(WEBSITE_OFFER.build)} build, ${usd(COMPLETE_PLAN.earlyExitPerMonthLeft)} for each month left, and the website is yours to keep.</div>
     <div><b>One ad platform included.</b> Google and Meta together starts at ${usd(COMBO_MIN_BUDGET)} a month in ad budget, the same as our other plans.</div>
   </div>
@@ -316,7 +316,7 @@ const tradePage = (t) => `
 <section class="x-sec" style="padding-top:10px"><div class="wrap-x">
   <div class="tr-price reveal">
     <div><div class="eyebrow">What it costs</div><h2>No monthly fee. You pay for the leads.</h2>
-      <p>A set fee for each qualified lead we deliver, agreed before you start, so a slow month costs you less. Your ad budget, from ${usd(MIN_AD_BUDGET)} a month, goes straight to Google or Meta on your own card. Want the website handled too? Complete is ${usd(COMPLETE_PLAN.monthly)} a month with the website built free.</p></div>
+      <p>A set fee for each qualified lead we deliver, agreed before you start, so a slow month costs you less. Your ad budget, from ${usd(MIN_AD_BUDGET)} a month, goes straight to Google or Meta on your own card. Want the website handled too? Complete is ${usd(COMPLETE_PLAN.monthly)} a month with the website built free, then ${usd(COMPLETE_PLAN.monthlyAfterTerm)} after the first year.</p></div>
     <div class="hero-ctas"><a class="btn" href="/pricing/">See all pricing</a><a class="btn btn-ghost" href="/websites/">Need a website too?</a></div>
   </div>
 </div></section>
@@ -491,7 +491,7 @@ const PAGES = [
     body: promote(part("websites.html")) + gbpSection() + webFaq() + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business.", CAL_WEB), ld: ["ld-org.html", "ld-service.html"] },
   { id: "pricing", path: "/pricing/", file: "pricing/index.html",
     title: "Pricing | BoldLine Media",
-    desc: "No monthly fee for ads: you pay a set fee per qualified lead. The Complete plan adds your website, built free, and the rest for $500 a month. Websites from $1,500.",
+    desc: `No monthly fee for ads: you pay a set fee per qualified lead. The Complete plan adds your website, built free, and the rest for $${COMPLETE_PLAN.monthly} a month, then $${COMPLETE_PLAN.monthlyAfterTerm} after the first year. Websites from $${WEBSITE_OFFER.build.toLocaleString("en-US")}.`,
     body: pageHero("Pricing", "Pay for leads, <em>not promises.</em>", "No monthly fee for ads. You pay a set fee for each qualified lead we deliver, so a month with no leads costs you nothing. Your ad budget is separate and goes straight to Google or Meta on your own card.")
       + choices() + planFinder() + part("services.html").replace("<!--STORE_COMPLETE-->", storeComplete()) + completeSection() + compareNudge() + webPricing() + gbpSection() + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
   { id: "how", path: "/how-it-works/", file: "how-it-works/index.html",
