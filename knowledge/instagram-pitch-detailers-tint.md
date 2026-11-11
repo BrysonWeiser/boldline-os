@@ -57,3 +57,8 @@ the money angle later: one ad lead that becomes a regular is worth far more than
   audience is 50x the shop's), plus the Google profile tip. Likely a student or recent grad running it on the side,
   which confirms: relationship now, ads later. General rule: with a one-person shop, find and DM the owner's personal
   account.
+- His reply (2026-11-10): clients from word of mouth, Facebook, TikTok, Instagram; a base of customers from his old
+  mobile mechanic work; cards and flyers; already shared the detailing page on his personal story. Next move given:
+  point out Google is the one channel missing (people searching are ready to book that day), offer the GBP steps (KB
+  gbp-setup-howto), suggest texting his old mechanic customers a detailing offer, and ask the two qualifying questions
+  (details per week now, how many he could handle). His answers decide when ads make sense.
