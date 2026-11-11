@@ -53,6 +53,11 @@ const SEGS={
   aria:{head:[["Meet",0],["ARIA",1]],orb:"intro"},
   powerhour:{head:[["Power",0],["Hour",1]],seq3:["outreach.png","outreach-running.png"],tap:[141,280,1.2]},
   today:{head:[["My day,",0],["planned",1]],img:"home.png",zoom:true,chip:["Calls, bookings, what needs me",1.4,1640]},
+  // Take 3 (2026-11-10): over his own lines.
+  system:{head:[["One system,",0],["every step",1]],img:"pipeline-full.png",scroll:[[0.4,0],[2.9,110]]},
+  review:{head:[["Built by the system,",0],"\n",["checked by me",1]],seq2:["pipeline.png","landing-full.png"]},
+  traced:{head:[["Every lead,",0],"\n",["traced to its ad",1]],img:"client-leads.png",zoom:true},
+  reports:{head:[["Reports from",0],"\n",["live numbers",1]],img:"portal-full.png",scroll:[[0.3,470],[7.8,640]]},
   end:{end:true}
 };
 const seg=SEGS[SEG]; if(Q.get("chips")==="0"){ delete seg.chip; document.body.classList.add("capfade"); }   // his captions carry the words in the final cut

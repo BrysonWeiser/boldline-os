@@ -33,7 +33,7 @@ const server = http.createServer((req, res) => { const p = decodeURIComponent(ne
     res.writeHead(200, { "content-type": { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".svg": "image/svg+xml", ".woff2": "font/woff2" }[ext] || "application/octet-stream" }); res.end(b); }); });
 await new Promise((r) => server.listen(0, r)); const base = `http://127.0.0.1:${server.address().port}`;
 const d = fs.readdirSync("/opt/pw-browsers").find((x) => /^chromium-\d+$/.test(x));
-const browser = await chromium.launch({ executablePath: path.join("/opt/pw-browsers", d, "chrome-linux/chrome"), args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
 const pg = await ctx.newPage(); const errs = []; pg.on("pageerror", (e) => errs.push(e.message));
 await pg.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => { const u = r.request().url();

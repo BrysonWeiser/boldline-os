@@ -145,3 +145,20 @@ This session's network is unrestricted, so Bryson shares a link instead: Google 
 page) or curl with `?dl=1` for Dropbox, into a fresh empty folder in the scratchpad. Tell him to switch the link back
 to Restricted once downloaded. The finished cut comes back through the chat (SendUserFile). Future recordings: 1080p
 at 30fps (Settings > Camera > Record Video) makes files a fraction of 4K's size.
+
+## Take 3 CUT (2026-11-10): "How our automations help clients.mp4"
+- Source: ONE continuous take (IMG_1776.MOV, 82s, 4K 60fps, SDR: HDR was off, no tone-map needed), dark shirt, about
+  160 words a minute (down from 217). He said it in his own words (agency + human review + reports + pay for results),
+  not the client-benefit bullets. Downloaded from his Google Drive folder link with gdown.
+- Cut: 62.8s, 15 pieces, pauses trimmed, "that is fully automated" cut out after "I built a system" (honesty rule:
+  "almost runs itself"). OS clips (sample business Summit Roofing) over: "It literally almost runs itself. I built a
+  system" (pipeline), "Every time my system finishes a task ... review" (pipeline then landing page), "I send it to my
+  client ... approve it" (client Leads tab, every lead "Came from Google ad"), "Same thing with reports ..." (portal
+  weekly chart). End card boldlinemedia.com. -14.0 LUFS, peak -0.9, 1080x1920 30fps, 28 MB.
+- Recipe: `docs/founder-video/edit/edit3.py` (+ tx3.py); footage scripts updated: browser path is now
+  `/opt/pw-browsers/chromium` (the old chromium-NNNN folder name moved), sample leads carry a click id so the Leads tab
+  shows "Came from Google ad" instead of a warning, new clip definitions system / review / traced / reports.
+- Gotchas: whisper stretches a word back across a pause ("and" before "then"): `snap()` moves such a start to the last
+  voice onset inside the word. A full-page screenshot includes the app's fixed menu bar at the first screen's bottom, so
+  scrolling it pulls the bar into view: zoom a viewport shot instead. Silencedetect missed short pauses (room echo); the
+  loudness map (10 ms RMS, 10th percentile + 9 dB) found them.

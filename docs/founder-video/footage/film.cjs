@@ -23,7 +23,7 @@ const base = (o) => Object.assign({
   pendingActions: [], googleAdsCustomerId: "", portalToken: "tok-" + o.id, leadToken: "lead-" + o.id,
   landingSlug: o.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-x1",
 }, o);
-const lead = (n, svc, src, h, st = "new") => ({ id: "L" + Math.random().toString(36).slice(2, 8), name: n, phone: "(480) 555-01" + String(10 + Math.floor(Math.random() * 80)), email: "", service: svc, source: src, receivedAt: ago(h), status: st });
+const lead = (n, svc, src, h, st = "new") => ({ id: "L" + Math.random().toString(36).slice(2, 8), name: n, phone: "(480) 555-01" + String(10 + Math.floor(Math.random() * 80)), email: "", service: svc, source: src, receivedAt: ago(h), status: st, gclid: "Cj0KCQsample" + Math.random().toString(36).slice(2, 8), ...(st !== "new" ? { gadsUploaded: { qualified: true } } : {}) });
 // The welcome and access emails count as sent, so the client page has no "send the Welcome email" banner in shot.
 const SENT = [{ date: "Oct 1, 2026", note: 'Sent "Welcome + Portal" email to owner@example.com', cat: "email", ts: now - 20 * 864e5 },
   { date: "Oct 2, 2026", note: 'Sent "Ad Account Access" email to owner@example.com', cat: "email", ts: now - 19 * 864e5 }];
@@ -101,7 +101,7 @@ const curl = (url) => execFileSync("curl", ["-sSL", "-A", "Mozilla/5.0 (Windows 
   await new Promise((r) => server.listen(0, r));
   const url = `http://127.0.0.1:${server.address().port}/os.html`;
   const d = fs.readdirSync("/opt/pw-browsers").find((x) => /^chromium-\d+$/.test(x));
-  const browser = await chromium.launch({ executablePath: path.join("/opt/pw-browsers", d, "chrome-linux/chrome"), args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
+  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
   // Morning in Phoenix (ARIA says "Good morning" in the video), with time still moving so clocks tick.
   await ctx.addInitScript(() => { const R = Date, off = Date.UTC(2026, 9, 22, 16, 12, 0) - R.now();
