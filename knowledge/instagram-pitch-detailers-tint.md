@@ -51,3 +51,9 @@ usually cannot carry $500/mo of ad budget plus lead fees. Play: value first, no 
 work, ask where customers come from), give a free useful tip (set up a Google Business Profile), meet in person since
 he is in Phoenix, and come back with ads once he is doing steady jobs and wants more. The recurring $80 maintenance is
 the money angle later: one ad lead that becomes a regular is worth far more than one $200 detail.
+- Same example, owner's personal account: college track athlete (national champion, All-American), 1,073 followers vs
+  the business's 21. Advice: DM the owner's PERSONAL account (where he actually is), open on his real achievement then
+  the business, and make the first free tip "post your detailing work as a Collab with your personal account" (his own
+  audience is 50x the shop's), plus the Google profile tip. Likely a student or recent grad running it on the side,
+  which confirms: relationship now, ads later. General rule: with a one-person shop, find and DM the owner's personal
+  account.
