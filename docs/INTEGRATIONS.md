@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 247 task-keyed entries under `knowledge/`. They surface automatically via the
+> 248 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**247 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**248 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -843,6 +843,9 @@
 - **[facebook-groups](../knowledge/facebook-groups.md)** &mdash; &#9989; verified &middot; 2026-10-12  
   Bryson joined a local entrepreneurs Facebook group (mostly HVAC, handyman and other service businesses) on 2026-10-12 and asked for an intro post that could land a client. Drafted a value-first intro (who he is, pay tied to real leads, ad budget in their own account, free website + Google listing check, ask them to comment their business and area) with no link in the post, plus a comment reply and a follow-up DM. Facts kept true - no client count, founding offer worded as "first few clients" (live site said 3 spots), no invented numbers.  
   <sub>*task:* post in a Facebook group (local entrepreneurs, trades, small business) to introduce BoldLine and get a client, or reply to people who comment &nbsp;|&nbsp; *keywords:* facebook group, facebook post, intro post, introduce myself, entrepreneurs group, community group, group post, comment reply, dm, social selling, hvac, handyman</sub>
+- **[instagram-pitch-detailers-tint](../knowledge/instagram-pitch-detailers-tint.md)** &mdash; &#9989; verified &middot; 2026-11-10  
+  Bryson asked how to pitch ads, websites and Complete on Instagram to mobile detailers and tint shops. Advice - never pitch three products at once; content earns trust, DMs make the money. Lead with ONE problem per post, decide the plan from what you see on their profile (no website = website; good site but slow weeks = ads; established with a weak site = Complete, more often a tint shop than a solo detailer), and open DMs with a specific compliment plus a free mockup offer built with the OS demo-site feature. Honest wording: ads are "pay per qualified lead, no monthly fee, ad budget on your own card".  
+  <sub>*task:* pitch BoldLine's ads, websites or the Complete plan on Instagram (posts, stories, DMs) to mobile detailers and window tint shops &nbsp;|&nbsp; *keywords:* instagram, dm, direct message, mobile detailer, car detailing, window tint, tint shop, pitch, outreach on instagram, content plan, reels, story, which plan to pitch, complete plan instagram</sub>
 - **[instagram-story-promo](../knowledge/instagram-story-promo.md)** &mdash; &#9989; verified &middot; 2026-09-24  
   Built 2026-09-24 (Thu evening Phoenix). Bryson wanted a story saying he is taking on a few service businesses and to DM him. v1 was a list-heavy graphic; asked to judge it as a prospect would, the honest verdict was "tap past": the hook was buried, too much text, no easy DM, no face. v2 leads with "Pay for real leads. Not tire kickers.", asks them to DM the word LEADS, leaves room for a poll sticker, and pairs with a 15-20 second talking-head video he reads from a script. 🔴 Wording kept honest: "You pay per real lead", never "you ONLY pay for results", because deals carry a monthly minimum and the client pays their own ad spend. 🔴 The bigger lever is distribution, not design: his story viewers are mostly friends, so personally messaging people who own or know a business beats any version of the graphic.  
   <sub>*task:* make or judge an Instagram story, post or short video that asks business owners to DM him &nbsp;|&nbsp; *keywords:* instagram story, story image, ig story, dm me, DM me LEADS, poll sticker, link sticker, video script, talking head, reel script, social post, tire kickers, pay per real lead, story graphic, personal account promo</sub>
