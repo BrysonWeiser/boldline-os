@@ -325,3 +325,35 @@ Brendon first.
 Count: unchanged. The 9 Oct mistaken signing already put a signed contract on the record and he stays counted
 while the replacement is out (KB contract-replace). Do not announce or change anything client-count related
 because of this yes.
+
+## 2026-11-09 — how patients get from the ad to an appointment (Bryson)
+Bryson: the front desk can't see who called, he does NOT want the front desk calling leads back, and wants the ad to
+lead straight to "call to be scheduled" or "schedule yourself online". Springbok today takes patients by walk-in or
+phone only (they bill insurance, e.g. BCBS, so they are a HIPAA covered entity).
+Recommended: (1) turn on online booking in the clinic's OWN practice software (most chiropractic systems have it:
+the patient's details then never touch BoldLine), landing page main button "Book online", second "Call us";
+(2) calls: tracking number logs caller number + time + length (names via caller-name lookup are mostly blank for
+cell phones, so don't promise names); the front desk checks the monthly list of numbers against their own patient
+records for show / no show; (3) a short form only as a fallback ("can't talk now?"), emailed to the front desk.
+Do NOT host his bookings in the OS's own booking widget: appointment details for a clinic are patient information
+and would make BoldLine a business associate (KB hipaa-health-clients). Open question to Bryson: which practice
+software Springbok uses.
+
+## 2026-11-09 — Springbok uses ChiroTouch
+ChiroTouch offers patient online scheduling (ChiroTouch Cloud lists self-booking; the CT Engage add-on markets online
+scheduling for new patients). Not confirmed: whether Springbok's version / plan includes it, its cost, or how to get
+the booking link (no public setup guide found). Next step given to Bryson: Brendon or the front desk asks ChiroTouch
+support whether online scheduling is on their plan and for the new-patient booking link. When the link arrives:
+landing page main button "Book online" to that link, second button "Call us"; Google counts taps on "Book online" as
+the conversion (no patient details reach BoldLine); the monthly show list = new patients ChiroTouch shows as booked
+online + the call-tracking list checked against their records.
+
+## 2026-11-10 — Bryson now ALSO works for Springbok (hired ~2026-11-03 as marketing director) 🔴 conflict of interest
+He is using an AI account he set up for Springbok and wanted it to recommend outsourcing the website + Google profile
+to BoldLine. That AI's answer (pieces $4,260 year 1 / $2,760 after vs Complete $6,000 a year; buy the pieces not the
+bundle; check the iMatrix contract and cost first; keep the domain in Dr. Gibb's name; forward old page addresses)
+was judged CORRECT on our own numbers. Complete is the wrong fit for Springbok: two of its extras (past-customer
+emails, our online booking) are switched off for health clients by our own safeguards, and ChiroTouch does booking.
+Advice given: do not steer the employer's AI; disclose in writing to Dr. Gibb that he owns BoldLine, put the
+honest comparison in front of him (including doing it in-house as part of his job), and let Dr. Gibb decide.
+Not yet confirmed: whether BoldLine's site builder can forward the old iMatrix page addresses (check before promising).

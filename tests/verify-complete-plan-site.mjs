@@ -54,8 +54,13 @@ ok("care at its real price", item(/care/i) === `${usd(WEBSITE_OFFER.care)}/mo on
 ok("Google profile at its real price", item(/Google profile/i) === `${usd(GOOGLE_PROFILE.monthly)}/mo on its own`);
 ok("blog at its real price", item(/blog/i) === `${usd(WEBSITE_OFFER.blogMonthly)}/mo on its own`);
 ok("customer emails and booking are only in Complete", item(/emails/i) === "Only in Complete" && item(/booking/i) === "Only in Complete");
-ok("Complete's terms: 12 months, then month to month at $500 with 30 days' notice",
-  P.includes(`${TERMS.completeFirstTermMonths} months to start.`) && P.includes(`month to month at ${usd(COMPLETE_PLAN.monthly)}, and either of us can stop with ${TERMS.noticeDays} days' notice`));
+const HOW_RAW = readPage("how-it-works/index.html");
+// 🔴 After year one it steps down (Bryson, 2026-11-10, KB complete-plan): the website is paid off, $500 becomes $375.
+ok("Complete's terms: 12 months, then $375 month to month with 30 days' notice",
+  P.includes(`${TERMS.completeFirstTermMonths} months to start.`) && P.includes(`it drops to ${usd(COMPLETE_PLAN.monthlyAfterTerm)} a month, month to month, and either of us can stop with ${TERMS.noticeDays} days' notice`));
+ok("the price box and the plan card both show the year-two price", P.includes(`then ${usd(COMPLETE_PLAN.monthlyAfterTerm)}/mo after your first year`) && P.includes(`Drops to ${usd(COMPLETE_PLAN.monthlyAfterTerm)}/mo after your first year.`));
+ok("🔴 no page still says Complete stays at $500 after the first year", !/month to month at \$500/.test(P));
+ok("the FAQ says it too", /\$375 a month after the first year/.test(HOW_RAW) && /then drops to \$375 a month and goes month to month/.test(HOW_RAW));
 ok("leaving early is spelled out in dollars", P.includes(`what's left of the ${usd(WEBSITE_OFFER.build)} build, ${usd(COMPLETE_PLAN.earlyExitPerMonthLeft)} for each month left`));
 ok("both platforms still need the combined ad budget", P.includes(`Google and Meta together starts at ${usd(COMBO_MIN_BUDGET)} a month in ad budget`));
 // Bryson's ruling: show the itemised list, never a made-up "worth $X" total.

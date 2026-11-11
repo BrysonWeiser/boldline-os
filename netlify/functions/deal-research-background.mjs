@@ -11,7 +11,7 @@ import { createClient } from "@supabase/supabase-js";
 import { humanize } from "../lib/humanize.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { getNicheLeadFee, packagesPromptBlock, foundingTermsBlock, websitePromptBlock, completePromptBlock } from "../lib/pricing-shared.mjs";
+import { getNicheLeadFee, packagesPromptBlock, foundingTermsBlock, websitePromptBlock, completePromptBlock, COMPLETE_PLAN } from "../lib/pricing-shared.mjs";
 import { foundingOfferActive } from "../lib/founding.mjs";
 
 const anthropic = new Anthropic();
@@ -65,7 +65,7 @@ Then a blank line, then the briefing in this markdown (bold section headers, "- 
 - 3-4 specific, personalized hooks Bryson can say on the call (reference real details you found — owner name if known, a recent review theme, a visible gap). Make them natural, not salesy.
 
 **Recommended Package & the Money Math**
-Name the recommended plan (Ads, Complete or Website) and ad tier and WHY they fit. There is no monthly minimum on any plan: the ads are paid per qualified lead, and Complete adds a flat monthly fee on top for everything else. Then the lead math in plain numbers: at ~$${leadFee}/lead and a realistic monthly lead volume for their spend range, what that costs vs. the value of a customer in their industry — show the ROI case Bryson can say out loud.
+Name the recommended plan (Ads, Complete or Website) and ad tier and WHY they fit. There is no monthly minimum on any plan: the ads are paid per qualified lead, and Complete adds a flat monthly fee on top for everything else ($${COMPLETE_PLAN.monthly} the first year, then $${COMPLETE_PLAN.monthlyAfterTerm}). Then the lead math in plain numbers: at ~$${leadFee}/lead and a realistic monthly lead volume for their spend range, what that costs vs. the value of a customer in their industry — show the ROI case Bryson can say out loud.
 
 **Website**
 - What their current site is like, from what you actually saw (or that they have none).

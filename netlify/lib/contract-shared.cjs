@@ -177,7 +177,7 @@ function termsVersionOf(cl) {
 // 🔴 ALL OF IT IS GATED ON v9. A client who signed before keeps exactly what they signed: their minimum,
 // their renewal menu, their exit fee. Moving one onto the new pricing is a new agreement both sides sign
 // ("Replace this agreement"), never a silent change. Mirrored in index.html, pinned by verify-new-pricing.
-const COMPLETE_PLAN = { monthly: 500, termMonths: 12, buildWaived: 1500, exitPerMonth: 125, pages: 5, blogPostsPerMonth: 4, careEdits: 2 };
+const COMPLETE_PLAN = { monthly: 500, monthlyAfterTerm: 375, termMonths: 12, buildWaived: 1500, exitPerMonth: 125, pages: 5, blogPostsPerMonth: 4, careEdits: 2 };
 const ADS_FIRST_TERM_MONTHS = 3, NOTICE_DAYS = 30, FOUNDING_FREE_DAYS = 30;
 // Complete for ONLINE STORES (Bryson, 2026-11-07): $300 a month plus their share of ad spend. Ads, shop landing pages,
 // emails that bring past buyers back, and Google profile care if they have a location. No website (BoldLine does not
@@ -209,6 +209,27 @@ function planFeeOf(cl) {
   const has = (v) => v !== null && v !== undefined && String(v).trim() !== "" && Number.isFinite(Number(v));
   const v = contractOut(cl) && has(cl.contractPlanMonthly) ? cl.contractPlanMonthly : cl.billingPlanMonthly;
   return has(v) ? Math.max(0, Math.round(Number(v) * 100) / 100) : (isStorePkgId(cl) ? COMPLETE_STORE.monthly : COMPLETE_PLAN.monthly);
+}
+// ── 🔴 THE STEP-DOWN AFTER YEAR ONE (Bryson, 2026-11-10, KB complete-plan): "Let's change it to what you said". About
+// $125 of each $500 pays back the free website build ($1,500 over 12 months). Once the 12-month initial term is done,
+// that part comes off: $500 becomes $375 a month, so Complete is never dearer than buying the same pieces. Stores have
+// no website to pay back, so their fee never steps down. Frozen at send as `contractPlanMonthlyAfter`: an agreement
+// sent BEFORE this change has no stamp and keeps the flat fee it actually says, never a silent change either way.
+function planFeeAfterTermOf(cl) {
+  cl = cl || {};
+  const fee = planFeeOf(cl);
+  if (!fee || isStorePkgId(cl)) return fee;
+  const has = (v) => v !== null && v !== undefined && String(v).trim() !== "" && Number.isFinite(Number(v));
+  if (contractOut(cl)) return has(cl.contractPlanMonthlyAfter) ? Math.max(0, Math.round(Number(cl.contractPlanMonthlyAfter) * 100) / 100) : fee;
+  return Math.max(0, Math.round((fee - COMPLETE_PLAN.exitPerMonth) * 100) / 100);
+}
+// The Complete fee for the month that starts at `now`: the first-year fee until the initial term is complete, then the
+// lower one. No Start Date yet = the first-year fee.
+function planFeeNowOf(cl, now) {
+  cl = cl || {};
+  const fee = planFeeOf(cl);
+  if (!fee || !cl.contractStart) return fee;
+  return monthsLeftOf(cl, firstTermMonths(cl), now) > 0 ? fee : planFeeAfterTermOf(cl);
 }
 // The founding client's free first month of lead fees. Ticked per client, frozen at send.
 function foundingFreeMonthOf(cl) {
@@ -392,7 +413,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   // Effective monthly = the agreed rate (term-priced at renewal) when set, else the standard package rate.
   // v9: no monthly minimum, whatever the old field says (KB complete-plan). Before v9, the agreed rate.
   const v9 = termsVersionOf(cl) >= 9, complete = planOf(cl) === "complete";
-  const planFee = planFeeOf(cl), freeMonth = foundingFreeMonthOf(cl);
+  const planFee = planFeeOf(cl), planFeeAfter = planFeeAfterTermOf(cl), freeMonth = foundingFreeMonthOf(cl);
   // Complete WITH a website (service businesses) or for an online store (no website, 3 months). And the setup a v9
   // client would pay back for leaving in the first 3 months (zero when they paid it, or on the website Complete plan).
   const store = isStorePkgId(cl), completeSite = complete && !store;
@@ -674,7 +695,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +'<li><strong>Emails to Client&rsquo;s past customers</strong> inviting them back, sent under Client&rsquo;s business name, only to customers Client provides and confirms it may email, each with an unsubscribe link that Agency honors.</li>'
    +'<li><strong>Online booking</strong> on the website, with optional deposits paid to Client through Client&rsquo;s own payment account. Agency never holds Client&rsquo;s customers&rsquo; money.</li>'
    +'</ul>'
-   +'<p>(b) <strong>Complete Plan Fee.</strong> <strong>'+money(planFee)+' per month</strong>, billed monthly in advance from the Start Date. It covers everything in paragraph (a). It is separate from and in addition to the Performance Fee in Section 4, which is charged only for results as set out there, and it never counts toward or against the Performance Fee. After the initial term it continues month to month at the same fee.</p>'
+   +'<p>(b) <strong>Complete Plan Fee.</strong> <strong>'+money(planFee)+' per month</strong>, billed monthly in advance from the Start Date. It covers everything in paragraph (a). It is separate from and in addition to the Performance Fee in Section 4, which is charged only for results as set out there, and it never counts toward or against the Performance Fee. '+(planFeeAfter<planFee?'Once the initial term is complete the website build is paid back, so the Complete Plan Fee <strong>drops to '+money(planFeeAfter)+' per month</strong> from the first month after the initial term and continues month to month at that fee. Nothing else in paragraph (a) changes.':'After the initial term it continues month to month at the same fee.')+'</p>'
    +'<p>(c) <strong>The website build fee is waived.</strong> Agency&rsquo;s standard fee to build this website is '+money(COMPLETE_PLAN.buildWaived)+'. Agency builds it at no charge because Client commits to the twelve (12) month initial term. If this Agreement ends before the initial term is complete, for any reason other than Agency&rsquo;s uncured breach or Agency ending it early, Client pays the part of that fee not yet earned: <strong>'+money(COMPLETE_PLAN.exitPerMonth)+' for each month of the initial term remaining</strong>, any part of a month counting as a whole month. Once the initial term is complete, nothing further is owed for the build.</p>'
    +'<p>(d) <strong>Ownership of the website.</strong> Client&rsquo;s domain stays registered to Client at all times. The words, logo and photos on the website are Client&rsquo;s. If this Agreement ends, Agency will, once any amount owed under paragraph (c) and Section '+nTerm+' is paid, send Client a copy of the website&rsquo;s pages and images to host anywhere, and tell Client which domain settings Agency made, then stop hosting it.</p>'
    +gbpCareClauses(0, { agency: "Agency" }).slice(0, 3).map(function (p, i) { return p.replace(/^<p>\(([a-c])\)/, '<p>(e)('+['i','ii','iii'][i]+')'); }).join('')
@@ -698,7 +719,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +metaItem("Advertising Platform",(pkg&&pkg.platform)||"—")
    +(oneTime
       ? metaItem("Total Fee",money(setupFee)+" one time")+metaItem("Ongoing Fees","None")
-      : (complete?metaItem("Complete Plan Fee",money(planFee)+"/mo"):"")
+      : (complete?metaItem("Complete Plan Fee",money(planFee)+"/mo"+(planFeeAfter<planFee?", then "+money(planFeeAfter)+"/mo after the Initial Term":"")):"")
         +metaItem("Monthly Minimum",introOnly?(v9?"None":"None during the Initial Term"):money(effMonthly)+"/mo")
         +metaItem("One-Time Setup Fee",setupFee>0?money(setupFee):(waivedSetup>0?"Waived ("+money(waivedSetup)+" standard; paid back in part if Client leaves in the first 3 months)":"Waived")))
    +metaItem(v9?"Initial Term":"Committed Term",oneTime?"None (one-time project)":v9?monthsLabel(termMo)+", then month to month":monthsLabel(termMo))
@@ -988,5 +1009,5 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
 // the emails had no idea the question existed, which is how a store client billed per Qualified
 // Sale was emailed an invoice for "Qualified leads".
 module.exports = { makeContractHTML, resultWords, termsVersionOf, TERMS_CURRENT, contractFeatureIds, omittedFeaturesOf, addOnsOf, gbpCareClauses, ADD_ONS,
-  COMPLETE_PLAN, ADS_FIRST_TERM_MONTHS, NOTICE_DAYS, FOUNDING_FREE_DAYS, contractOut, noMinimumTerms, planOf, planFeeOf, foundingFreeMonthOf, minimumOf, rollingTerm, firstTermMonths, completeExitOwed, COMPLETE_STORE, isStorePkgId, monthsLeftOf, waivedSetupOf, setupPaybackOwed,
+  COMPLETE_PLAN, ADS_FIRST_TERM_MONTHS, NOTICE_DAYS, FOUNDING_FREE_DAYS, contractOut, noMinimumTerms, planOf, planFeeOf, planFeeAfterTermOf, planFeeNowOf, foundingFreeMonthOf, minimumOf, rollingTerm, firstTermMonths, completeExitOwed, COMPLETE_STORE, isStorePkgId, monthsLeftOf, waivedSetupOf, setupPaybackOwed,
   LATE_FEE_DEFAULT, LATE_FEE_MAX, lateFeeSetting, lateFeeFrozen, agreedLateFee, chargedLateFee, feeWords, lateFeeClause };

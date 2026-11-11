@@ -101,3 +101,16 @@ ours covers them.
 **Do NOT build any of it before the upgrade.** It cannot be tested against a real number, and an
 untested messaging path that reaches a client is exactly the class of failure this project keeps
 being bitten by.
+
+## 2026-11-09: "phone-only businesses like Springbok, how do we track that?" (Bryson)
+Answer given (nothing built yet, waiting on his pick):
+1. **Now, free, no Twilio:** a Google Ads call asset with Google's own forwarding number. Google counts calls from the
+   ad (and calls over a set length, e.g. 60s, as a conversion) and we only ever see counts and area codes, which
+   suits a health client (KB hipaa-health-clients). The landing page already has a call-first mode (intake
+   how === "call": the main button is tap to call).
+2. **Per-caller list (needed for pay-per-show billing):** our own tracking number (this entry) logs every caller as a
+   lead the clinic can mark showed / didn't. Blocked by the Twilio trial; Bryson chose on 2026-11-07 to wait a month,
+   so this is information for him, not a nudge. For a health client: caller number + time + length only, never
+   recordings or transcripts.
+3. **Meanwhile for Springbok's monthly yes/no:** front desk asks every new patient "how did you hear about us?" and
+   the month's "Google ad" new patients are checked against Google's call count.
