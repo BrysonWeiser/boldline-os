@@ -27,3 +27,11 @@ verified: 2026-11-10
 ## Only when he asks
 - OS screens (B-roll), end cards, logos, montages, zooms on details. When asked: every screen is the literal thing
   he is saying at that moment, made with sample businesses only (no real client data), and with no old prices.
+
+## Story preview / teaser (first made 2026-11-10 for "How our automations help clients")
+About 9 seconds: his hook line from the finished video (captioned, with sound, 1.9s), three 0.8s flashes of the most
+striking moments with a gentle push-in (from the uncaptioned master so no stray caption words), then a 4.3s card on a
+blurred, darkened frame of him: "NEW VIDEO" (gold, spaced) / the hook as the headline / one plain line on what it is /
+"Coming soon" (gold). Text stays inside Instagram's story safe zone (y 270 to 1600) with the space under it left for a
+Countdown sticker he adds in the app. Silent after the hook (he can add music in the app). Recipe:
+docs/founder-video/edit/teaser.py. Sent as "Story preview - <topic>.mp4".
