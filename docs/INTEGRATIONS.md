@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 248 task-keyed entries under `knowledge/`. They surface automatically via the
+> 249 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**248 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**249 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -843,6 +843,9 @@
 - **[facebook-groups](../knowledge/facebook-groups.md)** &mdash; &#9989; verified &middot; 2026-10-12  
   Bryson joined a local entrepreneurs Facebook group (mostly HVAC, handyman and other service businesses) on 2026-10-12 and asked for an intro post that could land a client. Drafted a value-first intro (who he is, pay tied to real leads, ad budget in their own account, free website + Google listing check, ask them to comment their business and area) with no link in the post, plus a comment reply and a follow-up DM. Facts kept true - no client count, founding offer worded as "first few clients" (live site said 3 spots), no invented numbers.  
   <sub>*task:* post in a Facebook group (local entrepreneurs, trades, small business) to introduce BoldLine and get a client, or reply to people who comment &nbsp;|&nbsp; *keywords:* facebook group, facebook post, intro post, introduce myself, entrepreneurs group, community group, group post, comment reply, dm, social selling, hvac, handyman</sub>
+- **[gbp-setup-howto](../knowledge/gbp-setup-howto.md)** &mdash; &#9989; verified &middot; 2026-11-10  
+  Phone-friendly steps for a service-area business to create a free Google Business Profile - google.com/business or the Google Maps app, exact real business name (no keywords stuffed in), primary category "Car detailing service", answer NO to a location customers visit and add the cities served instead, phone + booking link, then verify (Google chooses the method; for mobile businesses it is often a short video showing the van, tools and that he runs it; the home address stays hidden). After: hours, services with prices, 10+ real job photos, and ask every happy customer for a review with the profile's review link.  
+  <sub>*task:* walk a prospect (often a mobile detailer or other service-area business) through setting up a free Google Business Profile so they show on Google Maps &nbsp;|&nbsp; *keywords:* google business profile, google maps, get on google maps, gbp setup, service area business, mobile business google, verify google business, free tip for prospects</sub>
 - **[instagram-pitch-detailers-tint](../knowledge/instagram-pitch-detailers-tint.md)** &mdash; &#9989; verified &middot; 2026-11-10  
   Bryson asked how to pitch ads, websites and Complete on Instagram to mobile detailers and tint shops. Advice - never pitch three products at once; content earns trust, DMs make the money. Lead with ONE problem per post, decide the plan from what you see on their profile (no website = website; good site but slow weeks = ads; established with a weak site = Complete, more often a tint shop than a solo detailer), and open DMs with a specific compliment plus a free mockup offer built with the OS demo-site feature. Honest wording: ads are "pay per qualified lead, no monthly fee, ad budget on your own card".  
   <sub>*task:* pitch BoldLine's ads, websites or the Complete plan on Instagram (posts, stories, DMs) to mobile detailers and window tint shops &nbsp;|&nbsp; *keywords:* instagram, dm, direct message, mobile detailer, car detailing, window tint, tint shop, pitch, outreach on instagram, content plan, reels, story, which plan to pitch, complete plan instagram</sub>
