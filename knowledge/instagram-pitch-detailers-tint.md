@@ -31,3 +31,13 @@ verified: 2026-11-10
 - Honesty: ads = pay per qualified lead, no monthly fee, ad budget paid to Google/Meta on their own card. Complete =
   $500/mo first year then $375, plus the lead fee. No em dashes or emojis in anything a prospect reads. Never
   "local businesses".
+
+## Follow-up 2026-11-10: a website that exists but is weak or only one page
+- Lead with something they can check themselves, never "your site is bad": one page = Google has one page to show for
+  every search (ceramic coating, paint correction, home tint all compete for it); the booking button is below the
+  fold on a phone; no reviews on the site; an old year in the footer; no padlock. Lead Scout's free website check
+  lists exactly these (KB website-prospects).
+- Two offers that are easy to say yes to: the free Lead-Leak Check (boldlinemedia.com/free-check/) and a free mockup
+  (OS demo site). Frame it as an upgrade that keeps their domain, photos and reviews, not a replacement.
+- Plan: established shop -> Complete (site built free). Solo detailer who mainly wants more jobs -> ads, because every
+  ad plan comes with its own landing page, so the weak site is not in the way; offer the website later.
