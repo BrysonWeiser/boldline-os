@@ -138,3 +138,10 @@ checked every day (daily-check, site-uptime, ad-access-watch), numbers in their 
 monthly report; (5) close: you only pay for qualified leads, boldlinemedia.com.
 Footage map: a lead arriving on a sample client's Leads tab, the lead's "from Google Ads" source, the portal weekly
 chart, the monthly report, the daily check / alerts screen. Sample businesses only.
+
+## Getting big videos in (2026-11-10): too large to upload in chat
+This session's network is unrestricted, so Bryson shares a link instead: Google Drive (preferred, his Gmail) with
+"Anyone with the link" access, or Dropbox. Download with `gdown` (pip) for Drive (handles the large-file confirm
+page) or curl with `?dl=1` for Dropbox, into a fresh empty folder in the scratchpad. Tell him to switch the link back
+to Restricted once downloaded. The finished cut comes back through the chat (SendUserFile). Future recordings: 1080p
+at 30fps (Settings > Camera > Record Video) makes files a fraction of 4K's size.
