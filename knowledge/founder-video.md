@@ -119,3 +119,12 @@ clips (whisper word timings + pitch tracking), plus what the frames show:
 Same five points as the take-2 cheat sheet, with one change: the closer can now say he only gets paid for results
 (true since the 2026-11-07 pricing: no monthly fee for ads, a set fee per qualified lead; KB complete-plan). OS
 footage is still made by Claude from sample businesses (`footage/film.cjs`), so he films only himself. Given in chat.
+
+## Take 3 plan (2026-11-10, Bryson): "add captions and edit the video according to how its recorded (show me talking and the other stuff) im not going to have aria talk tho"
+- NO ARIA in take 3: no ARIA voice, no "Hey ARIA, start Power Hour" moment. Point 4 dropped (or he says one line about
+  having an assistant; if he does, show the OS Today screen, never her voice).
+- Edit the same way as v2: his takes cut tight (restarts and long pauses out), OS footage from sample businesses over
+  the "what it does" lines (Lead Scout, demo website, client portal chart), v2 caption look (no box, word by word, gold
+  key words), HDR tone-map if his clips are HDR, stereo at -14 LUFS, 1080x1920, end card boldlinemedia.com.
+- Re-record the OS footage against the CURRENT OS before cutting (pricing changed 2026-11-07/10: no screen may show an
+  old price). Wait for his clips; he uploads them in chat.
