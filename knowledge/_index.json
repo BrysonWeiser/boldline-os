@@ -14750,7 +14750,7 @@
         "booking deposits",
         "package redesign"
       ],
-      "status": "LIVE 2026-11-07 ~7pm Phoenix (merge defc39f, rollback/20261108T015902Z, pre-merge ee2b6ca). Site and OS went live together on Bryson's go, after the test copy and the OS screenshots. 187/187 tests.",
+      "status": "LIVE 2026-11-07 ~7pm Phoenix (merge defc39f, rollback/20261108T015902Z, pre-merge ee2b6ca). Site and OS went live together on Bryson's go, after the test copy and the OS screenshots. 187/187 tests. | 2026-11-10: step-down to $375 after year one LIVE",
       "summary": "The new pricing, decided and BUILT 2026-11-07 (dev branch, not live until Bryson says go). No monthly minimum for anyone (ads per qualified lead, stores 15%/12% of spend); 3 months then month to month with 30 days' notice; first five clients get the first month of lead fees free; Complete = $500/mo plus the lead fee with the website built free on a 12-month first term (leave early = $125 per month left), hosting/care, Google profile, blog, past-customer emails, booking, one agreement and one bill. Agreement terms v9 (old agreements untouched), Plan card with one-tap ad tier on the Contract tab, Deal Prep recommends Ads/Complete/Website, marketing site on the test copy. Tests verify-new-pricing + verify-complete-plan-site.",
       "verified": "2026-11-07",
       "terms": {
