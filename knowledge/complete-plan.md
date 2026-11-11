@@ -219,3 +219,16 @@ Steps:
 - Today the website and the ads are SEPARATE agreements and bills; Complete needs one agreement + one bill, the
   pricing page and Deal Prep.
 - Calls, not packaging, land the next client.
+
+## 2026-11-10 — Bryson: "there is a big difference between if a client bought them individually vs in the bundle"
+Triggered by Springbok (KB springbok-wellness-deal). The numbers (parts = website $1,500 + care $100/mo + Google
+profile $130/mo + blog $300 + $150/mo):
+- Year 1: parts $6,360 vs Complete $6,000 (Complete saves $360). Fine.
+- 🔴 Year 2 on: parts $4,560 vs Complete $6,000. Complete costs $1,440 a year MORE than the same parts once the
+  free build is paid off, and it is month to month then, so a sharp client downgrades. That is the real flaw.
+- A client who wants only website + Google profile (no blog): parts $4,260 year 1 / $2,760 after vs $6,000. Not a
+  flaw: a bundle is only good value if you want most of it. Show the "just the pieces" path clearly instead.
+Recommended (awaiting Bryson): after the first 12 months Complete drops to $375/mo (the $125 a month that paid off the
+free website comes off: 375 + 125 = 500), so it is never dearer than the parts. Alternative $350 for a clearer
+discount. No Complete client exists yet, so changing it now costs nothing; it touches the pricing page, the v9
+agreement's month-to-month price, billing (price drops at month 13), Deal Prep and tests.
