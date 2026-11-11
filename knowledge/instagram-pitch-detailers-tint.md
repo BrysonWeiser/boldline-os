@@ -62,3 +62,9 @@ the money angle later: one ad lead that becomes a regular is worth far more than
   point out Google is the one channel missing (people searching are ready to book that day), offer the GBP steps (KB
   gbp-setup-howto), suggest texting his old mechanic customers a detailing offer, and ask the two qualifying questions
   (details per week now, how many he could handle). His answers decide when ads make sense.
+- His second reply (2026-11-10): 40+ regulars from his mobile mechanic days he is converting to detailing, cards and
+  flyers so far, "with my detail work and camerawork I know I can get a lot of customers through social media with a
+  little help on the marketing side". He opened the door himself. Next move given: Meta ads (Instagram + Facebook)
+  using HIS OWN videos, pay per real lead, plus the two qualifying questions (details a week now / could handle) and a
+  coffee or call in Phoenix. Do NOT offer to run his organic posting (BoldLine does not do social media management,
+  KB service-add-ons); the ad budget on his own card is said on the call, before any number.
