@@ -347,3 +347,13 @@ support whether online scheduling is on their plan and for the new-patient booki
 landing page main button "Book online" to that link, second button "Call us"; Google counts taps on "Book online" as
 the conversion (no patient details reach BoldLine); the monthly show list = new patients ChiroTouch shows as booked
 online + the call-tracking list checked against their records.
+
+## 2026-11-10 — Bryson now ALSO works for Springbok (hired ~2026-11-03 as marketing director) 🔴 conflict of interest
+He is using an AI account he set up for Springbok and wanted it to recommend outsourcing the website + Google profile
+to BoldLine. That AI's answer (pieces $4,260 year 1 / $2,760 after vs Complete $6,000 a year; buy the pieces not the
+bundle; check the iMatrix contract and cost first; keep the domain in Dr. Gibb's name; forward old page addresses)
+was judged CORRECT on our own numbers. Complete is the wrong fit for Springbok: two of its extras (past-customer
+emails, our online booking) are switched off for health clients by our own safeguards, and ChiroTouch does booking.
+Advice given: do not steer the employer's AI; disclose in writing to Dr. Gibb that he owns BoldLine, put the
+honest comparison in front of him (including doing it in-house as part of his job), and let Dr. Gibb decide.
+Not yet confirmed: whether BoldLine's site builder can forward the old iMatrix page addresses (check before promising).
