@@ -68,3 +68,8 @@ the money angle later: one ad lead that becomes a regular is worth far more than
   using HIS OWN videos, pay per real lead, plus the two qualifying questions (details a week now / could handle) and a
   coffee or call in Phoenix. Do NOT offer to run his organic posting (BoldLine does not do social media management,
   KB service-add-ons); the ad budget on his own card is said on the call, before any number.
+- Qualified (2026-11-12): doing 4 to 5 details a week, could handle about 20. Fits ads: lots of open room. Plan to
+  bring to coffee: Meta Launch (Instagram + Facebook ads from his own videos), ad budget from $500/mo on his card, lead
+  fee around $15 (pricing-shared niche fee for detailing), founding setup waiver only if a spot is still open in the OS.
+  Rough math to show, clearly labelled an example not a promise: $500 budget, if it brings ~20 leads and half book,
+  that is ~10 new customers ($2,000 of first details) plus $80 maintenance regulars, for $500 + ~$300 of lead fees.
