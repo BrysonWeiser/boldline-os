@@ -73,3 +73,7 @@ the money angle later: one ad lead that becomes a regular is worth far more than
   fee around $15 (pricing-shared niche fee for detailing), founding setup waiver only if a spot is still open in the OS.
   Rough math to show, clearly labelled an example not a promise: $500 budget, if it brings ~20 leads and half book,
   that is ~10 new customers ($2,000 of first details) plus $80 maintenance regulars, for $500 + ~$300 of lead fees.
+- 2026-11-13 (Fri 10pm Phoenix): no reply since Thursday to the Google Meet ask. Advice: one day of silence from a solo
+  operator is normal, don't chase on a Friday night or Saturday (busy detailing day). Follow up ONCE, Monday morning,
+  leading with value (the short Google Maps steps he never got) and a low-pressure re-offer of the call; if still
+  nothing, leave it a week and send something useful again (never "just checking in").
