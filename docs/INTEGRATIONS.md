@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 249 task-keyed entries under `knowledge/`. They surface automatically via the
+> 250 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**249 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**250 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -876,6 +876,12 @@
 - **[os-signup-lockdown](../knowledge/os-signup-lockdown.md)** &mdash; &#9989; verified &middot; 2026-11-05  
   Found 2026-11-05 while checking that a demo link can't reach the OS. Supabase still had public sign-ups ON (disable_signup false, email provider on), and the OS page carries the public database key, so anyone who read the page could create their own login, confirm it by email, and pass every "is this a signed-in user?" check in ~49 OS functions plus every table policy granted to signed-in users. Nothing in the OS creates users, so turning sign-ups off breaks nothing. The daily check now fails (red alert) while sign-ups are on, and names any login created in the last 26 hours.  
   <sub>*task:* make sure nobody but Bryson can get into the OS (sign-ups, new logins, who a demo link can reach) &nbsp;|&nbsp; *keywords:* security, sign up, signup, sign-ups, disable signup, allow new users to sign up, supabase auth, new login, rogue account, who can access the os, os access, login lockdown, auth settings, auth/v1/settings, listUsers, daily check, publishable key</sub>
+
+## Strategy
+
+- **[business-model-test-detailers](../knowledge/business-model-test-detailers.md)** &mdash; &#9989; verified &middot; 2026-11-14  
+  Bryson asked for an unsugared test of 100 metro-Phoenix detailers (realistic mix of first contact, founding vs full price, 12 months). Estimate - founding offer about 6 sign (range 4 to 8), full price about 3 (2 to 5); mostly ads (Meta, their own videos), maybe one website, Complete almost never; about half leave in months 3 to 4 or over the summer; BoldLine earns roughly $350 a month per detailer ad client, about $14k in year one with the founding offer and about $9k at full price. Biggest problems: the $15 detailing lead fee makes detailers a low-revenue niche, half the market cannot fund a $500 ad budget, slow replies from solo operators (text-back still off) cause churn, Phoenix summer slump. Fixes recommended: target 2+ van operations and ceramic/PPF/tint shops, price ceramic/PPF leads higher, switch on instant text-back before signing detailers, sell regulars (maintenance plans) not one-off details, never lead with websites or Complete for detailers.  
+  <sub>*task:* judge how BoldLine's offer lands with car detailers (who signs, what they buy, how long they stay, what BoldLine earns), or revisit pricing for detailers &nbsp;|&nbsp; *keywords:* business model test, detailers, car detailing, phoenix, conversion, churn, retention, lead fee, revenue per client, realistic forecast, 100 detailers, what would they buy</sub>
 
 ## Supabase
 
