@@ -19,5 +19,10 @@ ok("🔴 it can only ever say a fixed line, whatever the URL holds", (await say(
 const src = readFileSync(new URL("../netlify/functions/voice.mjs", import.meta.url), "utf8");
 ok("on by default, off only with callWhisper: false, patient wording from the health switch", /client\.callWhisper === false \? ""/.test(src) && /healthModeOf\(client\)\.on \? 1 : 0/.test(src));
 
+// The OS switch (Bryson, 2026-11-16): only the announcement turns off; tracking stays.
+const UI = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+ok("the Call Tracking card has the announce switch, saving callWhisper", /onChange=\{e=>onUpdate&&onUpdate\(\{\.\.\.client,callWhisper:e\.target\.checked\}\)\}/.test(UI) && /Announce ad calls to/.test(UI));
+ok("it says the same words the phone says", UI.includes('const line=`New ${healthModeOf(client).on?"patient ":""}call from your ${where}.`') && /where=id\.startsWith\("g-"\)\?"Google ad":id\.startsWith\("m-"\)\?"Facebook or Instagram ad":"online ad"/.test(UI));
+ok("off still tracks", /Calls still ring straight through and are still tracked as leads/.test(UI));
 if (fails.length) { console.log(`✕ ${fails.length} failed, ${pass} passed`); fails.forEach((f) => console.log("  ✕ " + f)); process.exit(1); }
 console.log(`✓ verify-call-whisper: ${pass} checks passed`);

@@ -136,3 +136,8 @@ automatically (any phone format, total at the top). Phone numbers and dates only
 - 2026-11-16: Bryson: "let's not worry about the spreadsheet" (dropped). He asked whether the whisper is for every
   call-tracked client: yes, on by default for all, wording by plan (Google / Facebook or Instagram / online) and
   "patient" only for health clients; offered an on/off switch on the Call Tracking card if he wants it per client.
+- 2026-11-16: the ON/OFF SWITCH is built on the Call Tracking card (client > Assets tab): "Announce ad calls to
+  <client>", showing the exact line they'll hear; unticked saves callWhisper:false, which only drops the
+  announcement (tracking, logging and forwarding carry on). How it sounds: the caller hears ringing; when the business
+  answers they hear the ~2 second line ON ITS OWN, then the two are connected. Nobody can talk over it or hear the
+  caller during it. Pinned in verify-call-whisper (12).
