@@ -177,3 +177,17 @@ hit other niches as well"*, including e-commerce. So marketing assets must not b
 was made (KB agency-promo-video v8, three sample businesses: a detailer, a handyman and an online candle shop) and the
 detailer version (v7) is kept for detailer outreach. The "one niche, one script for 100 calls" advice above still
 stands as advice; he has chosen to start with detailers and branch out, which is his call.
+
+## 2026-11-16 — reachable owners in Arizona (Bryson: the higher-ticket shops are "near impossible to reach the owner")
+Context: Stencil & Thread ended, the friend's detailing business is off, 0 active clients. New rule added to niche
+choice: **the owner must be the person who answers** (owner-operators who do their own estimates, 1 to 10 staff).
+Ceramic/PPF/auto tint shops fail that (front desk). Recommended instead, all Arizona-specific, $1,000+ jobs, owner
+usually answers because he does the estimates, not heavily farmed by agencies:
+1. **Epoxy garage floors** (first pick): $2,500 to $5,000 jobs, owner-run crews, BoldLine already has an industry page,
+   sample site and landing page for it. Lead fee room $50 to $75.
+2. **Sun screens / solar screens and home window tint**: Arizona heat sells them, small owner-run crews, $1,000 to
+   $5,000 jobs, peak in spring and summer (the opposite season to detailing).
+3. **Artificial turf** installers: $3,000 to $15,000 jobs, owner-run crews.
+Method: don't pick on opinion. Run Lead Scout for each in metro Phoenix, make 25 calls per niche over two days
+(7 to 8:30am and after 4:30pm, ask for the owner by name from the state registry), and pick the one with the best
+owner-reach and conversation rate. Then stay on it for 100 conversations.
