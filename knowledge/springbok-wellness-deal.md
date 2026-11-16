@@ -402,3 +402,11 @@ before holding more than numbers). Calls are never recorded.
   ChiroTouch (a field she fills for every new patient anyway; confirm ChiroTouch's exact field); (3) monthly, BoldLine
   emails a NUMBERED list of calls and she replies with the line numbers that became patients ("2, 5, 9"), about two
   minutes. A one-tap monthly page in the OS (the "showed up" tick offered on 2026-10-19) only if this proves clunky.
+- 2026-11-16 "anything else to make the invoicing easier": advised (1) his card on file now (Contract tab > Billing
+  card > set up billing link) so the monthly invoice charges itself; (2) a fixed monthly rhythm: list to the front desk
+  on the 1st, their answer back, then the invoice (the OS reminds 7 days before the charge if leads are undecided);
+  (3) the 30-day window carries over: a late-month caller who comes in next month goes on next month's list, so each
+  list covers the last 30 to 60 days of calls not yet answered; (4) invoice shows a count x $40, no names or numbers.
+  🔴 The OS bills every lead by default and Exclude is opt-out, which for pay-per-show means unticking every no-show
+  (overbilling risk). Offered to build "bill only leads marked Came in" for pay-per-show clients (leads arrive not
+  billable, one tick marks a show). Awaiting his yes.
