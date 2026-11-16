@@ -1292,7 +1292,7 @@ const flagLead = (lead, all) => {
     else { const last10=phone.slice(-10); if (/^(\d)\1{9}$/.test(last10) || ["1234567890","0123456789","1111111111","0000000000"].includes(last10)) { reasons.push("Fake-looking phone number"); strongFlags.push(1); } }
   }
   const nlow = name.toLowerCase();
-  if (!name) { reasons.push("No name given"); }
+  if (!name) { if (src !== "call_tracking") reasons.push("No name given"); }   // a caller never types a name (KB call-tracking)
   else {
     // Word-boundary match so real names ("Dana", "Samuel") aren't caught by a
     // placeholder substring ("na", "sam"); full-name match for two-word ones.
@@ -11641,7 +11641,8 @@ function EmailCenterTab({client,pkg,onUpdate}) {
     // Leads to bill this cycle = delivered, not yet billed, not excluded (same set
     // the Billing card totals). Feeds the invoice email's per-lead line.
     const perLeadRate = client.billingPerLead!=null ? client.billingPerLead : (PER_LEAD[client.niche]||0);
-    const leadCount = (client.leadsLog||[]).filter(l=>!l.billed && !l.notBillable).length;
+    // A "came in" client counts only the ticked ones (KB springbok-wellness-deal), exactly as the Billing card charges.
+    const leadCount = (client.leadsLog||[]).filter(l=>!l.billed && !l.notBillable && (!client.billingConfirmFirst || l.cameIn===true)).length;
     return {
       businessName: client.name||"",
       contactName: client.contactName||"",
@@ -15464,9 +15465,16 @@ function BillingCard({client,pkg,onUpdate}) {
   // Keep the real leadsLog index with each lead so toggles/mutations hit the
   // right object even though only unbilled leads are shown.
   const unbilledLeads = leadLog.map((lead,idx)=>({lead,idx})).filter(x=>!x.lead.billed);
-  const billableLeads = unbilledLeads.filter(x=>!x.lead.notBillable);
+  // 🔴 CHARGE ONLY WHAT CAME IN (Bryson, 2026-11-16, KB springbok-wellness-deal). For a client who pays per result that
+  // happens LATER (Springbok: a new patient who shows up), every lead arrives NOT charged and is charged only once it is
+  // ticked "Came in". Forgetting a tick undercharges; it can never overcharge. Unticked leads are left untouched by
+  // Approve, so a caller who comes in next month is still there to tick next month.
+  const confirmFirst = !!client.billingConfirmFirst;
+  const chargeable = (l)=>!l.billed&&!l.notBillable&&(!confirmFirst||l.cameIn===true);
+  const billableLeads = unbilledLeads.filter(x=>chargeable(x.lead));
   const billableCount = billableLeads.length;
-  const excludedCount = unbilledLeads.length - billableCount;
+  const waitingCount = confirmFirst ? unbilledLeads.filter(x=>!x.lead.notBillable&&x.lead.cameIn!==true).length : 0;
+  const excludedCount = unbilledLeads.length - billableCount - waitingCount;
   const billedCount = leadLog.filter(l=>l.billed).length;
   // 🔴 THE FOUNDING CLIENT'S FREE FIRST MONTH (KB complete-plan). Leads that arrived in the first 30 days after the
   // ads went live (the Start Date) are approved and recorded like any other, but carry no fee. Decided by when the
@@ -15500,6 +15508,10 @@ function BillingCard({client,pkg,onUpdate}) {
     const updated=leadLog.map((l,i)=> i===realIdx ? {...l,notBillable:!l.notBillable} : l);
     onUpdate&&onUpdate({...client,leadsLog:updated});
   };
+  const toggleCameIn=(realIdx)=>{
+    const updated=leadLog.map((l,i)=> i===realIdx ? {...l,cameIn:l.cameIn!==true} : l);
+    onUpdate&&onUpdate({...client,leadsLog:updated});
+  };
   const saveRate=()=>{
     const r=Math.max(0,Number(rateInput)||0);
     onUpdate&&onUpdate({...client,billingPerLead:r});
@@ -15525,7 +15537,7 @@ function BillingCard({client,pkg,onUpdate}) {
       }
       const billedAt=new Date().toISOString();
       const freeSet=new Set(freeLeads.map(x=>x.idx));
-      const updatedLog=leadLog.map((l,i)=> (!l.billed&&!l.notBillable) ? {...l,billed:true,billedAt,...(freeSet.has(i)?{freeFounding:true,fee:0}:{})} : l);
+      const updatedLog=leadLog.map((l,i)=> chargeable(l) ? {...l,billed:true,billedAt,...(freeSet.has(i)?{freeFounding:true,fee:0}:{})} : l);
       const leadsWord=`${billableCount} qualified ${itNoun}${billableCount===1?"":"s"}${freeCount?` (${freeCount} free, founding first month)`:""}`;
       const note = chargeNow<=0&&monthlyFloor===0
         ? `Approved ${leadsWord}, nothing to bill (founding first month)`
@@ -15553,7 +15565,7 @@ function BillingCard({client,pkg,onUpdate}) {
     setLeadBusy(false);
   };
   // Leads still set to be billed that our heuristic flags as possible junk.
-  const flaggedBillable = unbilledLeads.filter(x=>!x.lead.notBillable && flagLead(x.lead,leadLog).level).length;
+  const flaggedBillable = unbilledLeads.filter(x=>chargeable(x.lead) && flagLead(x.lead,leadLog).level).length;
   // Live preview of the client's next invoice — proves fee + setup + leads +
   // interest all land on ONE bundled bill. Re-fetched after approving leads.
   const loadUpcoming=useCallback(async()=>{
@@ -15696,6 +15708,10 @@ function BillingCard({client,pkg,onUpdate}) {
                 color:on?C.gold:C.textDim,cursor:"pointer"}}>{lbl}</button>;
           })}
         </div>
+        <label style={{display:"flex",gap:9,alignItems:"flex-start",marginBottom:9,cursor:"pointer"}}>
+          <input type="checkbox" checked={!!client.billingConfirmFirst} onChange={e=>onUpdate&&onUpdate({...client,billingConfirmFirst:e.target.checked})} style={{marginTop:2,accentColor:C.gold}}/>
+          <span style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5}}><strong style={{color:C.text}}>Only charge {itPlural} I mark "Came in"</strong><br/>For clients who pay when the person actually shows up (like a new patient). New {itPlural} arrive not charged; tick the ones the client confirms. Anything you forget is never charged.</span>
+        </label>
         {client.billingResultKind==="sale"&&(
           <div style={{marginBottom:9}}>
             <div style={{fontSize:10,color:C.textMuted,lineHeight:1.5,marginBottom:4}}>
@@ -15821,30 +15837,33 @@ function BillingCard({client,pkg,onUpdate}) {
           {unbilledLeads.length===0
             ? <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>No new {itPlural} to bill. {W.many} show up here to review and add to the next invoice.</div>
             : <>
-                <div style={{fontSize:10,color:C.textMuted,marginBottom:6,lineHeight:1.5}}>Leads we flag as possible junk/spam are marked with a reason — <strong style={{color:C.textDim}}>your call</strong>. Exclude anything junk so the client isn&rsquo;t billed for it, then approve.</div>
+                <div style={{fontSize:10,color:C.textMuted,marginBottom:6,lineHeight:1.5}}>{confirmFirst
+                  ? <>Tick <strong style={{color:C.textDim}}>Came in</strong> for each one the client confirms, then approve. The rest stay here, not charged, until they come in. Exclude any that never will.</>
+                  : <>Leads we flag as possible junk/spam are marked with a reason — <strong style={{color:C.textDim}}>your call</strong>. Exclude anything junk so the client isn&rsquo;t billed for it, then approve.</>}</div>
                 <div style={{maxHeight:196,overflowY:"auto",marginBottom:8,display:"flex",flexDirection:"column",gap:5}}>
                   {unbilledLeads.map(({lead,idx})=>{
                     const ex=!!lead.notBillable;
-                    const meta=[lead.source&&lead.source!=="unknown"?lead.source:null,lead.receivedAt?fmt(lead.receivedAt):null].filter(Boolean).join(" · ");
+                    const meta=[lead.source==="call_tracking"?"Phone call":lead.source&&lead.source!=="unknown"?lead.source:null,lead.receivedAt?fmt(lead.receivedAt):null].filter(Boolean).join(" · ");
                     const q=flagLead(lead,leadLog);
                     const flagColor=q.level==="junk"?C.red:C.amber;
                     return (
                       <div key={idx} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,padding:"6px 8px",borderRadius:7,border:`1px solid ${q.level&&!ex?flagColor+"55":C.border}`,backgroundColor:ex?"rgba(255,255,255,.02)":q.level?flagColor+"0d":"rgba(255,255,255,.045)"}}>
                         <div style={{minWidth:0,flex:1}}>
                           <div style={{display:"flex",alignItems:"center",gap:5}}>
-                            <span style={{fontSize:11,fontWeight:600,color:ex?C.textMuted:C.text,textDecoration:ex?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lead.name||"Unknown lead"}</span>
+                            <span style={{fontSize:11,fontWeight:600,color:ex?C.textMuted:C.text,textDecoration:ex?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lead.name||(lead.source==="call_tracking"&&lead.phone)||"Unknown lead"}</span>
                             {q.level&&<span style={{flexShrink:0,fontSize:8,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",color:flagColor,border:`1px solid ${flagColor}66`,borderRadius:20,padding:"1px 5px"}}>{q.level==="junk"?"⚠ Likely junk":"⚠ Check"}</span>}
                           </div>
                           <div style={{fontSize:9,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{meta||"—"}</div>
                           {q.level&&<div style={{fontSize:9,color:flagColor,marginTop:1,lineHeight:1.4}}>{q.reasons.join(" · ")}</div>}
                         </div>
+                        {confirmFirst&&!ex&&<button onClick={()=>toggleCameIn(idx)} style={{flexShrink:0,padding:"4px 9px",fontSize:10,fontWeight:700,borderRadius:6,border:`1px solid ${lead.cameIn===true?C.green:C.border}`,backgroundColor:lead.cameIn===true?C.green+"18":"transparent",color:lead.cameIn===true?C.green:C.textDim,cursor:"pointer"}}>{lead.cameIn===true?"✓ Came in":"Came in?"}</button>}
                         <button onClick={()=>toggleLeadExclude(idx)} style={{flexShrink:0,padding:"4px 9px",fontSize:10,fontWeight:700,borderRadius:6,border:`1px solid ${ex?C.green+"55":C.border}`,backgroundColor:ex?C.green+"12":"transparent",color:ex?C.green:C.textMuted,cursor:"pointer"}}>{ex?"Include":"Exclude"}</button>
                       </div>
                     );
                   })}
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8,marginBottom:4,fontSize:11}}>
-                  <span style={{color:C.textDim}}>{billableCount} billable{freeCount>0?` · ${freeCount} free (founding first month)`:""}{excludedCount>0?` · ${excludedCount} excluded`:""}</span>
+                  <span style={{color:C.textDim}}>{billableCount} {confirmFirst?"came in":"billable"}{freeCount>0?` · ${freeCount} free (founding first month)`:""}{waitingCount>0?` · ${waitingCount} waiting`:""}{excludedCount>0?` · ${excludedCount} excluded`:""}</span>
                   <span style={{fontWeight:800,color:C.text,whiteSpace:"nowrap"}}>{billableCount-freeCount} × {money(perLeadRate)} = {money(leadAmount)}</span>
                 </div>
                 {/* The greater-of, shown as arithmetic so it can be checked at a glance. */}
