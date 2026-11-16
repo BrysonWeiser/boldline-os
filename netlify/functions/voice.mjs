@@ -20,9 +20,14 @@ export const whisperKey = (client) => {
   return id.startsWith("g-") ? "g" : id.startsWith("m-") ? "m" : "a";
 };
 export const whisperText = (key, patient) => `New ${patient ? "patient " : ""}call from your ${WHERE[key] || WHERE.a}.`;
+// 🔴 THE CALLER MUST NEVER HEAR THE WHISPER (Bryson, 2026-11-16: "100% guarantee"). Twilio runs a <Number url> "on the
+// called party's end, after they answer, but before the parties are connected", to "privately <Say> information to the
+// called party". answerOnBridge="true" is what Twilio documents as keeping the CALLER on ringing while that runs, so the
+// caller hears only ringing, then the business saying hello. The whisper branch below does no database work, so it
+// answers instantly and has nothing that can fail mid-call.
 export const dialTwiml = (forwardTo, whisperUrl) => whisperUrl
-  ? `<?xml version="1.0" encoding="UTF-8"?><Response><Dial><Number url="${escXML(whisperUrl)}">${escXML(forwardTo)}</Number></Dial></Response>`
-  : `<?xml version="1.0" encoding="UTF-8"?><Response><Dial>${escXML(forwardTo)}</Dial></Response>`;
+  ? `<?xml version="1.0" encoding="UTF-8"?><Response><Dial answerOnBridge="true"><Number url="${escXML(whisperUrl)}">${escXML(forwardTo)}</Number></Dial></Response>`
+  : `<?xml version="1.0" encoding="UTF-8"?><Response><Dial answerOnBridge="true">${escXML(forwardTo)}</Dial></Response>`;
 
 export default async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });

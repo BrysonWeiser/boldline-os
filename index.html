@@ -15119,6 +15119,18 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                 <div style={{fontSize:11,color:C.textMuted,marginBottom:8,lineHeight:1.6}}>{isHouse(client)?"Buy a dedicated tracking number for your ads. Calls forward to your real number and log automatically as leads.":(isSaleClient(client)?`Buy a dedicated tracking number for ${client.name}'s ads. Calls forward to their real number and are logged here. They sell through their own store, so a call is a question rather than an order, and none of these count toward their bill.`:`Buy a dedicated tracking number for ${client.name}'s ads. Calls forward to their real number and log automatically as leads.`)}</div>
               )}
               <div style={{fontSize:11,color:C.textMuted,marginBottom:8}}>Forwards to: {client.businessPhone ? <span style={{color:C.textDim,fontWeight:600}}>{client.businessPhone}</span> : <span style={{color:C.amber}}>{client.internal?"Not set — add your phone number in Edit.":"Not set — ask the client to add their phone number in their portal"}</span>}</div>
+              {/* The whisper switch (Bryson, 2026-11-16): turns off ONLY the line the business hears before a tracked call
+                  connects. Tracking, logging and forwarding carry on either way. Same wording as voice.mjs whisperText. */}
+              {(()=>{ const id=String(client.packageId||""), where=id.startsWith("g-")?"Google ad":id.startsWith("m-")?"Facebook or Instagram ad":"online ad";
+                const line=`New ${healthModeOf(client).on?"patient ":""}call from your ${where}.`, on=client.callWhisper!==false;
+                return (
+                <label style={{display:"flex",gap:10,alignItems:"flex-start",padding:"9px 11px",borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.02)",cursor:"pointer",marginBottom:8}}>
+                  <input type="checkbox" checked={on} onChange={e=>onUpdate&&onUpdate({...client,callWhisper:e.target.checked})} style={{marginTop:2,accentColor:C.gold}}/>
+                  <span><span style={{display:"block",fontSize:12,fontWeight:700,color:C.text}}>Announce ad calls to {isHouse(client)?"you":client.name}</span>
+                    <span style={{display:"block",fontSize:11,color:C.textMuted,lineHeight:1.5,marginTop:2}}>{on
+                      ?<>When they pick up, they hear "{line}" (about 2 seconds), then the caller is connected. The caller never hears it.</>
+                      :<>Off. Calls still ring straight through and are still tracked as leads, just with no announcement.</>}</span></span>
+                </label>); })()}
               {callTrack.error&&<div style={{fontSize:11,color:C.red,marginBottom:8}}>{callTrack.error}</div>}
               {!client.callTrackingNumber ? (
                 <>

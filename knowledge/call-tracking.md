@@ -133,3 +133,18 @@ tests/verify-call-whisper.mjs (9). Takes effect once Twilio is upgraded and a nu
 Springbok's front desk also got a spreadsheet (built in chat, "Springbok - New patients from ads.xlsx"): an Ad callers
 log (date, phone, from the ad, first visit, came in?) and a Monthly check tab that matches BoldLine's pasted list
 automatically (any phone format, total at the top). Phone numbers and dates only, no names or health details.
+- 2026-11-16: Bryson: "let's not worry about the spreadsheet" (dropped). He asked whether the whisper is for every
+  call-tracked client: yes, on by default for all, wording by plan (Google / Facebook or Instagram / online) and
+  "patient" only for health clients; offered an on/off switch on the Call Tracking card if he wants it per client.
+- 2026-11-16: the ON/OFF SWITCH is built on the Call Tracking card (client > Assets tab): "Announce ad calls to
+  <client>", showing the exact line they'll hear; unticked saves callWhisper:false, which only drops the
+  announcement (tracking, logging and forwarding carry on). How it sounds: the caller hears ringing; when the business
+  answers they hear the ~2 second line ON ITS OWN, then the two are connected. Nobody can talk over it or hear the
+  caller during it. Pinned in verify-call-whisper (12).
+- 2026-11-16, Bryson: "100% guarantee that the people calling the number will not hear that". Checked Twilio's <Number>
+  docs: the url TwiML "runs on the called party's end, after they answer, but before the parties are connected", to
+  "privately <Say> information to the called party"; the caller staying on ringing is documented WITH answerOnBridge,
+  so <Dial answerOnBridge="true"> added (both with and without the whisper). Whisper branch does no database work.
+  Not yet live (dev branch). The real guarantee is a live test once Twilio is paid: two phones, BoldLine's own account
+  first (forward to his cell, call from the Quo number, listen on both), before Springbok gets a number. Edge noted:
+  if the business's voicemail answers, the line plays into the voicemail, never to the caller.
