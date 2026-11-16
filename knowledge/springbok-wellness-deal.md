@@ -379,3 +379,13 @@ before holding more than numbers). Calls are never recorded.
   (a) number matches, (b) the appointment was booked during or right after a tracked call (match by time; ChiroTouch
   shows when it was made), (c) they mention an ad-only offer or phrase (e.g. a new-patient special only in the ad;
   check it fits his board's advertising rules). Put the rule in the agreement's Special Terms.
+- Same day, "I don't want to redo the entire contract ... how do we sign a BAA, how much": advice - NO new contract,
+  a one-page ADDENDUM signed in DocuSign (counting rules, count-only monthly report with a joint review on the
+  monthly call, the conflict-of-interest disclosure since he works there). BAA: the document is free (HHS sample
+  provisions) plus a few hundred dollars of lawyer review, but signing one obliges BoldLine to run every service that
+  touches patient data under a BAA too: Supabase Team ($599/mo) + HIPAA add-on (~$350/mo, unconfirmed), Twilio
+  Security/Enterprise edition, Netlify Enterprise - roughly $1,500+/month, far more than a client paying $40 a show.
+  Recommended instead: hold NO patient data, so no BAA - use Google Ads' own free call reporting (Google forwarding
+  number in the ad's call asset: shows call time, length and area code, not the full number) instead of a Twilio
+  tracking number, match by booking time and the ad-only offer, clinic sends a count. Revisit a real BAA only if
+  health clients become a main line of business.
