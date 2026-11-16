@@ -357,3 +357,14 @@ emails, our online booking) are switched off for health clients by our own safeg
 Advice given: do not steer the employer's AI; disclose in writing to Dr. Gibb that he owns BoldLine, put the
 honest comparison in front of him (including doing it in-house as part of his job), and let Dr. Gibb decide.
 Not yet confirmed: whether BoldLine's site builder can forward the old iMatrix page addresses (check before promising).
+
+## 2026-11-16 — call tracking for Springbok: no registration needed
+Bryson asked whether Springbok must be registered to track calls. Answer: NO. The A2P 10DLC registration is only for
+SENDING TEXTS; call tracking is voice and needs only BoldLine's paid Twilio account plus one local tracking number
+(~$1.15/mo) forwarding to the clinic. Health safeguards keep texts to his leads off anyway (KB hipaa-health-clients).
+Billing by matching: the OS logs each call's number, time and length; once a month BoldLine sends the clinic the list
+of numbers that called through the ads, the clinic checks them against its patient records and answers yes/no per
+number for "new patient who showed up within 30 days" ($40 each). Caveats told: some patients call from a different
+phone than the one they register with, so agree in writing what counts (e.g. the clinic may also add a new patient
+who says they found them on Google); the yes/no list is patient information, so offer a BAA if the clinic asks (and
+before holding more than numbers). Calls are never recorded.
