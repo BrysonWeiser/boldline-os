@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 250 task-keyed entries under `knowledge/`. They surface automatically via the
+> 251 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**250 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**251 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -879,6 +879,9 @@
 
 ## Strategy
 
+- **[business-evaluation-2026-11](../knowledge/business-evaluation-2026-11.md)** &mdash; &#9989; verified &middot; 2026-11-16  
+  Verdict - the product is far ahead of the business. An OS built for 50 clients (about 250 knowledge entries, about 190 test suites, AI assistant, Lead Scout, demo sites, website builder, billing, contracts, portal) serving 1 signed client (Stencil & Thread, Aug 30) and 1 open deal (Springbok, where he is now also employed). The bottleneck is sales activity and proof, not features. Also flagged - niche hopping (med spa, pool, detailers, health), pricing changed several times before 10 clients, low revenue per client in low-ticket niches under pay-per-lead, speed-to-lead gap (Twilio still trial), founder time split three ways (agency, Springbok job, co-owned detailing business), Springbok conflict of interest. Strengths - honest pay-per-lead positioning, client owns ad accounts (no spend risk), automation keeps cost per client low, demo-site-before-the-call is a real sales weapon, Meta approved, strong contracts and billing. Plan given - 60 to 90 day build freeze except for paying clients, one higher-ticket niche for 100 conversations, weekly numbers, turn the first results into case studies, upgrade Twilio before signing speed-sensitive clients, no pricing changes until 10 clients, settle the Springbok conflict in writing, decide weekly hours per venture.  
+  <sub>*task:* review where BoldLine stands overall (strengths, weaknesses, risks, what to do next) or revisit this evaluation &nbsp;|&nbsp; *keywords:* business evaluation, unbiased review, swot, strategy, what should I focus on, scorecard, bottleneck, sales vs building, focus, case studies, niche</sub>
 - **[business-model-test-detailers](../knowledge/business-model-test-detailers.md)** &mdash; &#9989; verified &middot; 2026-11-14  
   Bryson asked for an unsugared test of 100 metro-Phoenix detailers (realistic mix of first contact, founding vs full price, 12 months). Estimate - founding offer about 6 sign (range 4 to 8), full price about 3 (2 to 5); mostly ads (Meta, their own videos), maybe one website, Complete almost never; about half leave in months 3 to 4 or over the summer; BoldLine earns roughly $350 a month per detailer ad client, about $14k in year one with the founding offer and about $9k at full price. Biggest problems: the $15 detailing lead fee makes detailers a low-revenue niche, half the market cannot fund a $500 ad budget, slow replies from solo operators (text-back still off) cause churn, Phoenix summer slump. Fixes recommended: target 2+ van operations and ceramic/PPF/tint shops, price ceramic/PPF leads higher, switch on instant text-back before signing detailers, sell regulars (maintenance plans) not one-off details, never lead with websites or Complete for detailers.  
   <sub>*task:* judge how BoldLine's offer lands with car detailers (who signs, what they buy, how long they stay, what BoldLine earns), or revisit pricing for detailers &nbsp;|&nbsp; *keywords:* business model test, detailers, car detailing, phoenix, conversion, churn, retention, lead fee, revenue per client, realistic forecast, 100 detailers, what would they buy</sub>
