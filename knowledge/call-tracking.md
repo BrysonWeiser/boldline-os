@@ -141,3 +141,10 @@ automatically (any phone format, total at the top). Phone numbers and dates only
   announcement (tracking, logging and forwarding carry on). How it sounds: the caller hears ringing; when the business
   answers they hear the ~2 second line ON ITS OWN, then the two are connected. Nobody can talk over it or hear the
   caller during it. Pinned in verify-call-whisper (12).
+- 2026-11-16, Bryson: "100% guarantee that the people calling the number will not hear that". Checked Twilio's <Number>
+  docs: the url TwiML "runs on the called party's end, after they answer, but before the parties are connected", to
+  "privately <Say> information to the called party"; the caller staying on ringing is documented WITH answerOnBridge,
+  so <Dial answerOnBridge="true"> added (both with and without the whisper). Whisper branch does no database work.
+  Not yet live (dev branch). The real guarantee is a live test once Twilio is paid: two phones, BoldLine's own account
+  first (forward to his cell, call from the Quo number, listen on both), before Springbok gets a number. Edge noted:
+  if the business's voicemail answers, the line plays into the voicemail, never to the caller.
