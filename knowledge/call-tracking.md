@@ -148,3 +148,5 @@ automatically (any phone format, total at the top). Phone numbers and dates only
   Not yet live (dev branch). The real guarantee is a live test once Twilio is paid: two phones, BoldLine's own account
   first (forward to his cell, call from the Quo number, listen on both), before Springbok gets a number. Edge noted:
   if the business's voicemail answers, the line plays into the voicemail, never to the caller.
+- LIVE 2026-11-16 (merge fd923d7, rollback/20261116T184933Z). Reminder set for Tue 2026-11-17 9:00am Phoenix
+  (trig_01MkxozH5tCJWqLhrKptAzpS) to upgrade Twilio, then run the two-phone test on BoldLine's own account first.
