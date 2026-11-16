@@ -133,3 +133,6 @@ tests/verify-call-whisper.mjs (9). Takes effect once Twilio is upgraded and a nu
 Springbok's front desk also got a spreadsheet (built in chat, "Springbok - New patients from ads.xlsx"): an Ad callers
 log (date, phone, from the ad, first visit, came in?) and a Monthly check tab that matches BoldLine's pasted list
 automatically (any phone format, total at the top). Phone numbers and dates only, no names or health details.
+- 2026-11-16: Bryson: "let's not worry about the spreadsheet" (dropped). He asked whether the whisper is for every
+  call-tracked client: yes, on by default for all, wording by plan (Google / Facebook or Instagram / online) and
+  "patient" only for health clients; offered an on/off switch on the Call Tracking card if he wants it per client.
