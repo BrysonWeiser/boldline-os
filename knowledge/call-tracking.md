@@ -122,3 +122,14 @@ cent or two a minute. A2P 10DLC (needed to text): one-time brand registration (s
 campaign vetting about $15, then about $2 to $10 a month per campaign. Told him: about $40 to $80 the first month,
 then about $5 to $15 a month at his volume; each client texting under their own name needs its own registration.
 Confirm the A2P figures in Twilio's console when registering.
+
+## 2026-11-16 — the WHISPER (built, live)
+Bryson: "how do we make it so she hears 'new patient call from your Google ad'". `voice.mjs` now forwards with
+`<Dial><Number url=".../voice?whisper=1&k=<g|m|a>&p=<0|1>">`: when the business answers, Twilio fetches that URL and
+plays one line to THEM only ("New call from your Google ad." / "Facebook or Instagram ad" / "online ad", with
+"patient" for health clients via healthModeOf), then connects the caller. Words come from a fixed list, never from the
+URL. On by default; `callWhisper: false` on a client turns it off (no UI toggle yet; ask Claude). Guard:
+tests/verify-call-whisper.mjs (9). Takes effect once Twilio is upgraded and a number is bought.
+Springbok's front desk also got a spreadsheet (built in chat, "Springbok - New patients from ads.xlsx"): an Ad callers
+log (date, phone, from the ad, first visit, came in?) and a Monthly check tab that matches BoldLine's pasted list
+automatically (any phone format, total at the top). Phone numbers and dates only, no names or health details.
