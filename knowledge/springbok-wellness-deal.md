@@ -389,3 +389,9 @@ before holding more than numbers). Calls are never recorded.
   number in the ad's call asset: shows call time, length and area code, not the full number) instead of a Twilio
   tracking number, match by booking time and the ad-only offer, clinic sends a count. Revisit a real BAA only if
   health clients become a main line of business.
+- DECIDED (Bryson, 2026-11-16): "let's not complicate it and just stick with the twilio call tracking and have his
+  front desk match the numbers". Twilio tracking number (480 area code) on the ads and the landing page only (the
+  landing page shows callTrackingNumber automatically; his website keeps businessPhone), front desk checks the
+  monthly list of numbers and says yes/no per number, which is the "monthly yes/no" already in his signed agreement,
+  so NO addendum is needed. Anything that isn't a number match is settled on the monthly call. If his office asks for
+  a BAA, Bryson tells Claude first (cost note above). Needs the Twilio upgrade first.
