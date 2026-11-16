@@ -3,7 +3,7 @@ name: stencil-and-thread-deal
 topic: Business rules
 task: pick up the Stencil and Thread deal, prep the call, or set up their campaign
 keywords: [30 september, notice, termination notice, early termination, 7(c), close out, when to message shaun, stencil and thread, stencilandthread.com, first client, screen printing, custom apparel, Eugene Oregon, Lane County, 805screenprints, contact@stencilandthread.com, close rate, qualified lead, first deal, prospect, Sebastian, Sebastian the client, who is the client, who approves, portal owner, Shaun Smith, Shaun the developer, website guy, web person, referral, referrals, partnership, finder's fee, referral fee, subcontract, in house, developer partner]
-status: signed
+status: ENDED (Bryson, 2026-11-16: "im no longer working with stencil & thread"; reason not recorded yet)
 summary: BoldLine's FIRST real client. SIGNED Sunday 2026-08-30. 🔴 SEBASTIAN IS THE CLIENT (owns the business, holds the portal, is the ONLY person who approves anything). SHAUN SMITH IS SEBASTIAN'S WEBSITE GUY, not the client, and has no portal. Screen printer in Eugene, Oregon selling custom apparel to businesses and organizations. ~$1,000 average order, ~50% margin, closes 7-8 of every 10 leads, wants $500-750/mo of ad spend on Google Search only. Shaun is separately BoldLine's first partnership conversation, settled 2026-08-31 as a no-money two-way referral swap with dev work kept in house.
 verified: 2026-09-22
 ---

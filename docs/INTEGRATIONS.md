@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 251 task-keyed entries under `knowledge/`. They surface automatically via the
+> 252 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**251 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**252 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -885,6 +885,9 @@
 - **[business-model-test-detailers](../knowledge/business-model-test-detailers.md)** &mdash; &#9989; verified &middot; 2026-11-14  
   Bryson asked for an unsugared test of 100 metro-Phoenix detailers (realistic mix of first contact, founding vs full price, 12 months). Estimate - founding offer about 6 sign (range 4 to 8), full price about 3 (2 to 5); mostly ads (Meta, their own videos), maybe one website, Complete almost never; about half leave in months 3 to 4 or over the summer; BoldLine earns roughly $350 a month per detailer ad client, about $14k in year one with the founding offer and about $9k at full price. Biggest problems: the $15 detailing lead fee makes detailers a low-revenue niche, half the market cannot fund a $500 ad budget, slow replies from solo operators (text-back still off) cause churn, Phoenix summer slump. Fixes recommended: target 2+ van operations and ceramic/PPF/tint shops, price ceramic/PPF leads higher, switch on instant text-back before signing detailers, sell regulars (maintenance plans) not one-off details, never lead with websites or Complete for detailers.  
   <sub>*task:* judge how BoldLine's offer lands with car detailers (who signs, what they buy, how long they stay, what BoldLine earns), or revisit pricing for detailers &nbsp;|&nbsp; *keywords:* business model test, detailers, car detailing, phoenix, conversion, churn, retention, lead fee, revenue per client, realistic forecast, 100 detailers, what would they buy</sub>
+- **[detailing-vs-agency-decision](../knowledge/detailing-vs-agency-decision.md)** &mdash; &#9989; verified &middot; 2026-11-16  
+  2026-11-16, Stencil & Thread has ended (0 active agency clients; Springbok open; he is employed at Springbok). Bryson is weighing starting a car detailing business for faster money and as proof for the agency, while unsure he wants to detail. Advice - don't start one you'd have to work in yourself: it eats the exact hours sales needs, its case study reads as "you own it", and the time math (2 to 4 hours a job) plus the Springbok job leaves no room for calls. Instead BORROW a detailing business for proof: revive the co-owned one with his friend from October (friend does the work, he runs marketing; it never got an LLC or domain) or run a 60 to 90 day pilot with a real detailer (e.g. Mikhail, 15 open slots a week, great videos) on documented terms, while calling daily in one higher-ticket niche. If he does start his own anyway: hire from week one, he never details past the first few weeks.  
+  <sub>*task:* decide whether Bryson should start (or run) a car detailing business alongside BoldLine, or how to use one as a case study &nbsp;|&nbsp; *keywords:* start a detailing business, car detailing business, case study, should I start, agency vs detailing, own business results, partner with a detailer, pilot, employees, automate detailing</sub>
 
 ## Supabase
 
