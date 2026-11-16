@@ -395,3 +395,10 @@ before holding more than numbers). Calls are never recorded.
   monthly list of numbers and says yes/no per number, which is the "monthly yes/no" already in his signed agreement,
   so NO addendum is needed. Anything that isn't a number match is settled on the monthly call. If his office asks for
   a BAA, Bryson tells Claude first (cost note above). Needs the Twilio upgrade first.
+- "Make it very simple for his front desk" (2026-11-16): suggested (1) a WHISPER on tracked calls: the front desk
+  hears "New patient call from your Google ad" before the caller is connected (caller never hears it); today
+  voice.mjs does a bare <Dial>, the whisper is a small change (<Number url=...> returning <Say>), offered, not built,
+  check Dr. Gibb is fine with it; (2) she picks "Google ad" as the referral source when that caller books in
+  ChiroTouch (a field she fills for every new patient anyway; confirm ChiroTouch's exact field); (3) monthly, BoldLine
+  emails a NUMBERED list of calls and she replies with the line numbers that became patients ("2, 5, 9"), about two
+  minutes. A one-tap monthly page in the OS (the "showed up" tick offered on 2026-10-19) only if this proves clunky.
