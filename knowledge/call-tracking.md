@@ -114,3 +114,11 @@ Answer given (nothing built yet, waiting on his pick):
    recordings or transcripts.
 3. **Meanwhile for Springbok's monthly yes/no:** front desk asks every new patient "how did you hear about us?" and
    the month's "Google ad" new patients are checked against Google's call count.
+
+## 2026-11-16 — Bryson asked what the upgrade costs (web check, third-party sources; official A2P table not reachable)
+Upgrading = add a card and prepay about $20 of credit (spent on usage, not a fee). Ongoing: about $1.15 a month per
+local number; texts about $0.0083 each plus carrier fees (~$0.0035 to $0.005) so roughly 1 to 1.5 cents; calls a
+cent or two a minute. A2P 10DLC (needed to text): one-time brand registration (sources disagree, roughly $5 to $50),
+campaign vetting about $15, then about $2 to $10 a month per campaign. Told him: about $40 to $80 the first month,
+then about $5 to $15 a month at his volume; each client texting under their own name needs its own registration.
+Confirm the A2P figures in Twilio's console when registering.
