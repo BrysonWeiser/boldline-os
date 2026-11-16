@@ -368,3 +368,14 @@ number for "new patient who showed up within 30 days" ($40 each). Caveats told: 
 phone than the one they register with, so agree in writing what counts (e.g. the clinic may also add a new patient
 who says they found them on Google); the yes/no list is patient information, so offer a BAA if the clinic asks (and
 before holding more than numbers). Calls are never recorded.
+- Follow-ups (same day): (1) "send them the list and have them check it themselves so we don't need a BAA": best
+  version is the clinic replies with a COUNT only (no names, no per-number yes/no), so no patient details come back to
+  BoldLine. Caveat told honestly: BoldLine still holds the call log (numbers that called a clinic), which is the gray
+  area; many lawyers would call a call-tracking vendor for a clinic a business associate, so one check with a
+  healthcare lawyer (or simply offering the BAA) is the safe move. Count-only also means he trusts the clinic's
+  number: keep a written right to review it together on the monthly call. (2) Organic vs ad: the tracking number
+  appears ONLY in the ads and the ad's landing page, never on his Google profile or website, so only ad calls reach
+  it. Running ads does NOT hide his free Maps listing; both show. (3) Different phones: count a new patient if ANY of
+  (a) number matches, (b) the appointment was booked during or right after a tracked call (match by time; ChiroTouch
+  shows when it was made), (c) they mention an ad-only offer or phrase (e.g. a new-patient special only in the ad;
+  check it fits his board's advertising rules). Put the rule in the agreement's Special Terms.
