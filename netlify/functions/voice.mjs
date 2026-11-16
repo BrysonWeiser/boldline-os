@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, appendLead, notifyOwnerOfLead } from "../lib/report-shared.mjs";
+import { healthModeOf } from "../lib/health-mode.mjs";
 
 const xml = (body) => new Response(body, { status: 200, headers: { "content-type": "text/xml; charset=utf-8" } });
 
@@ -8,10 +9,32 @@ const escXML = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(
 const sorry = () =>
   xml(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>Sorry, this number isn't set up to take calls yet. Please try again later.</Say><Hangup/></Response>`);
 
+// ── THE WHISPER (Bryson, 2026-11-16, KB springbok-wellness-deal): "make it so she hears 'new patient call from your
+// Google ad'". When the business picks up a call to the tracking number, THEY hear one short line before the caller is
+// connected; the caller never hears it. So the front desk knows on the spot that this person came from the ads, and
+// marks it, instead of matching numbers at the end of the month. On by default; `callWhisper: false` switches it off.
+// The words come from a fixed list (never from the request), so nobody can make the number say anything else.
+const WHERE = { g: "Google ad", m: "Facebook or Instagram ad", a: "online ad" };
+export const whisperKey = (client) => {
+  const id = String((client && client.packageId) || "");
+  return id.startsWith("g-") ? "g" : id.startsWith("m-") ? "m" : "a";
+};
+export const whisperText = (key, patient) => `New ${patient ? "patient " : ""}call from your ${WHERE[key] || WHERE.a}.`;
+export const dialTwiml = (forwardTo, whisperUrl) => whisperUrl
+  ? `<?xml version="1.0" encoding="UTF-8"?><Response><Dial><Number url="${escXML(whisperUrl)}">${escXML(forwardTo)}</Number></Dial></Response>`
+  : `<?xml version="1.0" encoding="UTF-8"?><Response><Dial>${escXML(forwardTo)}</Dial></Response>`;
+
 export default async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
-  const token = new URL(req.url).searchParams.get("token");
+  const url = new URL(req.url);
+  // Twilio fetches this when the business answers, and plays it to them only.
+  if (url.searchParams.get("whisper") === "1") {
+    const k = url.searchParams.get("k");
+    return xml(`<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="Polly.Joanna">${escXML(whisperText(WHERE[k] ? k : "a", url.searchParams.get("p") === "1"))}</Say></Response>`);
+  }
+
+  const token = url.searchParams.get("token");
   if (!token) return sorry();
 
   const raw = await req.text();
@@ -48,5 +71,7 @@ export default async (req) => {
     notifyOwnerOfLead(forOwner, lead).catch((err) => console.error("Call lead owner notify failed:", err)),
   ]);
 
-  return xml(`<?xml version="1.0" encoding="UTF-8"?><Response><Dial>${escXML(forwardTo)}</Dial></Response>`);
+  const whisperUrl = client.callWhisper === false ? ""
+    : `${url.origin}${url.pathname}?whisper=1&k=${whisperKey(client)}&p=${healthModeOf(client).on ? 1 : 0}`;
+  return xml(dialTwiml(forwardTo, whisperUrl));
 };

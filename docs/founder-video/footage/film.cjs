@@ -23,12 +23,12 @@ const base = (o) => Object.assign({
   pendingActions: [], googleAdsCustomerId: "", portalToken: "tok-" + o.id, leadToken: "lead-" + o.id,
   landingSlug: o.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-x1",
 }, o);
-const lead = (n, svc, src, h, st = "new") => ({ id: "L" + Math.random().toString(36).slice(2, 8), name: n, phone: "(480) 555-01" + String(10 + Math.floor(Math.random() * 80)), email: "", service: svc, source: src, receivedAt: ago(h), status: st });
+const lead = (n, svc, src, h, st = "new") => ({ id: "L" + Math.random().toString(36).slice(2, 8), name: n, phone: "(480) 555-01" + String(10 + Math.floor(Math.random() * 80)), email: "", service: svc, source: src, receivedAt: ago(h), status: st, gclid: "Cj0KCQsample" + Math.random().toString(36).slice(2, 8), ...(st !== "new" ? { gadsUploaded: { qualified: true } } : {}) });
 // The welcome and access emails count as sent, so the client page has no "send the Welcome email" banner in shot.
 const SENT = [{ date: "Oct 1, 2026", note: 'Sent "Welcome + Portal" email to owner@example.com', cat: "email", ts: now - 20 * 864e5 },
   { date: "Oct 2, 2026", note: 'Sent "Ad Account Access" email to owner@example.com', cat: "email", ts: now - 19 * 864e5 }];
 const CLIENTS = [
-  base({ id: "c1", name: "Summit Roofing", commLog: SENT, niche: "Roofing", packageId: "g-growth", stage: "optimizing", contractStatus: "active", billingStatus: "active", stripeCustomerId: "cus_demo", stripeSubscriptionId: "sub_demo", billingMonthly: 700, billingSetup: 0, contractStart: "2026-09-01", contractEnd: "2026-12-01", leads: 37, cpl: 61, contactName: "Marcus Bell",
+  base({ id: "c1", name: "Summit Roofing", commLog: SENT, pendingActions: [{ id: "launch-g-demo", title: 'Launch Google campaign "Roof Repair, Mesa"', detail: "Created PAUSED on Summit Roofing's Google Ads account. Approve to set it live and start spend.", cat: "launch", ts: now - 40 * 60e3, exec: { platform: "google", campaignId: "demo", campaignName: "Roof Repair, Mesa", kind: "enable_campaign" } }], approvals: [{ id: "ap-1", kind: "campaign", platform: "google", campaignId: "demo", status: "pending", createdAt: new Date(now - 39 * 60e3).toISOString(), title: "Your Google ad campaign is ready to launch", body: "Your Google Search campaign is built and ready to go live." }], niche: "Roofing", packageId: "g-growth", stage: "optimizing", contractStatus: "active", billingStatus: "active", stripeCustomerId: "cus_demo", stripeSubscriptionId: "sub_demo", billingMonthly: 700, billingSetup: 0, contractStart: "2026-09-01", contractEnd: "2026-12-01", leads: 37, cpl: 61, contactName: "Marcus Bell",
     leadsLog: [lead("Sarah K.", "Roof repair", "Google ad", 3), lead("Mike O.", "Full replacement", "Landing page", 9), lead("Jen P.", "Inspection", "Google ad", 20), lead("Chris D.", "Leak repair", "Call", 30), lead("Ana R.", "Roof repair", "Meta ad", 52)] }),
   base({ id: "c2", name: "Luxe Med Spa", niche: "Med Spa", packageId: "c-growth", stage: "active", contractStatus: "active", contractStart: "2026-08-15", contractEnd: "2026-11-15", leads: 52, cpl: 34, contactName: "Dana Reyes",
     leadsLog: [lead("Taylor M.", "Botox consult", "Meta ad", 5), lead("Jess L.", "Facial", "Landing page", 14)] }),
@@ -101,7 +101,7 @@ const curl = (url) => execFileSync("curl", ["-sSL", "-A", "Mozilla/5.0 (Windows 
   await new Promise((r) => server.listen(0, r));
   const url = `http://127.0.0.1:${server.address().port}/os.html`;
   const d = fs.readdirSync("/opt/pw-browsers").find((x) => /^chromium-\d+$/.test(x));
-  const browser = await chromium.launch({ executablePath: path.join("/opt/pw-browsers", d, "chrome-linux/chrome"), args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
+  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
   // Morning in Phoenix (ARIA says "Good morning" in the video), with time still moving so clocks tick.
   await ctx.addInitScript(() => { const R = Date, off = Date.UTC(2026, 9, 22, 16, 12, 0) - R.now();
@@ -126,6 +126,7 @@ const curl = (url) => execFileSync("curl", ["-sSL", "-A", "Mozilla/5.0 (Windows 
   try { await go("Lead Scout"); await pg.getByText("My call list", { exact: false }).first().click({ timeout: 5000 }); await pg.waitForTimeout(1500); await shot("leadscout"); await shot("leadscout-full", true); } catch (e) { errs.push("leadscout: " + e.message); }
   try { await go("Outreach"); await pg.waitForTimeout(1200); await shot("outreach"); await shot("outreach-full", true);
     await pg.getByText("START", { exact: true }).first().click({ timeout: 5000 }); await pg.waitForTimeout(3300); await shot("outreach-running"); } catch (e) { errs.push("outreach: " + e.message); }
+  try { await go("Alerts"); await pg.waitForTimeout(800); await shot("alerts"); await shot("alerts-full", true); } catch (e) { errs.push("alerts: " + e.message); }
   try { await go("Campaigns"); await shot("campaigns"); } catch (e) { errs.push("campaigns: " + e.message); }
   try { await go("Leads"); await shot("leads"); await shot("leads-full", true); } catch (e) { errs.push("leads: " + e.message); }
   try { await go("Summit Roofing"); await pg.waitForTimeout(800); await shot("client"); await pg.getByText("Contract", { exact: true }).first().click({ timeout: 5000 }); await pg.waitForTimeout(1200); await shot("contract"); await shot("contract-full", true);

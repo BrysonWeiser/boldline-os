@@ -357,3 +357,48 @@ emails, our online booking) are switched off for health clients by our own safeg
 Advice given: do not steer the employer's AI; disclose in writing to Dr. Gibb that he owns BoldLine, put the
 honest comparison in front of him (including doing it in-house as part of his job), and let Dr. Gibb decide.
 Not yet confirmed: whether BoldLine's site builder can forward the old iMatrix page addresses (check before promising).
+
+## 2026-11-16 — call tracking for Springbok: no registration needed
+Bryson asked whether Springbok must be registered to track calls. Answer: NO. The A2P 10DLC registration is only for
+SENDING TEXTS; call tracking is voice and needs only BoldLine's paid Twilio account plus one local tracking number
+(~$1.15/mo) forwarding to the clinic. Health safeguards keep texts to his leads off anyway (KB hipaa-health-clients).
+Billing by matching: the OS logs each call's number, time and length; once a month BoldLine sends the clinic the list
+of numbers that called through the ads, the clinic checks them against its patient records and answers yes/no per
+number for "new patient who showed up within 30 days" ($40 each). Caveats told: some patients call from a different
+phone than the one they register with, so agree in writing what counts (e.g. the clinic may also add a new patient
+who says they found them on Google); the yes/no list is patient information, so offer a BAA if the clinic asks (and
+before holding more than numbers). Calls are never recorded.
+- Follow-ups (same day): (1) "send them the list and have them check it themselves so we don't need a BAA": best
+  version is the clinic replies with a COUNT only (no names, no per-number yes/no), so no patient details come back to
+  BoldLine. Caveat told honestly: BoldLine still holds the call log (numbers that called a clinic), which is the gray
+  area; many lawyers would call a call-tracking vendor for a clinic a business associate, so one check with a
+  healthcare lawyer (or simply offering the BAA) is the safe move. Count-only also means he trusts the clinic's
+  number: keep a written right to review it together on the monthly call. (2) Organic vs ad: the tracking number
+  appears ONLY in the ads and the ad's landing page, never on his Google profile or website, so only ad calls reach
+  it. Running ads does NOT hide his free Maps listing; both show. (3) Different phones: count a new patient if ANY of
+  (a) number matches, (b) the appointment was booked during or right after a tracked call (match by time; ChiroTouch
+  shows when it was made), (c) they mention an ad-only offer or phrase (e.g. a new-patient special only in the ad;
+  check it fits his board's advertising rules). Put the rule in the agreement's Special Terms.
+- Same day, "I don't want to redo the entire contract ... how do we sign a BAA, how much": advice - NO new contract,
+  a one-page ADDENDUM signed in DocuSign (counting rules, count-only monthly report with a joint review on the
+  monthly call, the conflict-of-interest disclosure since he works there). BAA: the document is free (HHS sample
+  provisions) plus a few hundred dollars of lawyer review, but signing one obliges BoldLine to run every service that
+  touches patient data under a BAA too: Supabase Team ($599/mo) + HIPAA add-on (~$350/mo, unconfirmed), Twilio
+  Security/Enterprise edition, Netlify Enterprise - roughly $1,500+/month, far more than a client paying $40 a show.
+  Recommended instead: hold NO patient data, so no BAA - use Google Ads' own free call reporting (Google forwarding
+  number in the ad's call asset: shows call time, length and area code, not the full number) instead of a Twilio
+  tracking number, match by booking time and the ad-only offer, clinic sends a count. Revisit a real BAA only if
+  health clients become a main line of business.
+- DECIDED (Bryson, 2026-11-16): "let's not complicate it and just stick with the twilio call tracking and have his
+  front desk match the numbers". Twilio tracking number (480 area code) on the ads and the landing page only (the
+  landing page shows callTrackingNumber automatically; his website keeps businessPhone), front desk checks the
+  monthly list of numbers and says yes/no per number, which is the "monthly yes/no" already in his signed agreement,
+  so NO addendum is needed. Anything that isn't a number match is settled on the monthly call. If his office asks for
+  a BAA, Bryson tells Claude first (cost note above). Needs the Twilio upgrade first.
+- "Make it very simple for his front desk" (2026-11-16): suggested (1) a WHISPER on tracked calls: the front desk
+  hears "New patient call from your Google ad" before the caller is connected (caller never hears it); today
+  voice.mjs does a bare <Dial>, the whisper is a small change (<Number url=...> returning <Say>), offered, not built,
+  check Dr. Gibb is fine with it; (2) she picks "Google ad" as the referral source when that caller books in
+  ChiroTouch (a field she fills for every new patient anyway; confirm ChiroTouch's exact field); (3) monthly, BoldLine
+  emails a NUMBERED list of calls and she replies with the line numbers that became patients ("2, 5, 9"), about two
+  minutes. A one-tap monthly page in the OS (the "showed up" tick offered on 2026-10-19) only if this proves clunky.

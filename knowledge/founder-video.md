@@ -119,3 +119,63 @@ clips (whisper word timings + pitch tracking), plus what the frames show:
 Same five points as the take-2 cheat sheet, with one change: the closer can now say he only gets paid for results
 (true since the 2026-11-07 pricing: no monthly fee for ads, a set fee per qualified lead; KB complete-plan). OS
 footage is still made by Claude from sample businesses (`footage/film.cjs`), so he films only himself. Given in chat.
+
+## Take 3 plan (2026-11-10, Bryson): "add captions and edit the video according to how its recorded (show me talking and the other stuff) im not going to have aria talk tho"
+- NO ARIA in take 3: no ARIA voice, no "Hey ARIA, start Power Hour" moment. Point 4 dropped (or he says one line about
+  having an assistant; if he does, show the OS Today screen, never her voice).
+- Edit the same way as v2: his takes cut tight (restarts and long pauses out), OS footage from sample businesses over
+  the "what it does" lines (Lead Scout, demo website, client portal chart), v2 caption look (no box, word by word, gold
+  key words), HDR tone-map if his clips are HDR, stereo at -14 LUFS, 1080x1920, end card boldlinemedia.com.
+- Re-record the OS footage against the CURRENT OS before cutting (pricing changed 2026-11-07/10: no screen may show an
+  old price). Wait for his clips; he uploads them in chat.
+
+## Take 3 REFRAMED (2026-11-10, Bryson): "instead of talking about the agency lets talk about how the automations help clients"
+Talking points given (no ARIA): (1) hook: most businesses lose leads after the click, not before it; (2) speed: the
+lead reaches them the moment it comes in and gets an instant reply in THEIR business's name (by email: text replies
+are not switched on, Twilio trial, KB call-tracking, so never say "texts them back"); (3) proof: every enquiry tied to
+the ad that brought it in, and Google told which ones became customers (KB conversion-loop); (4) watching: page and ads
+checked every day (daily-check, site-uptime, ad-access-watch), numbers in their own portal any time + a plain-English
+monthly report; (5) close: you only pay for qualified leads, boldlinemedia.com.
+Footage map: a lead arriving on a sample client's Leads tab, the lead's "from Google Ads" source, the portal weekly
+chart, the monthly report, the daily check / alerts screen. Sample businesses only.
+
+## Getting big videos in (2026-11-10): too large to upload in chat
+This session's network is unrestricted, so Bryson shares a link instead: Google Drive (preferred, his Gmail) with
+"Anyone with the link" access, or Dropbox. Download with `gdown` (pip) for Drive (handles the large-file confirm
+page) or curl with `?dl=1` for Dropbox, into a fresh empty folder in the scratchpad. Tell him to switch the link back
+to Restricted once downloaded. The finished cut comes back through the chat (SendUserFile). Future recordings: 1080p
+at 30fps (Settings > Camera > Record Video) makes files a fraction of 4K's size.
+
+## Take 3 CUT (2026-11-10): "How our automations help clients.mp4"
+- Source: ONE continuous take (IMG_1776.MOV, 82s, 4K 60fps, SDR: HDR was off, no tone-map needed), dark shirt, about
+  160 words a minute (down from 217). He said it in his own words (agency + human review + reports + pay for results),
+  not the client-benefit bullets. Downloaded from his Google Drive folder link with gdown.
+- Cut: 62.8s, 15 pieces, pauses trimmed, "that is fully automated" cut out after "I built a system" (honesty rule:
+  "almost runs itself"). OS clips (sample business Summit Roofing) over: "It literally almost runs itself. I built a
+  system" (pipeline), "Every time my system finishes a task ... review" (pipeline then landing page), "I send it to my
+  client ... approve it" (client Leads tab, every lead "Came from Google ad"), "Same thing with reports ..." (portal
+  weekly chart). End card boldlinemedia.com. -14.0 LUFS, peak -0.9, 1080x1920 30fps, 28 MB.
+- Recipe: `docs/founder-video/edit/edit3.py` (+ tx3.py); footage scripts updated: browser path is now
+  `/opt/pw-browsers/chromium` (the old chromium-NNNN folder name moved), sample leads carry a click id so the Leads tab
+  shows "Came from Google ad" instead of a warning, new clip definitions system / review / traced / reports.
+- Gotchas: whisper stretches a word back across a pause ("and" before "then"): `snap()` moves such a start to the last
+  voice onset inside the word. A full-page screenshot includes the app's fixed menu bar at the first screen's bottom, so
+  scrolling it pulls the bar into view: zoom a viewport shot instead. Silencedetect missed short pauses (room echo); the
+  loudness map (10 ms RMS, 10th percentile + 9 dB) found them.
+
+## Take 3 v2 (2026-11-10, Bryson's notes on v1)
+1. "I noticed you cut out after where I said 'I built a system'": RESTORED "that is fully automated" (he wants his
+   words kept; the rest of the video explains the human review). Lesson: don't cut his words for wording reasons
+   without asking first; suggest it instead.
+2. "move the captions lower": CY 1430 -> 1560 (bottom edge ~1600, still above TikTok/Reels bottom text). Face scrim now
+   fades from y=1200 to 1720; the phone clips' dark band (.capfade) starts at 70% of the screen instead of 57%.
+   New house default for his videos: captions at 1560.
+3. "make sure the videos you show match up exactly to what I'm saying": every OS clip is now the literal thing said:
+   "I built a system that is fully automated" = the pipeline steps; "it sends it to me to review" = the OS
+   Notifications sheet with a PENDING APPROVAL ("Launch Google campaign", Created PAUSED, Approve to set it live);
+   "I send it to my client ... where their money is going ... approve it" = the client portal Review tab with the
+   real campaign approval wording (budget $50/day, which you pay Google directly, Approve / Request Changes);
+   "Same thing with reports ..." = the portal Reports tab with a monthly report. Sample data: film.cjs Summit Roofing
+   pendingActions + matching approvals (without the matching approval the OS shows a "never been asked" warning);
+   pages.mjs approvals + reportHistory.
+v2 = 65.0s, -14.0 LUFS, peak -1.0. Sent as "How our automations help clients.mp4".

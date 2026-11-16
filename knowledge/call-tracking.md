@@ -114,3 +114,22 @@ Answer given (nothing built yet, waiting on his pick):
    recordings or transcripts.
 3. **Meanwhile for Springbok's monthly yes/no:** front desk asks every new patient "how did you hear about us?" and
    the month's "Google ad" new patients are checked against Google's call count.
+
+## 2026-11-16 — Bryson asked what the upgrade costs (web check, third-party sources; official A2P table not reachable)
+Upgrading = add a card and prepay about $20 of credit (spent on usage, not a fee). Ongoing: about $1.15 a month per
+local number; texts about $0.0083 each plus carrier fees (~$0.0035 to $0.005) so roughly 1 to 1.5 cents; calls a
+cent or two a minute. A2P 10DLC (needed to text): one-time brand registration (sources disagree, roughly $5 to $50),
+campaign vetting about $15, then about $2 to $10 a month per campaign. Told him: about $40 to $80 the first month,
+then about $5 to $15 a month at his volume; each client texting under their own name needs its own registration.
+Confirm the A2P figures in Twilio's console when registering.
+
+## 2026-11-16 — the WHISPER (built, live)
+Bryson: "how do we make it so she hears 'new patient call from your Google ad'". `voice.mjs` now forwards with
+`<Dial><Number url=".../voice?whisper=1&k=<g|m|a>&p=<0|1>">`: when the business answers, Twilio fetches that URL and
+plays one line to THEM only ("New call from your Google ad." / "Facebook or Instagram ad" / "online ad", with
+"patient" for health clients via healthModeOf), then connects the caller. Words come from a fixed list, never from the
+URL. On by default; `callWhisper: false` on a client turns it off (no UI toggle yet; ask Claude). Guard:
+tests/verify-call-whisper.mjs (9). Takes effect once Twilio is upgraded and a number is bought.
+Springbok's front desk also got a spreadsheet (built in chat, "Springbok - New patients from ads.xlsx"): an Ad callers
+log (date, phone, from the ad, first visit, came in?) and a Monthly check tab that matches BoldLine's pasted list
+automatically (any phone format, total at the top). Phone numbers and dates only, no names or health details.
