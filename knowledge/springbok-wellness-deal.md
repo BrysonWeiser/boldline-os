@@ -410,3 +410,9 @@ before holding more than numbers). Calls are never recorded.
   🔴 The OS bills every lead by default and Exclude is opt-out, which for pay-per-show means unticking every no-show
   (overbilling risk). Offered to build "bill only leads marked Came in" for pay-per-show clients (leads arrive not
   billable, one tick marks a show). Awaiting his yes.
+- BUILT 2026-11-16 ("yes build it"): Billing card setting "Only charge leads I mark Came in" (`billingConfirmFirst`).
+  On: leads arrive not charged; each row gets a "Came in?" tick (`lead.cameIn`); Approve charges and marks billed ONLY
+  ticked leads and leaves the rest waiting for next month; summary reads "N came in · N waiting"; the invoice email
+  counts the same. Also: phone-call leads show the caller's number and "Phone call" (not "Unknown lead" /
+  "call_tracking") and are no longer flagged "No name given". Guard: tests/verify-came-in-billing.mjs (16).
+  🔴 Bryson must TICK the setting on Springbok's real Billing card (Contract tab) once it is live.
