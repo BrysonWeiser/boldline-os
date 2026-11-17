@@ -249,3 +249,18 @@ agreement's month-to-month price, billing (price drops at month 13), Deal Prep a
   industry pages, llms.txt, the blog writer's facts.
 - Guards: `tests/verify-complete-stepdown.mjs` (24), plus verify-new-pricing (168) and verify-complete-plan-site (59).
 
+
+## 2026-11-17: idea, pay the first year of Complete up front for a discount (advice only, NOT built)
+Bryson asked about a discount for paying the year in full. Recommendation given:
+- 10% off the plan fee only: $5,400 instead of $6,000 (saves $600). Matches the existing 12-month renewal discount
+  (KB contract-renewal-pricing). Never discount the lead fee (per lead, unknown in advance) and never touch ad spend
+  (client pays Google/Meta directly; hard constraint).
+- Upside: cash in hand, and it removes the "leaves early with a free website" risk the $125/month-left exit fee covers.
+- Reality: few small owners can front $5,400 (KB business-model-test-detailers: half can't fund a $500 ad budget),
+  so it is for bigger clients. Offer it on calls / in Deal Prep first; add to the website only if people take it.
+- Rules to write into the agreement if built: no refund if the CLIENT leaves (they keep the site); pro-rated refund if
+  BoldLine ends it (matches the existing agency-exit clause); year two $375/mo as normal (or prepay again at 10% off =
+  $4,050). Card fee ~2.9% (~$157) on $5,400, so prefer bank transfer (ACH).
+- To build if he says go: a "Pay the year up front" option on the Plan card + agreement wording (new terms version, old
+  agreements untouched) + a one-time Stripe invoice instead of the monthly subscription + the month-13 step-down
+  starting a $375 subscription instead of lowering one. Lead fees still bill monthly.
