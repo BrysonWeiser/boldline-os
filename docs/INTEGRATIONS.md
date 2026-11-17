@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 253 task-keyed entries under `knowledge/`. They surface automatically via the
+> 254 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**253 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**254 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -309,6 +309,12 @@
 - **[website-leads-os-tab](../knowledge/website-leads-os-tab.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Marketing-site form submissions insert into the website_leads table (via service-role) and surface in the OS "Leads" tab: filter chips, status, notes, realtime + 20s poll + toast, delete. Table is live (2026-06-30). Degrades gracefully if the table is missing.  
   <sub>*task:* understand or debug how website leads flow into the OS Leads section &nbsp;|&nbsp; *keywords:* website_leads, website_leads_auth_delete, LeadsScreen, leads-live, deleteLead, submission-created</sub>
+
+## General
+
+- **[parents-real-estate](../knowledge/parents-real-estate.md)** &mdash; &#9989; verified  
+    
+  <sub>*task:*  &nbsp;|&nbsp; *keywords:* </sub>
 
 ## Git/Deploy
 
