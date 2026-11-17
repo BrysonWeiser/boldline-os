@@ -416,3 +416,17 @@ before holding more than numbers). Calls are never recorded.
   counts the same. Also: phone-call leads show the caller's number and "Phone call" (not "Unknown lead" /
   "call_tracking") and are no longer flagged "No name given". Guard: tests/verify-came-in-billing.mjs (16).
   🔴 Bryson must TICK the setting on Springbok's real Billing card (Contract tab) once it is live.
+
+## 2026-11-17: ChiroTouch online booking on the landing page (answered, nothing built)
+Q (Bryson): if Springbok sets up ChiroTouch online booking, can it go on the landing page and still be tracked?
+- YES it can go on the page: set "How customers book" = booking link (`cl.intake.how="link"`, KB website-booking-intake).
+  The main button opens ChiroTouch's page; the call button with the tracking number stays.
+- The link already carries utm_source=boldline / utm_medium=paid / utm_campaign=<landingSlug> (`withTags` in
+  landing.mjs). Whether ChiroTouch keeps or reports those tags is UNKNOWN: ask ChiroTouch.
+- NOT tracked today: landing.mjs does not log booking-link clicks, ChiroTouch bookings never reach the OS (separate
+  system), and health mode forbids tracking pixels on the page. So online bookers do not become OS leads and are not
+  on the call list, the whisper, or the came-in billing ticks.
+- Recommended: ask ChiroTouch for an ad-only appointment type / "new patient online" option used ONLY by the
+  landing-page link; the front desk counts those new patients monthly with the same came-in list. Offered to build
+  (not built): a click log on the booking button + an "add online booking" row on the Billing card so they bill
+  under the same $40 per new patient who comes in. Do NOT add pixels/Google tags to the health page.
