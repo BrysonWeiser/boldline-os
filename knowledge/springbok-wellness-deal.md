@@ -430,3 +430,9 @@ Q (Bryson): if Springbok sets up ChiroTouch online booking, can it go on the lan
   landing-page link; the front desk counts those new patients monthly with the same came-in list. Offered to build
   (not built): a click log on the booking button + an "add online booking" row on the Billing card so they bill
   under the same $40 per new patient who comes in. Do NOT add pixels/Google tags to the health page.
+- Follow-up 2026-11-17 ("how do we make it so only our landing page does it"): ask ChiroTouch for a SEPARATE booking
+  link that opens straight to the "New Patient - Online" type, with that type HIDDEN from their normal booking page.
+  That link goes ONLY on the landing page (never the website, Google profile, social, emails). Unverified whether
+  ChiroTouch supports hidden types/direct links. Fallbacks: (a) a required "How did you hear about us?" question on
+  the booking form, (b) the type exists but is named for an ad-only offer so nobody else picks it, (c) front desk
+  checks the call-in list as today. Same idea as a separate tracking phone number: one door only the ad uses.
