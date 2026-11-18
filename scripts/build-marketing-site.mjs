@@ -198,7 +198,8 @@ const completeSection = () => `
   </div>
   <div class="cp-terms reveal">
     <div><b>${firstTerm(TERMS.completeFirstTermMonths)} to start.</b> That's what lets us build your website free. After that your website's paid off, so it drops to ${usd(COMPLETE_PLAN.monthlyAfterTerm)} a month, month to month, and either of us can stop with ${TERMS.noticeDays} days' notice.</div>
-    <div><b>Leaving early?</b> You'd pay what's left of the ${usd(WEBSITE_OFFER.build)} build, ${usd(COMPLETE_PLAN.earlyExitPerMonthLeft)} for each month left, and the website is yours to keep.</div>
+    <div><b>Rather pay the year up front?</b> It's ${usd(COMPLETE_PLAN.prepayYear)} for the first 12 months instead of ${usd(COMPLETE_PLAN.monthly * 12)}, so you save ${usd(COMPLETE_PLAN.monthly * 12 - COMPLETE_PLAN.prepayYear)}. Your lead fees are still billed monthly.</div>
+    <div><b>Leaving early?</b> You'd pay what's left of the ${usd(WEBSITE_OFFER.build)} build, ${usd(COMPLETE_PLAN.earlyExitPerMonthLeft)} for each month left, and the website is yours to keep. Paid the year up front? Then there's nothing more to pay.</div>
     <div><b>One ad platform included.</b> Google and Meta together starts at ${usd(COMBO_MIN_BUDGET)} a month in ad budget, the same as our other plans.</div>
   </div>
 </div></section>

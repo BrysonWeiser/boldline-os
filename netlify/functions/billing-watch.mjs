@@ -35,7 +35,7 @@ import { latePolicyFor, interestFor, lateStage, isBillingPaused } from "../lib/l
 import { pauseClientAds, resumeClientAds } from "../lib/billing-pause.mjs";
 import { runAddOnStarts, isAdsInvoice, adsSubscriptionOf } from "../lib/addon-billing.mjs";
 import { stripe as stripeApi, ensureCustomer, resolvePaymentMethod } from "../lib/stripe-shared.mjs";
-import { completeStepDownDue, applyStepDown } from "../lib/complete-stepdown.mjs";
+import { completeStepDownDue, applyStepDown, prepayFollowOnDue, startPrepayFollowOn } from "../lib/complete-stepdown.mjs";
 
 const SK = process.env.STRIPE_SECRET_KEY;
 // Interest starts after day 10 past due on v1-v5 agreements (Agreement §3.4). BILLING_GRACE_DAYS
@@ -233,6 +233,31 @@ export default withFailureAlert("billing-watch", async () => {
             patch.commLog = [{ date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), note: `Complete plan fee lowered from ${money(step.from)} to ${money(step.to)} a month from the next invoice (${periodEndIso ? new Date(periodEndIso).toLocaleDateString("en-US", { timeZone: "America/Phoenix" }) : "next cycle"}): the 12-month initial term is complete, as the agreement says.`, cat: "billing", ts: Date.now() }, ...(patch.commLog || cl.commLog || [])];
             await ownerEmail(`${cl.name}: Complete fee drops to ${money(step.to)}/mo`, [`<b>${cl.name}</b> has finished the 12-month initial term of the Complete plan.`, `As the agreement says, the Complete Plan Fee drops from ${money(step.from)} to <b>${money(step.to)} a month</b> starting with the next invoice. Done automatically in Stripe, nothing for you to do.`]);
           } catch (e) { console.error(`billing-watch: ${cl.name || row.id} Complete step-down failed:`, e.message); await ownerEmail(`${cl.name}: Complete step-down FAILED`, [`The Complete fee should drop to ${money(step.to)}/mo from the next invoice, but Stripe refused: ${String(e.message).replace(/</g, "&lt;")}.`, "Open the client's Contract tab and lower the monthly fee by hand before the invoice."]); }
+        }
+        // Complete paid up front: a week's heads-up, then the lower monthly fee starts on the day year one ends.
+        const fo = prepayFollowOnDue(cl, sub);
+        if (fo) {
+          const day = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-US", { timeZone: "America/Phoenix", weekday: "long", month: "long", day: "numeric" });
+          const pp = cl.completePrepay || {};
+          if (fo.kind === "notice") {
+            patch.completePrepay = { ...pp, noticeFor: fo.termEnd };
+            await ownerEmail(`${cl.name}: first year ends ${day(fo.termEnd)}, ${money(fo.monthly)}/mo starts`, [`<b>${cl.name}</b> paid the first year of the Complete plan up front, and it ends on <b>${day(fo.termEnd)}</b>.`, `As their agreement says, the OS will start charging <b>${money(fo.monthly)} a month</b> on that day, to the card they saved.`, `If they told you they are leaving, record it before then (their Contract tab, Early termination) and nothing will start. Otherwise there is nothing to do.`]);
+          } else {
+            try {
+              const followOn = await startPrepayFollowOn({ stripe: stripeApi, resolvePaymentMethod }, cl, fo.monthly);
+              patch.completePrepay = { ...pp, followOn };
+              patch.stripeSubscriptionId = followOn.subscriptionId;
+              patch.billingStatus = "active";
+              patch.commLog = [{ date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Phoenix" }), note: `First year (paid up front) finished. Complete plan now ${money(fo.monthly)} a month, month to month.`, cat: "billing", ts: Date.now() }, ...(patch.commLog || cl.commLog || [])];
+              await ownerEmail(`${cl.name}: Complete now ${money(fo.monthly)}/mo`, [`<b>${cl.name}</b> finished the first year they paid up front. Their Complete plan is now <b>${money(fo.monthly)} a month</b>, ${followOn.collection === "card" ? "charged to the card they saved" : "invoiced by email (no saved card was found)"}. Their lead fees ride the same monthly bill from now on.`]);
+            } catch (e) {
+              console.error(`billing-watch: ${cl.name || row.id} prepay follow-on failed:`, e.message);
+              if (pp.followOnError !== e.message) {
+                patch.completePrepay = { ...pp, followOnError: e.message };
+                await ownerEmail(`${cl.name}: monthly Complete fee did NOT start`, [`<b>${cl.name}</b>'s first year (paid up front) is over, but the ${money(fo.monthly)} monthly fee could not be started: ${e.message}.`, `Nothing was charged. Open their Billing card in the OS to sort it out.`]);
+              }
+            }
+          }
         }
         if (cl.billingStatus === "active" && periodEndIso) {
           const dLeft = Math.ceil((new Date(periodEndIso).getTime() - Date.now()) / 864e5);

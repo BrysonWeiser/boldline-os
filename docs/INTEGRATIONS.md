@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 252 task-keyed entries under `knowledge/`. They surface automatically via the
+> 254 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**252 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**254 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -309,6 +309,12 @@
 - **[website-leads-os-tab](../knowledge/website-leads-os-tab.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Marketing-site form submissions insert into the website_leads table (via service-role) and surface in the OS "Leads" tab: filter chips, status, notes, realtime + 20s poll + toast, delete. Table is live (2026-06-30). Degrades gracefully if the table is missing.  
   <sub>*task:* understand or debug how website leads flow into the OS Leads section &nbsp;|&nbsp; *keywords:* website_leads, website_leads_auth_delete, LeadsScreen, leads-live, deleteLead, submission-created</sub>
+
+## General
+
+- **[parents-real-estate](../knowledge/parents-real-estate.md)** &mdash; &#9989; verified  
+    
+  <sub>*task:*  &nbsp;|&nbsp; *keywords:* </sub>
 
 ## Git/Deploy
 
@@ -864,6 +870,9 @@
 - **[website-needs](../knowledge/website-needs.md)** &mdash; &#9989; verified &middot; 2026-10-13  
   Built 2026-10-13 (Bryson - "build the what i need from you list so i can ask for it on a call and also have it in the website client portal"). ONE list of 10 items (9 required + optional "websites you like") used three ways - the OS card "What we need from them" on a website client's Website tab (call questions + "Copy what's missing as a message"), and the portal card "What we need from you" on the client's Website tab, where each item ticks itself off from the record. Written answers save to `websiteIntake` (server-owned in the OS) and feed the website builder; logo/photos link to Photos & Video, phone/email to Your Information. Bryson gets a blue alert when a client sends details. Shown until the site is live.  
   <sub>*task:* collect what a new website client must send (logo, photos, services, story, area, hours, contact, reviews, web address), ask for it on a call, or change the website intake checklist in the portal or the OS &nbsp;|&nbsp; *keywords:* what we need from you, website intake, intake checklist, onboarding checklist, client checklist, website client onboarding, logo, photos, services and prices, about us, service area, hours, reviews, web address, domain, websites you like, websiteIntake, website-needs, needsStatus, WN_NEEDS, copy as a message, call questions</sub>
+- **[website-value-pitch](../knowledge/website-value-pitch.md)** &mdash; &#9989; verified &middot; 2026-11-16  
+  The core idea: a website rarely creates customers on its own; it decides whether the people who ALREADY heard about you choose you. Every route (referral, Google, Maps, ads, Instagram) ends with them checking you out, usually on a phone, before they call. A good site does five jobs - passes that trust check, gets found for each service (a page per service, e.g. TMJ), turns visitors into bookings (book button, insurance answer, new-patient offer, hours, map), makes ads cheaper (Google rewards a good landing page) and works at 9pm when the front desk is closed. Sell it with the owner's own numbers (what a new customer is worth x a couple of extra a month vs the $1,500 build), by asking them to open their site on their phone, and by showing the OS demo site.  
+  <sub>*task:* explain or sell why a business needs a good website (talk track, the money math, how to spot a weak site), e.g. on a call with a chiropractor or a trade &nbsp;|&nbsp; *keywords:* why a website, value of a website, sell a website, website pitch, good website, weak website, talk track, objection i get customers from word of mouth, chiropractor website, springbok website</sub>
 
 ## Sales funnel
 
