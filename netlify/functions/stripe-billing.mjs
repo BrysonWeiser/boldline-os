@@ -161,7 +161,7 @@ export default async (req) => {
       // for a recurring charge that must never fire. `oneTime` switches the whole session
       // to mode:"payment" instead of bolting a $0 recurring line onto a subscription.
       const oneTime = !!body.oneTime;
-      // 🔴 COMPLETE, FIRST YEAR PAID UP FRONT (Bryson, 2026-11-18, KB complete-plan). One payment for the 12 months of
+      // 🔴 COMPLETE, FIRST YEAR PAID UP FRONT (Bryson, 2026-11-17, KB complete-plan). One payment for the 12 months of
       // plan fees, NOT a subscription: nothing recurs during year one. The card (or bank account) is saved with it, so
       // approved lead fees are invoiced to it monthly like a results-only client (lead-invoice-run), and at month 13
       // billing-watch starts the lower monthly fee on its own (complete-stepdown.mjs startPrepayFollowOn).

@@ -163,7 +163,7 @@ export const COMPLETE_PLAN = { id: "complete", name: "Complete", monthly: 500, p
   websiteBuildWaived: WEBSITE_OFFER.build, earlyExitPerMonthLeft: Math.round(WEBSITE_OFFER.build / 12),
   monthlyAfterTerm: 500 - Math.round(WEBSITE_OFFER.build / 12),
   blogPostsPerMonth: WEBSITE_OFFER.blogPostsPerMonth,
-  // Pay the first year up front for 10% off the plan fee (Bryson, 2026-11-18). Lead fees still monthly. Mirrored in
+  // Pay the first year up front for 10% off the plan fee (Bryson, 2026-11-17). Lead fees still monthly. Mirrored in
   // contract-shared (planPrepayOf); billed as one payment, then $375 a month starts by itself at month 13.
   prepayDiscountPct: 10, prepayYear: Math.round(500 * 12 * 0.9) };
 // Complete for ONLINE STORES (Bryson, 2026-11-07): $300 a month plus the store's share of ad spend (15%, 12% at the top

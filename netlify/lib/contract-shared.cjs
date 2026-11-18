@@ -270,7 +270,7 @@ function monthsLeftOf(cl, term, now) {
   if (n.getDate() < s.getDate()) gone -= 1;   // the month under way is not finished, so it is still owed
   return Math.max(0, Math.min(term, term - gone));
 }
-// ── 🔴 PAY THE FIRST YEAR UP FRONT (Bryson, 2026-11-18: "make it all live", KB complete-plan) ──
+// ── 🔴 PAY THE FIRST YEAR UP FRONT (Bryson, 2026-11-17: "make it all live", KB complete-plan) ──
 // Complete only (not stores: no website, no 12-month term). 10% off the twelve plan-fee payments: $5,400 instead of
 // $6,000. Only the plan fee: lead fees are still billed monthly as earned, and ad spend is never ours to touch. Ticked
 // per client (`planPrepay`), frozen at send as `contractPlanPrepay` (the dollar total), so an agreement sent without it

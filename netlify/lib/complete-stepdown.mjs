@@ -47,7 +47,7 @@ export async function applyStepDown(stripe, sub, to, name) {
   });
 }
 
-// ── 🔴 THE YEAR PAID UP FRONT, THEN MONTH 13 (Bryson, 2026-11-18, KB complete-plan) ─────────────────────────────────────
+// ── 🔴 THE YEAR PAID UP FRONT, THEN MONTH 13 (Bryson, 2026-11-17, KB complete-plan) ─────────────────────────────────────
 // A Complete client who paid the first 12 months in one go has NO subscription during year one (their lead fees are
 // invoiced monthly to the saved card, like a results-only client). The agreement says the fee then drops to $375 a
 // month, billed monthly in advance, so on the day the initial term ends this starts that subscription on the saved

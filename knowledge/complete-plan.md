@@ -250,7 +250,7 @@ agreement's month-to-month price, billing (price drops at month 13), Deal Prep a
 - Guards: `tests/verify-complete-stepdown.mjs` (24), plus verify-new-pricing (168) and verify-complete-plan-site (59).
 
 
-## 2026-11-17: idea, pay the first year of Complete up front for a discount (BUILT + LIVE 2026-11-18, see next section)
+## 2026-11-17: idea, pay the first year of Complete up front for a discount (BUILT + LIVE 2026-11-17, see next section)
 Bryson asked about a discount for paying the year in full. Recommendation given:
 - 10% off the plan fee only: $5,400 instead of $6,000 (saves $600). Matches the existing 12-month renewal discount
   (KB contract-renewal-pricing). Never discount the lead fee (per lead, unknown in advance) and never touch ad spend
@@ -265,7 +265,7 @@ Bryson asked about a discount for paying the year in full. Recommendation given:
   agreements untouched) + a one-time Stripe invoice instead of the monthly subscription + the month-13 step-down
   starting a $375 subscription instead of lowering one. Lead fees still bill monthly.
 
-## 2026-11-18: pay the first year up front, BUILT and live (Bryson: "Ok make it all live")
+## 2026-11-17: pay the first year up front, BUILT and live (Bryson: "Ok make it all live")
 $5,400 for the 12 months instead of 12 x $500 (10% off the plan fee, `COMPLETE_PLAN.prepayDiscountPct`, price list
 `prepayYear`). Complete with a website only (never stores). Lead fees still monthly; ad spend never ours.
 - **Agreement** (both copies, contract-shared.cjs + index.html mirror): `planPrepayOf(cl)` -> {total, full, saves,

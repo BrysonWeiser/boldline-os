@@ -226,7 +226,7 @@ export default async (req) => {
     // 🔴 A PAID INVOICE WITH NO SUBSCRIPTION BEHIND IT IS NOT A SUBSCRIPTION. A results-only client's month-end lead
     // invoice, or the year a Complete client paid up front, arrives as invoice.paid too. Marking that client "active"
     // told lead-invoice-run they had a subscription their leads ride on, so the NEXT month's leads were never
-    // invoiced (it only bills "card_on_file"). Found 2026-11-18 while adding the year up front.
+    // invoiced (it only bills "card_on_file"). Found 2026-11-17 while adding the year up front.
     const invSub = obj.subscription || (obj.parent && obj.parent.subscription_details && obj.parent.subscription_details.subscription) || null;
     if (event.type === "invoice.paid" && !invSub && !cl.stripeSubscriptionId) patch.billingStatus = "card_on_file";
     if (event.type === "checkout.session.completed" && patch.completePrepay && cl.completePrepay)   // invoice.paid may land first

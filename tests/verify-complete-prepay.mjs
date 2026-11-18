@@ -1,4 +1,4 @@
-// Complete, first year paid up front (Bryson, 2026-11-18: "make it all live", KB complete-plan). 10% off the plan fee
+// Complete, first year paid up front (Bryson, 2026-11-17: "make it all live", KB complete-plan). 10% off the plan fee
 // for paying the 12 months at once: $5,400 instead of $6,000. Lead fees still monthly. Run: node tests/verify-complete-prepay.mjs
 //
 // What has to stay true:
