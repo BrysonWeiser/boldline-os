@@ -250,7 +250,7 @@ agreement's month-to-month price, billing (price drops at month 13), Deal Prep a
 - Guards: `tests/verify-complete-stepdown.mjs` (24), plus verify-new-pricing (168) and verify-complete-plan-site (59).
 
 
-## 2026-11-17: idea, pay the first year of Complete up front for a discount (advice only, NOT built)
+## 2026-11-17: idea, pay the first year of Complete up front for a discount (BUILT + LIVE 2026-11-18, see next section)
 Bryson asked about a discount for paying the year in full. Recommendation given:
 - 10% off the plan fee only: $5,400 instead of $6,000 (saves $600). Matches the existing 12-month renewal discount
   (KB contract-renewal-pricing). Never discount the lead fee (per lead, unknown in advance) and never touch ad spend
@@ -264,3 +264,32 @@ Bryson asked about a discount for paying the year in full. Recommendation given:
 - To build if he says go: a "Pay the year up front" option on the Plan card + agreement wording (new terms version, old
   agreements untouched) + a one-time Stripe invoice instead of the monthly subscription + the month-13 step-down
   starting a $375 subscription instead of lowering one. Lead fees still bill monthly.
+
+## 2026-11-18: pay the first year up front, BUILT and live (Bryson: "Ok make it all live")
+$5,400 for the 12 months instead of 12 x $500 (10% off the plan fee, `COMPLETE_PLAN.prepayDiscountPct`, price list
+`prepayYear`). Complete with a website only (never stores). Lead fees still monthly; ad spend never ours.
+- **Agreement** (both copies, contract-shared.cjs + index.html mirror): `planPrepayOf(cl)` -> {total, full, saves,
+  perMonth}. Ticked per client `planPrepay`, frozen at send as `contractPlanPrepay` (the total), cleared on reset. Only
+  changes text when ticked, so no terms-version bump and old/monthly agreements are byte-identical. Adds: (b) "paid for
+  the whole initial term in advance", (c) "Paid in advance" paragraph ($600 less; due before work begins via the payment
+  link; client leaving = no refund, nothing more for the build; Agency ending or its uncured breach = $450 back per whole
+  month left), 4.3 billing mechanics, termination (b) variant, meta row "$5,400 paid up front ... then $375/mo".
+  `completeExitOwed` = 0 when prepaid (no exit fee on top of a paid year).
+- **Billing**: OS Billing card button "Collect the $5,400 for Year One" -> stripe-billing `create-checkout` with
+  `prepay:true` -> Checkout **mode payment** (NOT a subscription), `setup_future_usage: off_session` saves the card/bank,
+  `invoice_creation` on (real invoice + receipt), metadata `prepay: "1"`. Webhook: checkout.session.completed with
+  prepay -> `billingStatus: card_on_file` + `completePrepay {sessionId, amount, paymentStatus, paidAt}` (NEVER
+  handoffPaidAt). So year-one lead fees go through lead-invoice-run like a results-only client.
+- **Month 13**: billing-watch -> `prepayFollowOnDue` (complete-stepdown.mjs): 7 days before the term ends, owner email
+  heads-up (once, `noticeFor`); on the day, `startPrepayFollowOn` creates the $375/mo ADS subscription (untagged, so lead
+  fees ride it) on the saved card (else emailed invoices), idempotency key per client + start date. Never for: etf
+  recorded, contractStatus not active, internal, already a subscription, unpaid session (checked live in Stripe).
+  Failure -> owner email once per distinct error, retried daily.
+- `completePrepay` is in SERVER_OWNED_KEYS (appended at the END: verify-business-emails pins the list's start).
+- 🔴 **Bug fixed on the way**: invoice.paid always set `billingStatus: "active"`, so a results-only client whose month-end
+  lead invoice got paid stopped being picked up by lead-invoice-run (it bills only card_on_file). Now an invoice with no
+  subscription (checks `parent.subscription_details.subscription` too) and no stripeSubscriptionId keeps card_on_file.
+- Website: 4th box in the Complete terms ("Rather pay the year up front?"), grid now 2x2; leaving-early box adds "Paid
+  the year up front? Then there's nothing more to pay."; FAQ + llms.txt. Portal shows "first year paid up front".
+  Deal Prep prompt: offer it as a closer to established businesses only.
+- Guard: tests/verify-complete-prepay.mjs (49 checks; mutations on the etf guard and the exit-fee rule both caught).

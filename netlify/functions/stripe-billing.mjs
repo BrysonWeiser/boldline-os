@@ -161,11 +161,18 @@ export default async (req) => {
       // for a recurring charge that must never fire. `oneTime` switches the whole session
       // to mode:"payment" instead of bolting a $0 recurring line onto a subscription.
       const oneTime = !!body.oneTime;
+      // 🔴 COMPLETE, FIRST YEAR PAID UP FRONT (Bryson, 2026-11-18, KB complete-plan). One payment for the 12 months of
+      // plan fees, NOT a subscription: nothing recurs during year one. The card (or bank account) is saved with it, so
+      // approved lead fees are invoiced to it monthly like a results-only client (lead-invoice-run), and at month 13
+      // billing-watch starts the lower monthly fee on its own (complete-stepdown.mjs startPrepayFollowOn).
+      const prepay = !oneTime && !!body.prepay;
+      const prepayAmount = Number(body.prepayAmount) || 0;
       if (!clientId) return json({ ok: false, error: "Missing clientId" }, 400);
+      if (prepay && !(prepayAmount > 0)) return json({ ok: false, error: "The year up front needs an amount greater than zero." }, 400);
       if (!email) return json({ ok: false, error: "Add the client's email on the Overview tab first." }, 400);
       if (oneTime) {
         if (!(setup > 0)) return json({ ok: false, error: "A one-time build needs a fee greater than zero." }, 400);
-      } else if (!(monthly > 0)) {
+      } else if (!prepay && !(monthly > 0)) {
         return json({ ok: false, error: "Monthly fee must be greater than zero." }, 400);
       }
       if (!origin) return json({ ok: false, error: "Missing origin" }, 400);
@@ -177,7 +184,16 @@ export default async (req) => {
       // billed on the FIRST invoice (Stripe supports mixing recurring + one-time
       // line items in mode:subscription). If a future Stripe change ever rejects
       // this, the equivalent is subscription_data[add_invoice_items].
-      const line_items = oneTime ? [] : [
+      const line_items = oneTime ? [] : prepay ? [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: { name: `BoldLine Media, ${String(body.productLabel || "Complete plan").slice(0, 120)}: first 12 months paid in advance` },
+            unit_amount: dollars(prepayAmount),
+          },
+          quantity: 1,
+        },
+      ] : [
         {
           price_data: {
             currency: "usd",
@@ -209,6 +225,27 @@ export default async (req) => {
           },
           quantity: 1,
         });
+      }
+
+      if (prepay) {
+        if (setup > 0) line_items.push({ price_data: { currency: "usd", product_data: { name: "One-time setup fee" }, unit_amount: dollars(setup) }, quantity: 1 });
+        const session = await stripe("checkout/sessions", {
+          body: {
+            mode: "payment",
+            customer: customerId,
+            payment_method_types: ["card", "us_bank_account"],
+            line_items,
+            // Saved for the monthly lead fees and, from month 13, the monthly plan fee.
+            payment_intent_data: { metadata: { clientId, prepay: "1" }, setup_future_usage: "off_session" },
+            // A proper invoice, so the client gets a receipt like every other payment (invoice.paid).
+            invoice_creation: { enabled: true, invoice_data: { metadata: { clientId, prepay: "1" } } },
+            metadata: { clientId, oneTime: "0", prepay: "1" },
+            client_reference_id: clientId,
+            success_url: returnTo(body.returnUrl, origin, "success"),
+            cancel_url: returnTo(body.returnUrl, origin, "cancel"),
+          },
+        });
+        return json({ ok: true, url: session.url, customerId, prepay: true });
       }
 
       const session = await stripe("checkout/sessions", {

@@ -176,7 +176,13 @@ export default async (req) => {
       // in the OS means the clock starts when the money actually lands, not whenever
       // somebody next opens the app. `mode` is checked as well as our own metadata so
       // this still works for a session created outside the normal flow.
-      if (obj.metadata?.oneTime === "1" || obj.mode === "payment") {
+      if (obj.metadata?.prepay === "1") {
+        // Complete, first year paid up front (KB complete-plan). No subscription during year one, and the card is
+        // saved, so it is billed exactly like a results-only client until billing-watch starts month 13.
+        patch.billingStatus = "card_on_file";
+        patch.completePrepay = { sessionId: obj.id, amount: typeof obj.amount_total === "number" ? obj.amount_total / 100 : undefined,
+          paymentStatus: obj.payment_status || "", paidAt: obj.payment_status === "paid" ? new Date().toISOString() : null };
+      } else if (obj.metadata?.oneTime === "1" || obj.mode === "payment") {
         patch.handoffPaidAt = new Date().toISOString();
       }
       break;
@@ -217,6 +223,18 @@ export default async (req) => {
     const { data: row, error: readErr } = await supabase.from("clients").select("data").eq("id", clientId).single();
     if (readErr || !row) return json({ ok: true, note: "client not found", clientId });
     const cl = row.data || {};
+    // 🔴 A PAID INVOICE WITH NO SUBSCRIPTION BEHIND IT IS NOT A SUBSCRIPTION. A results-only client's month-end lead
+    // invoice, or the year a Complete client paid up front, arrives as invoice.paid too. Marking that client "active"
+    // told lead-invoice-run they had a subscription their leads ride on, so the NEXT month's leads were never
+    // invoiced (it only bills "card_on_file"). Found 2026-11-18 while adding the year up front.
+    const invSub = obj.subscription || (obj.parent && obj.parent.subscription_details && obj.parent.subscription_details.subscription) || null;
+    if (event.type === "invoice.paid" && !invSub && !cl.stripeSubscriptionId) patch.billingStatus = "card_on_file";
+    if (event.type === "checkout.session.completed" && patch.completePrepay && cl.completePrepay)   // invoice.paid may land first
+      patch.completePrepay = { ...cl.completePrepay, ...patch.completePrepay, paidAt: patch.completePrepay.paidAt || cl.completePrepay.paidAt || null,
+        paymentStatus: cl.completePrepay.paidAt ? "paid" : patch.completePrepay.paymentStatus };
+    // The year up front: keep what checkout recorded and stamp when the money actually landed.
+    if (event.type === "invoice.paid" && obj.metadata && obj.metadata.prepay === "1")
+      patch.completePrepay = { ...(cl.completePrepay || {}), paidAt: (cl.completePrepay && cl.completePrepay.paidAt) || new Date().toISOString(), paymentStatus: "paid", invoiceId: obj.id };
 
     // ── Auto-send the matching branded client email ───────────────────────────
     // Welcome on first payment, Receipt on each paid invoice, Past-Due on a

@@ -140,8 +140,8 @@ for (const [label, cl, pkg] of [
   eq("a sent Complete price can't be changed afterwards", CS.planFeeOf({ ...sentC, billingPlanMonthly: 300 }), 500);
   eq("🔴 a voided envelope froze nothing", CS.planOf({ ...sent, docusignStatus: "voided", plan: "complete" }), "complete");
   ok("🔴 the OS stamps the plan, its price and the founding month when it sends",
-    /contractPlan:planOf\(client\),contractPlanMonthly:planFeeOf\(client\)\|\|null,contractPlanMonthlyAfter:planOf\(client\)==="complete"\?planFeeAfterTermOf\(client\):null,contractFoundingFreeMonth:foundingFreeMonthOf\(client\),contractWaivedSetup:waivedSetupOf\(client,pkg\),contractLateFee:/.test(S));
-  ok("and replacing an agreement unfreezes them", /contractPlan:null,contractPlanMonthly:null,contractPlanMonthlyAfter:null,contractFoundingFreeMonth:null/.test(S));
+    /contractPlan:planOf\(client\),contractPlanMonthly:planFeeOf\(client\)\|\|null,contractPlanMonthlyAfter:planOf\(client\)==="complete"\?planFeeAfterTermOf\(client\):null,contractPlanPrepay:\(planPrepayOf\(client\)\|\|\{\}\)\.total\|\|null,contractFoundingFreeMonth:foundingFreeMonthOf\(client\),contractWaivedSetup:waivedSetupOf\(client,pkg\),contractLateFee:/.test(S));
+  ok("and replacing an agreement unfreezes them", /contractPlan:null,contractPlanMonthly:null,contractPlanMonthlyAfter:null,contractPlanPrepay:null,contractFoundingFreeMonth:null/.test(S));
 }
 
 // ── 🔴 The step-down after year one (Bryson, 2026-11-10, KB complete-plan): $500 for the first 12 months, then $375,
@@ -184,7 +184,7 @@ for (const [label, cl, pkg] of [
 {
   ok("🔴 lead fees are measured against the MINIMUM only (zero on v9), never against the Complete fee", /const monthlyFloor = minimum;/.test(S));
   ok("the subscription charges the minimum plus the plan fee", /const minimum=minimumOf\(client,pkg\), planFee=planFeeOf\(client\), complete=planFee>0;/.test(S) && /const monthly=minimum\+planFee;/.test(S));
-  ok("the checkout names the Complete fee for what it is", /productLabel:complete\?`Complete plan with \$\{pkg&&pkg\.name\} \(monthly\)`:""/.test(S)
+  ok("the checkout names the Complete fee for what it is", /productLabel:complete\?\(prepay\?`Complete plan with \$\{pkg&&pkg\.name\}`:`Complete plan with \$\{pkg&&pkg\.name\} \(monthly\)`\):""/.test(S)
     && /body\.productLabel \?/.test(src("netlify/functions/stripe-billing.mjs")));
   ok("a Complete lead line never says 'above monthly minimum'", /arrears:resultsOnly\|\|minimum===0/.test(S));
   const sbill = src("netlify/functions/website-deal.mjs");

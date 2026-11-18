@@ -162,7 +162,10 @@ export const TERMS = { adsFirstTermMonths: 3, completeFirstTermMonths: 12, notic
 export const COMPLETE_PLAN = { id: "complete", name: "Complete", monthly: 500, platforms: 1,
   websiteBuildWaived: WEBSITE_OFFER.build, earlyExitPerMonthLeft: Math.round(WEBSITE_OFFER.build / 12),
   monthlyAfterTerm: 500 - Math.round(WEBSITE_OFFER.build / 12),
-  blogPostsPerMonth: WEBSITE_OFFER.blogPostsPerMonth };
+  blogPostsPerMonth: WEBSITE_OFFER.blogPostsPerMonth,
+  // Pay the first year up front for 10% off the plan fee (Bryson, 2026-11-18). Lead fees still monthly. Mirrored in
+  // contract-shared (planPrepayOf); billed as one payment, then $375 a month starts by itself at month 13.
+  prepayDiscountPct: 10, prepayYear: Math.round(500 * 12 * 0.9) };
 // Complete for ONLINE STORES (Bryson, 2026-11-07): $300 a month plus the store's share of ad spend (15%, 12% at the top
 // tier). Ads, shop landing pages, emails that bring past buyers back, Google profile care if they have a location.
 // No website (BoldLine doesn't build online stores), so no 12-month lock: 3 months, then month to month.
@@ -189,6 +192,7 @@ THE COMPLETE PLAN, for a business that wants BoldLine to handle ALL its marketin
 - $${COMPLETE_PLAN.monthly} a month PLUS the same per-qualified-lead fee as the ads (about $${leadFee} for this niche). The lead fee is on top of the $${COMPLETE_PLAN.monthly}, never inside it.
 - Includes: their ads on ONE platform (Google or Meta; both platforms still needs $${COMBO_MIN_BUDGET.toLocaleString("en-US")}/mo of ad budget, same as Combined), a ${WEBSITE_OFFER.pages}-page website BUILT FREE (normally $${WEBSITE_OFFER.build.toLocaleString("en-US")}), hosting and care, Google Business Profile care (normally $${GOOGLE_PROFILE.monthly}/mo), a blog with about ${COMPLETE_PLAN.blogPostsPerMonth} articles a month (normally $${WEBSITE_OFFER.blogMonthly}/mo), emails that bring past customers back, and online booking with deposits.
 - 12 months to start (that is what pays for the free website), then month to month at a LOWER $${COMPLETE_PLAN.monthlyAfterTerm} a month (the build is paid back), either side can stop with ${TERMS.noticeDays} days' notice. Leaving early: they pay the rest of the build, $${COMPLETE_PLAN.earlyExitPerMonthLeft} for each month left, and keep the website.
+- OPTION, pay the first year up front: $${COMPLETE_PLAN.prepayYear.toLocaleString("en-US")} once instead of 12 x $${COMPLETE_PLAN.monthly} (saves $${(COMPLETE_PLAN.monthly * 12 - COMPLETE_PLAN.prepayYear).toLocaleString("en-US")}). Lead fees are still billed monthly. Not refunded if they leave early, and nothing more is owed for the build. Suggest it only to an established business with cash on hand, as a closer; most small owners will pay monthly.
 - Never quote a total "value" figure. If asked what it is worth, list the parts and their normal prices.
 FOR AN ONLINE STORE there is a store version: $${COMPLETE_STORE.monthly} a month plus their share of ad spend (15%, 12% at $10,000+), with the ads, shop landing pages, emails that bring past buyers back, and Google profile care if they have a location customers visit. No website (BoldLine does not build online stores), so 3 months, then month to month.
 LEAVING EARLY on Ads or the store version: in the first 3 months they pay back the setup fee that was waived, less a third for each month they stayed. If they paid their setup, nothing extra. Only mention it if asked.
