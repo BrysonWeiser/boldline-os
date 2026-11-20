@@ -58,3 +58,8 @@ monthly fee, the pitch is a swap, not a new cost.
   disclosure first -> open with the free insurance-listing fix -> look at his site on his phone together (photos, name,
   insurance) -> show the demo -> his own math -> recommend WEBSITE ALONE ($1,500 + $100/mo; he already has ads, declined
   review requests) unless he wants Google profile care too (then Complete) -> ChiroTouch booking as the follow-up.
+- Competitors found 2026-11-20 (directories, verify live): The Well Chiropractic Clinic, 2451 E Baseline Rd 85234
+  (same ZIP), Birdeye 5.0 / 488 reviews; Gilbert Physical Medicine 4.9 / 797 (Birdeye), online booking via Zocdoc;
+  Dr. Jaclyn Weber, 2373 E Baseline Rd, online booking; Dr. Maegan Istok, 875 N Greenfield Rd, lists TMJ + online
+  booking (direct TMJ rival); A Plus Chiropractic Care, complimentary consult as new-patient offer; The Joint (chain).
+  Springbok: 5.0 / 217 on its own widget. Bullet-point pitch sheet given to Bryson.
