@@ -20,3 +20,16 @@ Note: Bryson also works for Springbok, so any website pitch to Dr. Gibb carries 
 ## Spotting a weak site in 30 seconds (on a phone)
 Slow to load; no call or book button without scrolling; no reviews; one page for everything; no insurance or prices
 answer; old year in the footer; no padlock; looks like every other template in the trade.
+
+## 2026-11-20: Springbok's own site, what we could see (Bryson: "search up and give me better points")
+- springbokwellness.com refuses automated readers (403 to the fetch tool; a browser workaround was blocked by policy,
+  correctly: don't get around a site's block). Ask Bryson for phone screenshots / pasted text, or check it from his
+  day-job access (he does their marketing). Worth checking in Search Console that Google itself isn't blocked.
+- A web search for the practice did NOT surface springbokwellness.com; directories did. Name is inconsistent online:
+  "Springbok Wellness", "Springbok Wellness and Rehab" (MapQuest, 1400 N Gilbert Rd, Gilbert 85234, phone shown is
+  attributed to "Accident Doctors"), "Springbok Chiropractic" (Birdeye: 5.0 from 224 reviews, profile UNCLAIMED).
+  New Patients Inc directory lists "Mr. Clifford Gibb, DC" (Gilbert) with auto accident, workers' comp, Aetna,
+  BCBS AZ, Cigna, Humana, Medicaid, UnitedHealthcare.
+- Points to argue: site not found for its own name; wrong phone/inconsistent name across listings (Google trusts
+  consistent name/address/phone); 224 five-star reviews not working for him; the insurance list lives on someone
+  else's directory instead of his site; auto-accident + workers' comp are high-value cases that deserve their own pages.
