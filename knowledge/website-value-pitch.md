@@ -63,3 +63,8 @@ monthly fee, the pitch is a swap, not a new cost.
   Dr. Jaclyn Weber, 2373 E Baseline Rd, online booking; Dr. Maegan Istok, 875 N Greenfield Rd, lists TMJ + online
   booking (direct TMJ rival); A Plus Chiropractic Care, complimentary consult as new-patient offer; The Joint (chain).
   Springbok: 5.0 / 217 on its own widget. Bullet-point pitch sheet given to Bryson.
+- "Beat the competitors" angles given 2026-11-20: own TMJ (only Istok also lists it), personal solo doctor vs chains
+  and big clinics (same doctor every visit, real photos), perfect 5.0 but fewer reviews than The Well (488) / Gilbert
+  Physical Medicine (797) so close the count gap (front desk asks; reconsider the declined review requests), insurance
+  stated plainly, a named new-patient offer, online booking parity via ChiroTouch, Mesa/Chandler pages, one consistent
+  name everywhere for Maps.
