@@ -33,3 +33,18 @@ answer; old year in the footer; no padlock; looks like every other template in t
 - Points to argue: site not found for its own name; wrong phone/inconsistent name across listings (Google trusts
   consistent name/address/phone); 224 five-star reviews not working for him; the insurance list lives on someone
   else's directory instead of his site; auto-accident + workers' comp are high-value cases that deserve their own pages.
+
+## 2026-11-20: Springbok homepage review from Bryson's phone screenshots (16, mobile)
+Honest verdict given: it is a DECENT site, not a bad one. Don't pitch "your site is bad"; pitch "here's what it's costing you".
+Good already: TMJ-focused headline + "Book my consult" button, tap-to-call in header and "Call to schedule (480) 558-0474",
+Google reviews widget (5.0, 217), hours, address, map, PHI warning on the contact form, "courtesy consult" offer,
+condition tiles (TMJ, neck, hip, spinal adjustment), many inner pages (Bryson: "a LOT of other pages").
+Weak spots found: all stock photos (no Dr. Gibb, office or team); logo says "Springbok Chiropractic", site says
+"Springbok Wellness" (matches the inconsistent listings); logo image clipped in header; no insurance answer on the
+homepage; booking = phone/form only while hours are short (MWF lunch closure 12-2, Tue/Thu open 11am, Fri closes noon,
+weekends closed); copy written for Google not people ("If you are searching the internet for 'TMJ near me'" twice);
+repeated sections (TMJ call box twice, spinal adjustment tile twice); giant full-screen tiles = long scroll; zip-code
+search box pointless for one location; back-to-top + accessibility buttons cover text on phones; only Gilbert named
+(ads run in Mesa/Chandler too); no doctor intro; "courtesy consult" never says free/how long.
+Key question for Bryson to find out at work: who built/hosts it and what Springbok pays monthly. If a vendor charges a
+monthly fee, the pitch is a swap, not a new cost.
