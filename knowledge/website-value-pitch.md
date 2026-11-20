@@ -48,3 +48,8 @@ search box pointless for one location; back-to-top + accessibility buttons cover
 (ads run in Mesa/Chandler too); no doctor intro; "courtesy consult" never says free/how long.
 Key question for Bryson to find out at work: who built/hosts it and what Springbok pays monthly. If a vendor charges a
 monthly fee, the pitch is a swap, not a new cost.
+- CORRECTIONS from Bryson (2026-11-20): (a) online booking needs ChiroTouch to switch it on (his scheduling system);
+  the website part is only a button, so it's not by itself a reason to buy a site from us. (b) Insurance: Springbok
+  takes regular Medicare (NOT supplements or Medicare Advantage-type plans) and UnitedHealthcare only. The directory
+  list (Aetna, BCBS AZ, Cigna, Humana, Medicaid, auto, workers' comp) is WRONG/outdated, which is itself a point:
+  wrong listings send patients who get turned away. Auto accident / workers' comp status unconfirmed.
