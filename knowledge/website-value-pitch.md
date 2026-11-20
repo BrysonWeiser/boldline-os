@@ -53,3 +53,8 @@ monthly fee, the pitch is a swap, not a new cost.
   takes regular Medicare (NOT supplements or Medicare Advantage-type plans) and UnitedHealthcare only. The directory
   list (Aetna, BCBS AZ, Cigna, Humana, Medicaid, auto, workers' comp) is WRONG/outdated, which is itself a point:
   wrong listings send patients who get turned away. Auto accident / workers' comp status unconfirmed.
+- 2026-11-20 pitch plan given for Springbok: prep (who hosts the site + monthly cost, new-patient value, exact
+  insurance wording, real photos of Dr. Gibb/office with permission, build a demo in the OS) -> written conflict
+  disclosure first -> open with the free insurance-listing fix -> look at his site on his phone together (photos, name,
+  insurance) -> show the demo -> his own math -> recommend WEBSITE ALONE ($1,500 + $100/mo; he already has ads, declined
+  review requests) unless he wants Google profile care too (then Complete) -> ChiroTouch booking as the follow-up.
