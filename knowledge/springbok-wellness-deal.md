@@ -436,3 +436,13 @@ Q (Bryson): if Springbok sets up ChiroTouch online booking, can it go on the lan
   ChiroTouch supports hidden types/direct links. Fallbacks: (a) a required "How did you hear about us?" question on
   the booking form, (b) the type exists but is named for an ad-only offer so nobody else picks it, (c) front desk
   checks the call-in list as today. Same idea as a separate tracking phone number: one door only the ad uses.
+
+## 2026-11-23: website verbal yes (NOT signed, not in the OS: count nothing)
+Bryson told Springbok he'd build the website FREE (waive the $1,500 build) and charge only the $100/mo Care Plan; they
+said yes verbally. Risk flagged: the standard website agreement lets the Care Plan be cancelled any time on 30 days'
+notice, and once "everything owed" is paid the client can ask for a copy of the site files (section 8). With a $0 build
+that means $1,500 of work for as little as $100. Recommended: add a Special Term (Website tab, typed in plain words) =
+12-month Care Plan commitment in return for the free build; leaving early pays $125 per month left (same math as
+Complete); files handed over once the 12 months are done or that is paid. Framed to Brendon as "same as our Complete
+plan". OS steps: Website tab, build price $0 (a $0 stage counts as paid, so the build unlocks on signing), Care Plan
+$100, Special Terms, send. Conflict-of-interest disclosure in writing still outstanding.
