@@ -446,3 +446,5 @@ that means $1,500 of work for as little as $100. Recommended: add a Special Term
 Complete); files handed over once the 12 months are done or that is paid. Framed to Brendon as "same as our Complete
 plan". OS steps: Website tab, build price $0 (a $0 stage counts as paid, so the build unlocks on signing), Care Plan
 $100, Special Terms, send. Conflict-of-interest disclosure in writing still outstanding.
+- DECIDED 2026-11-23 (Bryson): free build, $100/mo Care Plan, NO commitment, no Special Term. Risk was explained once
+  and accepted; don't re-raise it. OS: Website tab, build $0, Care Plan $100, send the standard website agreement.
