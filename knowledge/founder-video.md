@@ -189,7 +189,8 @@ dashes, no "local businesses". Hashtags: #marketingagency #digitalmarketing #goo
 - Cover (2026-11-24): 1080x1920 PNG, frame at 0.4s of nocap.mp4 shifted up (bg auto 2050px, -130px), dark fade from
   50%, "My agency almost / runs itself." (Inter 700, 104px, gold #D9B95C on "runs itself."), sub "Here's what that
   actually means", gold bar; all text inside the 3:4 profile-grid crop (y 240..1680). Source: scratchpad cover/cover.html.
-- Cover iterations (2026-11-24): he asked for a different photo, then "actively talking", then "more energetic". Final
+- Cover iterations (2026-11-24): different photo, "actively talking", "more energetic", "straight faced", then FINAL =
+  frame 21.2s (straight face) with the bold text at the BOTTOM (scratchpad cover/cover-bottom.html). Earlier
   style: text at the TOP ("BoldLine Media" gold tag, "My agency almost / runs itself." 106px, gold underline), frame
   16.2s (mid-sentence, head tilt, hand up), slight zoom anchored bottom, warmer grade, dark fade at top. Source
   scratchpad cover/cover-top.html. He is fairly calm on camera; for punchier covers, film a dedicated still or gesture.
