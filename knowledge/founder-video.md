@@ -186,3 +186,6 @@ client approves / reports straight from live data / pay only for results + CTA b
 dashes, no "local businesses". Hashtags: #marketingagency #digitalmarketing #googleads #metaads #facebookads
 #leadgeneration #marketingautomation #smallbusiness #smallbusinessowner #businessowner #entrepreneur
 #phoenixbusiness (12; Instagram caps at 30, fewer and relevant works better).
+- Cover (2026-11-24): 1080x1920 PNG, frame at 0.4s of nocap.mp4 shifted up (bg auto 2050px, -130px), dark fade from
+  50%, "My agency almost / runs itself." (Inter 700, 104px, gold #D9B95C on "runs itself."), sub "Here's what that
+  actually means", gold bar; all text inside the 3:4 profile-grid crop (y 240..1680). Source: scratchpad cover/cover.html.
