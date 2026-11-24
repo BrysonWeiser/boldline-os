@@ -115,3 +115,8 @@ nothing = run this week's job (Tuesday onward) or "Write a new one"; disconnecte
 Photos advice given (GBP email "add photos"): real photos only, no stock; logo + cover, him at his desk, the OS on a
 laptop/phone (sample data), screenshots of sample sites he built, team/working shots; add a few each month.
 Photo upload to GBP is not automated by the OS (only posts and review replies).
+- 2026-11-24 Google profile photo pack made (scratchpad gbp/, render.mjs): 1 Logo 720x720, 2 Cover 1600x900 ("Google
+  and Meta ads, and the websites behind them."), 3-5 sample websites (auto detailing / window tint / handyman example
+  sites, real renders, labelled "Sample website ... (made-up business)") on laptop + phone, 6 How it works card (pay per
+  qualified lead, ad budget on your card, nothing live without your OK). Declined to AI-generate fake photos of him or
+  an office (misleading; Google can remove). Real photos of him/his setup still recommended alongside.
