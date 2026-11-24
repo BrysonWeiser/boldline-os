@@ -27,3 +27,9 @@ own standing rule), unreadable at thumbnail size, no face, some claims without c
 undeniable results"). Recommended: ARCHIVE (not delete) almost all, keep 2-3 at most; pin the new founder video
 (as a Collab post) + a plain "who I help and how it works" post; restart with the 3-pillar plan above. Collab
 steps given; collaborator must accept from the invited account.
+- 2026-11-24: made the "who I help and how it works" pin post: 4-slide carousel, 1080x1350 (scratchpad igpost/slides.html).
+  1 his face + "I get service businesses more calls from Google and Meta." 2 how it works (we build ads + page, nothing
+  live until you approve, every LEAD traced to its ad; said "lead" not "call" because call tracking waits on the Twilio
+  upgrade) 3 how you pay (fee per qualified lead, no monthly fee for ads, ad budget on your own card, 3 months then month
+  to month, 30 days' notice) 4 who it's for (detailers, tint, handymen, epoxy, home services) + DM "LEADS" /
+  boldlinemedia.com. Caption: one short line + 5 hashtags.
