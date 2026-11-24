@@ -151,3 +151,14 @@ bottom were cut off. Fixed with height media queries in `marketing-src/new.css` 
 `tests/verify-short-screens.mjs` scrolls every page at 1366x625 (and home + Ads at 1280x590, 1536x730) and fails if
 anything inside a held section sits off screen, or the page scrolls sideways. Check heights too, not just widths.
 
+
+## Home hero must still open on short screens (Bryson, 2026-11-24: "on pc when you scroll it no longer opens up the
+website image ... it just scrolls straight through")
+The home hero's held "sample site opens up" scene switched itself off below 640px tall (`measure()` in
+`marketing-src/site.js`), i.e. on a 1366x768 office monitor (~625 tall inside the browser) it just scrolled through.
+verify-short-screens didn't catch it: with nothing held, nothing is "cut off". Fix: threshold now vh>=520; under 760 tall
+the browser is fitted with a tighter margin ((vh-100)*.9) and the phone fades out as it opens (new.css, max-height:760),
+and the hero text tightens under the menu bar (max-height 760 / 640). Tall screens unchanged. Guard: verify-short-screens
+now checks at 1366x625, 1280x590, 1536x730, 1440x560 that the hero pins, the sample site grows >15%, and fully opened it
+is all on screen (mutation back to 640 caught). Note: public CSS/JS comments may not carry names or dates
+(verify-public-source).

@@ -36,6 +36,7 @@ for (const [w, h] of SIZES) for (const path of (w === 1366 ? paths : ["/", "/ads
         const sr = s.getBoundingClientRect(); if (Math.abs(sr.top - (parseFloat(cs.top) || 0)) > 2 || sr.height < vh * 0.5) continue;
         for (const el of s.querySelectorAll("h1,h2,h3,p,li,a,button,.lj-phone,.h-visual,img")) {
           const es = getComputedStyle(el); if (es.visibility === "hidden" || es.display === "none" || +es.opacity < 0.05) continue;
+          if (el.closest(".h-visual")) continue;   // the home hero's moving picture: checked on its own below
           const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue;
           if (r.bottom > vh + 2 || r.top < -2) out.push(`${el.tagName.toLowerCase()}.${String(el.className).split(" ")[0]} "${(el.innerText || "").trim().slice(0, 28)}"`);
         }
@@ -46,6 +47,25 @@ for (const [w, h] of SIZES) for (const path of (w === 1366 ? paths : ["/", "/ads
   }
   ok(`${w}x${h} ${path}: nothing cut off while a section holds the screen`, !cut.size, [...cut].slice(0, 4).join(" | "));
   ok(`${w}x${h} ${path}: no sideways scrolling`, side <= 0, `${side}px`);
+  await ctx.close();
+}
+// 🔴 THE HOME PAGE'S SAMPLE WEBSITE MUST STILL OPEN UP ON A SHORT SCREEN (Bryson, 2026-11-24: "on pc when you scroll it no
+// longer opens up the website image ... it just scrolls straight through"). The held hero used to switch itself off below
+// 640px tall, which is most office monitors once the taskbar and browser bars are gone, and the check above could not see
+// it: with nothing held, nothing is cut off. So: on every short size the hero holds, and the sample site grows as you scroll.
+for (const [w, h] of [...SIZES, [1440, 560]]) {
+  const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+  const page = await ctx.newPage();
+  await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
+  await page.goto(server.base + "/"); await page.waitForTimeout(600);
+  const before = await page.evaluate(() => ({ pin: document.documentElement.classList.contains("mo-pin"), w: document.querySelector(".h-visual .browser").getBoundingClientRect().width }));
+  await page.evaluate(() => scrollTo(0, Math.round(innerHeight * 0.55))); await page.waitForTimeout(400);
+  const after = await page.evaluate(() => { const r = document.querySelector(".h-visual .browser").getBoundingClientRect(); return { w: r.width, top: r.top, bottom: r.bottom }; });
+  ok(`${w}x${h} home: the hero holds the screen while the sample site opens`, before.pin);
+  ok(`${w}x${h} home: the sample site grows as you scroll`, after.w > before.w * 1.15, `${Math.round(before.w)}px to ${Math.round(after.w)}px`);
+  await page.evaluate(() => scrollTo(0, Math.round((document.querySelector(".h-pin").offsetHeight - innerHeight) * 0.83))); await page.waitForTimeout(400);
+  const open = await page.evaluate(() => { const r = document.querySelector(".h-visual .browser").getBoundingClientRect(); return { top: r.top, bottom: r.bottom, vh: innerHeight }; });
+  ok(`${w}x${h} home: fully opened, the sample site is all on screen`, open.top >= 0 && open.bottom <= open.vh, `${Math.round(open.top)} to ${Math.round(open.bottom)} of ${open.vh}`);
   await ctx.close();
 }
 await browser.close(); server.close && server.close();
