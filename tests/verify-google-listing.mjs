@@ -198,6 +198,17 @@ S.rows.c2 = { name: "Another", internal: true, owned: true, commLog: [] };
   ok("the drafts are saved for the card", dw.length === 1 && dw[0].gbpDrafts.replies.r1 && dw[0].gbpDrafts.replies.r2);
   ok("the profile's real rating is kept for the website's star chip", writes.some((w) => w.gbpStats && w.gbpStats.total > 0 && w.gbpStats.average > 0));
   ok("🔴 a low rating makes the message amber and says read it first", alerts.length === 1 && alerts[0].severity === "amber" && /low rating/.test(alerts[0].body));
+  // Bryson, 2026-11-24: "nothing is being posted for my Google profile". A failed review read used to skip the post
+  // too, and say nothing. Now the post is still written and he is told.
+  const tue = Date.parse("2026-11-24T16:00:00Z");
+  const rows2 = [{ id: "w2", data: { name: "Broken Reviews", gbp: { account: "accounts/9", location: "locations/9", linkedAt: "2026-11-01T00:00:00Z" }, gbpLog: [] } }];
+  const w2 = []; const db2 = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { data: rows2[0].data } }) }) }), update: (v) => ({ eq: async () => { w2.push(v.data); return {}; } }) }) };
+  const a2 = []; const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u, o) => /\/reviews/.test(String(u)) ? new Response(JSON.stringify({ error: { message: "PERMISSION_DENIED" } }), { status: 403 }) : realFetch(u, o);
+  let r2; try { r2 = await W.runWatch(db2, rows2, { anthropic: { messages: { create: async () => ({ content: [{ type: "text", text: "Winter is hard on paint, so book a wash this week and keep it shining." }] }) } }, tok: "at", alert: async (a) => a2.push(a), now: tue }); }
+  finally { globalThis.fetch = realFetch; }
+  ok("🔴 reviews can't be read: the week's post is still written", w2.some((w) => w.gbpDrafts && w.gbpDrafts.post && w.gbpDrafts.post.scheduledFor === "2026-11-30T15:00:00.000Z"));
+  ok("🔴 and he is told, in amber", a2.some((x) => x.severity === "amber" && /could not read its Google reviews/.test(x.body)) && r2.problems.length === 1);
 }
 
 // ── 5b. Monday 8am: the waiting post goes up by itself, unless held ─────────────────────────────────────
