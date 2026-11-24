@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 254 task-keyed entries under `knowledge/`. They surface automatically via the
+> 255 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**254 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**255 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -372,6 +372,9 @@
 - **[agency-promo-video](../knowledge/agency-promo-video.md)** &mdash; &#9989; verified &middot; 2026-10-20  
   Bryson, 2026-10-20 sent a TikTok by @jp.scales ("Joseph | Scaling Businesses", WebX Marketing Agency): a ~55s text-led motion-graphics promo, black + neon green, one feature per beat ("You missed a call today. That was a $3,000 job", "Built to convert", "Never lose a lead", "Works while you sleep", "Five stars. Automatically", "All connected. One system", logo end card), letterboxed 16:9 in a vertical frame. He wanted OUR OWN version, not a copy: detailers, full phone screen, end on "Book a free call". Built a 45s 1080x1920 video in BoldLine black + gold, rendered frame by frame from an HTML animation in this container (Playwright screenshots + ffmpeg). No music on purpose: he adds a trending sound in TikTok.  
   <sub>*task:* make, change or re-render BoldLine's own short promo video (TikTok / Reels / Shorts), or make another motion-graphics video in that style &nbsp;|&nbsp; *keywords:* promo video, tiktok, reels, shorts, motion graphics, agency video, detailers video, render video, ffmpeg, frames, webx style, jp.scales, scaling businesses, video for the agency</sub>
+- **[boldline-instagram-content](../knowledge/boldline-instagram-content.md)** &mdash; &#9989; verified &middot; 2026-11-24  
+  @boldlinemedia ("BoldLine Media | Marketing Agency") had 8 followers, 7 following, 61 posts on 2026-11-24. Posts themselves can't be read without logging in, so Bryson was asked for grid + bio screenshots. Plan given - 3 a week (1 face video, 1 screen demo of the OS with sample businesses, 1 carousel tip for detailers/tint/trades), post the founder videos as Instagram Collab posts with his personal account, use the OS Content Studio for ideas and scripts, and keep DMs as the main way to get clients.  
+  <sub>*task:* decide what to post on BoldLine's own Instagram (@boldlinemedia), content plan, growing the account &nbsp;|&nbsp; *keywords:* instagram, boldline instagram, what to post, content plan, reels, carousel, collab post, social media, followers</sub>
 - **[conversion-tracking](../knowledge/conversion-tracking.md)** &mdash; &#9989; verified &middot; 2026-08-13  
   BoldLine's ad landing page (`/get-started`) now reports two lead events — `book` (a Calendly meeting actually SCHEDULED) and `form` (the backup form submitted) — to GA4 always, and to Google Ads + Meta once their IDs are pasted into the `BL_TRACK` config block at the bottom of the page. Opening the Calendly popup is deliberately NOT a lead. Before this, NOTHING counted: the page had GA4 analytics only, no `AW-` conversion tag and no Meta pixel, so a booked call registered as a failure. That also would have made `ads-autopilot` pause a working campaign around day 21 for "zero conversions" — now gated. Built 2026-08-13. Google Ads IDs live; Meta pixel is `2164699294444030` ("BoldLine Website"), owned by the BoldLine Media portfolio and connected to the house ad account `1045064901242944`; the first attempt used an app dataset and the second a personally-owned pixel — both dead ends, recorded below. 12 + 40 cases passing.  
   <sub>*task:* what counts as a lead on BoldLine's own ads, and how Google/Meta are told about it &nbsp;|&nbsp; *keywords:* conversion tracking, what counts as a lead, calendly event_scheduled, generate_lead, BL_TRACK, google ads conversion action, meta pixel, AW- label, tracking gate, autopilot false pause</sub>
