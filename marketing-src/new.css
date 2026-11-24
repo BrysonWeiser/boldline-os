@@ -202,6 +202,22 @@ html.mo-pin .h-visual .float-toast,html.mo-pin .h-cap{opacity:calc(1 - var(--e,0
 html.mo-pin .h-hero::before{opacity:calc(1 - var(--e,0))}
 html.mo-pin .h-hero+.x-sec{padding-top:40px}
 html.mo-pin .h-strip{margin-top:30px}
+/* Short desktop screens: the held hero runs down to 520px tall, so everything in it is tightened to fit under the menu bar. */
+@media (min-width:1001px) and (max-height:760px){
+  html.mo-pin .h-pin>.wrap-x{padding-top:84px}
+  html.mo-pin .h-title{font-size:clamp(38px,4.2vw,54px);margin:12px 0 16px}
+  html.mo-pin .h-sub{font-size:16px;line-height:1.55;margin-bottom:22px}
+  html.mo-pin .h-copy .hero-trust{margin-top:14px}
+  html.mo-pin .h-cap{margin-top:44px}
+  html.mo-pin .h-visual .phone{opacity:calc(1 - var(--e,0) * 1.6)}
+}
+@media (min-width:1001px) and (max-height:640px){
+  html.mo-pin .h-pin>.wrap-x{padding-top:78px}
+  html.mo-pin .h-title{font-size:clamp(34px,3.7vw,46px);margin:10px 0 12px}
+  html.mo-pin .h-sub{font-size:15px;line-height:1.5;margin-bottom:18px}
+  html.mo-pin .h-copy .hero-trust{margin-top:10px}
+  html.mo-pin .h-cap{margin-top:36px}
+}
 
 /* Smaller screens: no hold, the sample site just drifts up a little faster than the page. */
 html.mo:not(.mo-pin) .h-visual .browser{transform:translate3d(0,calc(var(--e,0) * -36px),0)}

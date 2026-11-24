@@ -20,3 +20,51 @@ Note: Bryson also works for Springbok, so any website pitch to Dr. Gibb carries 
 ## Spotting a weak site in 30 seconds (on a phone)
 Slow to load; no call or book button without scrolling; no reviews; one page for everything; no insurance or prices
 answer; old year in the footer; no padlock; looks like every other template in the trade.
+
+## 2026-11-20: Springbok's own site, what we could see (Bryson: "search up and give me better points")
+- springbokwellness.com refuses automated readers (403 to the fetch tool; a browser workaround was blocked by policy,
+  correctly: don't get around a site's block). Ask Bryson for phone screenshots / pasted text, or check it from his
+  day-job access (he does their marketing). Worth checking in Search Console that Google itself isn't blocked.
+- A web search for the practice did NOT surface springbokwellness.com; directories did. Name is inconsistent online:
+  "Springbok Wellness", "Springbok Wellness and Rehab" (MapQuest, 1400 N Gilbert Rd, Gilbert 85234, phone shown is
+  attributed to "Accident Doctors"), "Springbok Chiropractic" (Birdeye: 5.0 from 224 reviews, profile UNCLAIMED).
+  New Patients Inc directory lists "Mr. Clifford Gibb, DC" (Gilbert) with auto accident, workers' comp, Aetna,
+  BCBS AZ, Cigna, Humana, Medicaid, UnitedHealthcare.
+- Points to argue: site not found for its own name; wrong phone/inconsistent name across listings (Google trusts
+  consistent name/address/phone); 224 five-star reviews not working for him; the insurance list lives on someone
+  else's directory instead of his site; auto-accident + workers' comp are high-value cases that deserve their own pages.
+
+## 2026-11-20: Springbok homepage review from Bryson's phone screenshots (16, mobile)
+Honest verdict given: it is a DECENT site, not a bad one. Don't pitch "your site is bad"; pitch "here's what it's costing you".
+Good already: TMJ-focused headline + "Book my consult" button, tap-to-call in header and "Call to schedule (480) 558-0474",
+Google reviews widget (5.0, 217), hours, address, map, PHI warning on the contact form, "courtesy consult" offer,
+condition tiles (TMJ, neck, hip, spinal adjustment), many inner pages (Bryson: "a LOT of other pages").
+Weak spots found: all stock photos (no Dr. Gibb, office or team); logo says "Springbok Chiropractic", site says
+"Springbok Wellness" (matches the inconsistent listings); logo image clipped in header; no insurance answer on the
+homepage; booking = phone/form only while hours are short (MWF lunch closure 12-2, Tue/Thu open 11am, Fri closes noon,
+weekends closed); copy written for Google not people ("If you are searching the internet for 'TMJ near me'" twice);
+repeated sections (TMJ call box twice, spinal adjustment tile twice); giant full-screen tiles = long scroll; zip-code
+search box pointless for one location; back-to-top + accessibility buttons cover text on phones; only Gilbert named
+(ads run in Mesa/Chandler too); no doctor intro; "courtesy consult" never says free/how long.
+Key question for Bryson to find out at work: who built/hosts it and what Springbok pays monthly. If a vendor charges a
+monthly fee, the pitch is a swap, not a new cost.
+- CORRECTIONS from Bryson (2026-11-20): (a) online booking needs ChiroTouch to switch it on (his scheduling system);
+  the website part is only a button, so it's not by itself a reason to buy a site from us. (b) Insurance: Springbok
+  takes regular Medicare (NOT supplements or Medicare Advantage-type plans) and UnitedHealthcare only. The directory
+  list (Aetna, BCBS AZ, Cigna, Humana, Medicaid, auto, workers' comp) is WRONG/outdated, which is itself a point:
+  wrong listings send patients who get turned away. Auto accident / workers' comp status unconfirmed.
+- 2026-11-20 pitch plan given for Springbok: prep (who hosts the site + monthly cost, new-patient value, exact
+  insurance wording, real photos of Dr. Gibb/office with permission, build a demo in the OS) -> written conflict
+  disclosure first -> open with the free insurance-listing fix -> look at his site on his phone together (photos, name,
+  insurance) -> show the demo -> his own math -> recommend WEBSITE ALONE ($1,500 + $100/mo; he already has ads, declined
+  review requests) unless he wants Google profile care too (then Complete) -> ChiroTouch booking as the follow-up.
+- Competitors found 2026-11-20 (directories, verify live): The Well Chiropractic Clinic, 2451 E Baseline Rd 85234
+  (same ZIP), Birdeye 5.0 / 488 reviews; Gilbert Physical Medicine 4.9 / 797 (Birdeye), online booking via Zocdoc;
+  Dr. Jaclyn Weber, 2373 E Baseline Rd, online booking; Dr. Maegan Istok, 875 N Greenfield Rd, lists TMJ + online
+  booking (direct TMJ rival); A Plus Chiropractic Care, complimentary consult as new-patient offer; The Joint (chain).
+  Springbok: 5.0 / 217 on its own widget. Bullet-point pitch sheet given to Bryson.
+- "Beat the competitors" angles given 2026-11-20: own TMJ (only Istok also lists it), personal solo doctor vs chains
+  and big clinics (same doctor every visit, real photos), perfect 5.0 but fewer reviews than The Well (488) / Gilbert
+  Physical Medicine (797) so close the count gap (front desk asks; reconsider the declined review requests), insurance
+  stated plainly, a named new-patient offer, online booking parity via ChiroTouch, Mesa/Chandler pages, one consistent
+  name everywhere for Maps.

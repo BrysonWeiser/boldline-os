@@ -713,16 +713,19 @@
   /* Where the sample site has to travel to end up centred and filling most of the screen. */
   function measure(){
     vw=window.innerWidth; vh=window.innerHeight;
-    pinned=!!(pin&&vis&&vw>=1060&&vh>=640);
+    pinned=!!(pin&&vis&&vw>=1060&&vh>=520);
     H.classList.toggle('mo-pin',pinned);
     if(!pinned) return;
     var b=vis.querySelector('.browser'); hero.style.setProperty('--e','0');
     var wrap=pin.firstElementChild.getBoundingClientRect(), v=vis.getBoundingClientRect(), br=b.getBoundingClientRect();
-    var relY=br.top-wrap.top, s=Math.min(vw*.74/br.width,(vh-150)*.8/br.height);
+    /* A short monitor (under 760 tall) has little room to open into, so there the browser alone is fitted with a
+       tighter margin and the phone fades out as it opens (new.css), rather than running off the bottom. */
+    var tall=br.height;
+    var relY=br.top-wrap.top, s=Math.min(vw*.74/br.width,(vh-(vh<760?100:150))*(vh<760?.9:.8)/tall);
     hero.style.setProperty('--s',s.toFixed(3));
-    hero.style.setProperty('--oy',(br.height/2)+'px');
+    hero.style.setProperty('--oy',(tall/2)+'px');
     hero.style.setProperty('--dx',(vw/2-(v.left+br.width/2)).toFixed(1)+'px');
-    hero.style.setProperty('--dy',(vh/2+12-(relY+br.height/2)).toFixed(1)+'px');
+    hero.style.setProperty('--dy',(vh/2+12-(relY+tall/2)).toFixed(1)+'px');
   }
 
   var q=false;
