@@ -101,3 +101,17 @@ The card was driven in the real OS at 390, 768, 1280 and 1600 wide.
   one" with an optional topic, any time (keeps the slot and hold of the draft it replaces).
 - `postPayload`: a Book/Learn more button with no website, or one pointing at BoldLine, is dropped to "no button" on the
   automatic post rather than failing. 70 checks in verify-google-listing (5 new mutations caught).
+
+## 2026-11-24: "nothing is being posted for my Google profile even tho we have the bot connected"
+No live log access from the session, so the exact cause is confirmed from his card. Silent gaps found and fixed:
+- `gbp-watch` did `continue` when reading reviews failed, so the week's POST was never drafted either, and its alert
+  only fired when something was drafted: a failing read looked exactly like a quiet week. Now the post is still
+  written and an amber alert says what failed (`problems`). Same for a post that couldn't be written.
+- Google connection missing while a profile is linked used to return silently; now an amber "Google listing is
+  disconnected" alert tells him to press Connect Google.
+- verify-google-listing 73 (new: failed review read still writes the post + amber alert; mutation caught).
+Ask him: My Ads > Overview > Google listing card. A post waiting = it goes up Monday 8am; "held" = press Let it post;
+nothing = run this week's job (Tuesday onward) or "Write a new one"; disconnected = Connect Google.
+Photos advice given (GBP email "add photos"): real photos only, no stock; logo + cover, him at his desk, the OS on a
+laptop/phone (sample data), screenshots of sample sites he built, team/working shots; add a few each month.
+Photo upload to GBP is not automated by the OS (only posts and review replies).

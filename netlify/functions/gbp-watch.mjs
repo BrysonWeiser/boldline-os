@@ -25,12 +25,15 @@ export function plan(cl, reviews, now = Date.now()) {
 }
 
 export async function runWatch(db, rows, { anthropic, tok, now = Date.now(), alert = dispatchAlert } = {}) {
-  const lines = []; let drafted = 0;
+  const lines = [], problems = []; let drafted = 0;
   for (const r of rows) {
     const cl = r.data || {};
     if (!cl.gbp || !cl.gbp.location) continue;
-    let reviews, rv;
-    try { rv = await listReviews(tok, cl.gbp); reviews = rv.reviews; } catch (e) { lines.push(`${cl.name}: could not read reviews (${e.message})`); continue; }
+    // 🔴 A REVIEW READ THAT FAILS MUST NOT COST THE WEEK'S POST, AND MUST NOT BE SILENT (Bryson, 2026-11-24: "nothing is
+    // being posted for my Google profile even tho we have the bot connected"). It used to `continue` here, which skipped
+    // the post too, and the alert below only fired when something was drafted, so a failing read looked like a quiet week.
+    let reviews = [], rv = {};
+    try { rv = await listReviews(tok, cl.gbp); reviews = rv.reviews; } catch (e) { problems.push(`${cl.name}: could not read its Google reviews (${e.message}). The weekly post is still written.`); }
     // The profile's real rating and count, for the star chip at the top of their website (site-render ratingOf).
     const prevStats = cl.gbpStats || {};
     if (Number(rv.average) > 0 && Number(rv.total) > 0 && (prevStats.average !== rv.average || prevStats.total !== rv.total)) {
@@ -46,7 +49,7 @@ export async function runWatch(db, rows, { anthropic, tok, now = Date.now(), ale
     }
     if (p.post) {
       const recent = (cl.gbpLog || []).filter((x) => x.type === "post").slice(0, 6).map((x) => x.text);
-      try { post = { text: cleanPublic(await draft(anthropic, postPrompt(cl, recent)), POST_MAX), cta: "BOOK", at: new Date(now).toISOString(), scheduledFor: p.slot, held: false }; } catch (e) { console.error("gbp-watch post draft:", e.message); }
+      try { post = { text: cleanPublic(await draft(anthropic, postPrompt(cl, recent)), POST_MAX), cta: "BOOK", at: new Date(now).toISOString(), scheduledFor: p.slot, held: false }; } catch (e) { console.error("gbp-watch post draft:", e.message); problems.push(`${cl.name}: next week's Google post could not be written (${e.message}).`); }
     }
     if (!Object.keys(replies).length && !post) continue;
     const { data: fresh } = await db.from("clients").select("data").eq("id", r.id).maybeSingle();
@@ -56,19 +59,27 @@ export async function runWatch(db, rows, { anthropic, tok, now = Date.now(), ale
     const when = post ? new Date(post.scheduledFor).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "America/Phoenix" }) : "";
     lines.push(`${cl.name}: ${[n && `${n} review ${n === 1 ? "reply" : "replies"} ready to approve`, post && `next week's post written, goes up ${when} at 8am unless you change it`].filter(Boolean).join(", and ")}${p.low.length ? ` (${p.low.length} low rating${p.low.length === 1 ? "" : "s"}: read it first)` : ""}.`);
   }
+  // Something went wrong and nothing else would say so: tell him, once a day at most (this job runs once a day).
+  if (problems.length) {
+    try { await alert({ severity: "amber", title: "Google listing: something needs a look", body: `${problems.join("\n")}\n\nOpen the business in the OS: the Google listing card shows what it can see. If it says Google is not connected, press Connect Google again.` }); } catch (e) { console.error("gbp-watch problem alert:", e.message); }
+  }
   if (drafted) {
     const low = lines.some((l) => /low rating/.test(l));
     try { await alert({ severity: low ? "amber" : "blue", title: low ? "A low Google review needs a reply" : "Google listing drafts ready", body: `${lines.join("\n")}\n\nOpen the business in the OS: the Google listing card has them. Review replies wait for you. The post goes up by itself on Monday unless you edit it, hold it or throw it away.`, smsText: lines[0] }); } catch (e) {}
   }
-  return { drafted, lines };
+  return { drafted, lines, problems };
 }
 
 const handler = async () => {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !gbpReady() || !process.env.ANTHROPIC_API_KEY) return new Response("not configured", { status: 200 });
   const db = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  if (!(await loadConn(db))) return new Response("gbp-watch: Google not connected", { status: 200 });
   const rows = (await loadAllClients(db, "gbp-watch")).filter((r) => r.data && r.data.gbp);
   if (!rows.length) return new Response("gbp-watch: no profiles linked", { status: 200 });
+  // A profile is linked but the Google connection is gone: say so, or every post and reply quietly stops.
+  if (!(await loadConn(db))) {
+    try { await dispatchAlert({ severity: "amber", title: "Google listing is disconnected", body: `The OS lost its connection to Google, so no Google posts or review replies are being written. Open My Ads, then the Overview tab, and press Connect Google on the Google listing card (sign in with the business Gmail).` }); } catch (e) {}
+    return new Response("gbp-watch: Google not connected", { status: 200 });
+  }
   const res = await runWatch(db, rows, { anthropic: new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }), tok: await accessToken(db) });
   const line = `gbp-watch: ${res.drafted} draft(s). ${res.lines.join(" | ")}`; console.log(line);
   return new Response(line, { status: 200 });
