@@ -179,3 +179,10 @@ at 30fps (Settings > Camera > Record Video) makes files a fraction of 4K's size.
    pendingActions + matching approvals (without the matching approval the OS shows a "never been asked" warning);
    pages.mjs approvals + reportHistory.
 v2 = 65.0s, -14.0 LUFS, peak -1.0. Sent as "How our automations help clients.mp4".
+
+## Post caption + hashtags (2026-11-24, for "How our automations help clients")
+Given in chat: hook "My agency almost runs itself. Here's what that actually means." + the system / human review /
+client approves / reports straight from live data / pay only for results + CTA boldlinemedia.com. No emojis, no
+dashes, no "local businesses". Hashtags: #marketingagency #digitalmarketing #googleads #metaads #facebookads
+#leadgeneration #marketingautomation #smallbusiness #smallbusinessowner #businessowner #entrepreneur
+#phoenixbusiness (12; Instagram caps at 30, fewer and relevant works better).
