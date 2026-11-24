@@ -17,3 +17,13 @@ verified: 2026-11-24
   businesses), (5) behind the scenes. Rules: no emojis, no dashes, no invented results or client counts, no
   "local businesses", Meta is approved (never "coming soon").
 - Tool: OS Content Studio (KB content-studio) writes ideas, scripts, captions.
+
+## 2026-11-24 grid review (Bryson's screenshots)
+All 61 posts are one style: dark brown/gold infographic slides, AI-generated look, consulting jargon ("category
+creation", "economics of market leadership", "growth should be engineered", "BoldLine equation"), long captions,
+text cut off in the grid crop. Pinned: "Welcome to BoldLine Media - We're excited to connect and work together!".
+Verdict given: speaks to nobody he sells to (detailers/tint/trades don't talk like that), reads as AI-written (his
+own standing rule), unreadable at thumbnail size, no face, some claims without clients ("proven results", "show
+undeniable results"). Recommended: ARCHIVE (not delete) almost all, keep 2-3 at most; pin the new founder video
+(as a Collab post) + a plain "who I help and how it works" post; restart with the 3-pillar plan above. Collab
+steps given; collaborator must accept from the invited account.
