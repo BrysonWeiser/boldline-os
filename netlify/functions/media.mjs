@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { gbpReady, loadConn, accessToken, addPhoto, photoAllowed, PHOTO_CATS } from "../lib/gbp.mjs";
+import { dispatchAlert } from "../lib/alerts-shared.mjs";
 
 const BUCKET = "client-media";
 
@@ -14,7 +16,7 @@ export default async (req) => {
   const token = url.searchParams.get("token");
   const action = url.searchParams.get("action");
   if (!token) return json({ ok: false, error: "Missing token" }, 400);
-  if (action !== "sign" && action !== "confirm" && action !== "delete") return json({ ok: false, error: "Invalid action" }, 400);
+  if (action !== "sign" && action !== "confirm" && action !== "delete" && action !== "google") return json({ ok: false, error: "Invalid action" }, 400);
 
   let body;
   try {
@@ -53,6 +55,36 @@ export default async (req) => {
   // theirs to remove only when it is in THEIR library, so no path elsewhere can be named.
   const fromTheirDemo = path.startsWith("demo/") && !path.includes("..") && ((data.data && data.data.mediaLibrary) || []).some((m) => m && m.path === path);
   if (!path.startsWith(`${data.id}/`) && !fromTheirDemo) return json({ ok: false, error: "Invalid path" }, 400);
+
+  // ── 🔴 A CLIENT PUTS ONE OF THEIR OWN PHOTOS ON THEIR GOOGLE PROFILE (Bryson, 2026-11-25: "make sure it works for clients
+  // too so if they want to add a photo to their google profile they can through our bot/system"). Only a photo already in
+  // THEIR library, only when their profile is linked in the OS, ten a day at most, and Bryson is told each time.
+  // The portal preview can never reach this: its fetch wrapper refuses every POST (KB preview-safety). KB google-listing.
+  if (action === "google") {
+    const cl = data.data || {};
+    const entry = (cl.mediaLibrary || []).find((m) => m && m.path === path);
+    if (!entry) return json({ ok: false, error: "That photo isn't in your library." }, 400);
+    if (!cl.gbp || !cl.gbp.location) return json({ ok: false, error: "Your Google profile isn't connected with us yet. Ask us and we'll set it up." }, 400);
+    if (!photoAllowed(cl, entry.url)) return json({ ok: false, error: "Google takes JPG or PNG photos. Upload it as one of those and try again." }, 400);
+    if ((cl.gbpLog || []).some((x) => x && x.type === "photo" && x.url === entry.url)) return json({ ok: true, already: true });
+    const today = (cl.gbpLog || []).filter((x) => x && x.type === "photo" && x.by === "client" && Date.now() - Date.parse(x.at || 0) < 864e5).length;
+    if (today >= 10) return json({ ok: false, error: "That's ten photos today. Add more tomorrow." }, 429);
+    if (!gbpReady()) return json({ ok: false, error: "Google isn't switched on for us yet. Try again later." }, 503);
+    if (!(await loadConn(supabaseAdmin))) return json({ ok: false, error: "Our Google connection needs a quick fix. We've been told." }, 503);
+    const category = /logo/i.test(String(entry.category || "")) ? "LOGO" : "ADDITIONAL";
+    try { await addPhoto(await accessToken(supabaseAdmin), cl.gbp, { url: entry.url, category }); }
+    catch (e) { console.error("media google:", e.message); return json({ ok: false, error: "Google didn't take that photo. Try a different one, or ask us." }, 502); }
+    const at = new Date().toISOString();
+    const { data: fresh } = await supabaseAdmin.from("clients").select("data").eq("id", data.id).maybeSingle();
+    const d = (fresh && fresh.data) || cl;
+    const phxDate = new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Phoenix" });
+    await supabaseAdmin.from("clients").update({ data: { ...d,
+      gbpLog: [{ type: "photo", url: entry.url, category, at, by: "client" }, ...(d.gbpLog || [])].slice(0, 100),
+      commLog: [{ date: phxDate, note: `${d.name} added a photo (${PHOTO_CATS[category]}) to their Google profile from their portal.`, cat: "update", ts: Date.now() }, ...(d.commLog || [])].slice(0, 200) },
+      updated_at: at }).eq("id", data.id);
+    try { await dispatchAlert({ severity: "blue", title: `${d.name} added a photo to their Google profile`, body: `${d.name} sent "${entry.label || "a photo"}" to their Google profile from their portal. It shows on Google within about a day.\n\n${entry.url}` }); } catch (e) {}
+    return json({ ok: true }, 200);
+  }
 
   if (action === "delete") {
     const { error: removeError } = await supabaseAdmin.storage.from(BUCKET).remove([path]);

@@ -138,9 +138,46 @@ export const replyReview = (tok, link, reviewId, text) =>
 
 // A post's button. "Call now" needs no address; the others go to the business's own website.
 export const CTAS = { BOOK: "Book", LEARN_MORE: "Learn more", CALL: "Call now", ORDER: "Order online", SHOP: "Shop" };
-export const createPost = (tok, link, { text, cta, url }) => call(tok, `${V4}/${v4Path(link.account, link.location)}/localPosts`, { method: "POST", body: {
+export const createPost = (tok, link, { text, cta, url, photo }) => call(tok, `${V4}/${v4Path(link.account, link.location)}/localPosts`, { method: "POST", body: {
   languageCode: "en-US", topicType: "STANDARD", summary: text,
+  ...(photoUrlOk(photo) ? { media: [{ mediaFormat: "PHOTO", sourceUrl: photo }] } : {}),
   ...(cta && CTAS[cta] ? { callToAction: cta === "CALL" ? { actionType: "CALL" } : url ? { actionType: cta, url } : undefined } : {}) } });
+
+// ── 🔴 PHOTOS (Bryson, 2026-11-25: "Can't the ai add those itself?" and "make sure it works for clients too ... making it
+// easy for them"). Two ways a photo reaches Google: on the week's post (picked by the bot from the business's own photos),
+// and straight onto the profile (sent from the OS card, or by the client from their portal). Google fetches the picture
+// itself from a public https address, so only the business's own uploaded photos (and, for BoldLine's own account, the
+// BoldLine photo pack shipped with the OS) can be sent: never an address typed in, never a picture of a person made up.
+// Google takes JPG or PNG. KB google-listing.
+export const PHOTO_CATS = { ADDITIONAL: "Photo", PRODUCT: "Our work", AT_WORK: "At work", TEAMS: "Team", INTERIOR: "Inside", EXTERIOR: "Outside", COVER: "Cover photo", LOGO: "Logo" };
+export const photoUrlOk = (u) => { const s = String(u || ""); try { const x = new URL(s); return x.protocol === "https:" && /\.(jpe?g|png)$/i.test(x.pathname); } catch (e) { return false; } };
+export const addPhoto = (tok, link, { url, category }) => call(tok, `${V4}/${v4Path(link.account, link.location)}/media`, { method: "POST", body: {
+  mediaFormat: "PHOTO", locationAssociation: { category: PHOTO_CATS[category] ? category : "ADDITIONAL" }, sourceUrl: url } });
+export const OS_BASE_URL = "https://os.boldlinemedia.com";
+// BoldLine's own photo pack (brand/gbp in this repo, served by the OS site). Only ever offered on BoldLine's own account.
+export const BRAND_PHOTO_PACK = [
+  ["brand/gbp/1-logo.jpg", "BoldLine logo", "LOGO"], ["brand/gbp/2-cover.jpg", "Cover: ads and websites", "COVER"],
+  ["brand/gbp/3-sample-detailing.jpg", "Sample website: auto detailing", "PRODUCT"], ["brand/gbp/4-sample-tint.jpg", "Sample website: window tint", "PRODUCT"],
+  ["brand/gbp/5-sample-handyman.jpg", "Sample website: handyman", "PRODUCT"], ["brand/gbp/6-how-it-works.jpg", "How it works", "ADDITIONAL"],
+];
+const isHouseRec = (cl) => !!(cl && cl.internal && !cl.owned);
+// Every photo this business may send to Google: its own uploads (not videos, reviews or text), plus the pack on BoldLine's own.
+export function photoChoices(cl) {
+  const lib = ((cl && cl.mediaLibrary) || []).filter((m) => m && photoUrlOk(m.url) && !/^(video|review|testimonial|source)$/i.test(String(m.category || "")))
+    .map((m) => ({ url: m.url, label: String(m.label || m.name || m.category || "Photo").slice(0, 80), cat: /logo/i.test(String(m.category || "")) ? "LOGO" : "ADDITIONAL", source: "library" }));
+  const pack = isHouseRec(cl) ? BRAND_PHOTO_PACK.map(([p, label, cat]) => ({ url: `${OS_BASE_URL}/${p}`, label, cat, source: "pack" })) : [];
+  return [...lib, ...pack];
+}
+export const photoAllowed = (cl, url) => photoChoices(cl).some((c) => c.url === url);
+// The week's post picture: a photo of their work, the one used longest ago (never the logo, which reads as an ad).
+export function pickPostPhoto(cl) {
+  const opts = photoChoices(cl).filter((c) => c.cat !== "LOGO" && c.cat !== "COVER");
+  if (!opts.length) return "";
+  const last = new Map(); ((cl && cl.gbpLog) || []).forEach((x, i) => { if (x && x.photo && !last.has(x.photo)) last.set(x.photo, i); });
+  const never = opts.find((o) => !last.has(o.url));
+  if (never) return never.url;
+  return opts.slice().sort((a, b) => last.get(b.url) - last.get(a.url))[0].url;   // gbpLog is newest first: biggest index = used longest ago
+}
 
 // The profile's numbers: this 28 days against the 28 before.
 export const METRICS = { CALL_CLICKS: "Calls", WEBSITE_CLICKS: "Website clicks", BUSINESS_DIRECTION_REQUESTS: "Direction requests",
@@ -231,7 +268,8 @@ export function postPayload(link, draft) {
   let cta = CTAS[(draft && draft.cta) || ""] ? draft.cta : "";
   const url = cta && cta !== "CALL" ? httpsOnly(link && link.website) : "";
   if (cta && cta !== "CALL" && (!url || /boldline/i.test(url))) cta = "";
-  return { text, cta, url: cta && cta !== "CALL" ? url : "" };
+  const photo = draft && photoUrlOk(draft.photo) ? draft.photo : "";
+  return { text, cta, url: cta && cta !== "CALL" ? url : "", photo };
 }
 // Due now: a draft scheduled for a time that has passed, not on hold.
 export const postDue = (draft, now = Date.now()) => !!(draft && draft.text && draft.scheduledFor && !draft.held && Date.parse(draft.scheduledFor) <= now);

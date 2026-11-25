@@ -8,7 +8,9 @@
 //   draftReply / draftPost   write a draft for Bryson to read (nothing public). A post draft is scheduled for the next
 //                            Monday 8am Phoenix, when gbp-post-run puts it up unless it is held.
 //   savePost                 keep his edits to the post draft (words, button, hold), still nothing public
-//   reply / post             PUBLISH, with the exact words Bryson saw. The only two actions that change anything public.
+//   reply / post             PUBLISH, with the exact words Bryson saw.
+//   photo                    PUBLISH one of the business's own photos onto its Google profile (KB google-listing, photos).
+//   Those three are the only actions that change anything public.
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
@@ -16,7 +18,8 @@ import { OS_BASE } from "../lib/lead-relay.mjs";
 import { addOnPlan, startAddOn } from "../lib/addon-billing.mjs";
 import { stripe, ensureCustomer, resolvePaymentMethod } from "../lib/stripe-shared.mjs";
 import { gbpReady, makeState, authorizeUrl, loadConn, dropConn, revoke, accessToken, listLocations, listReviews, replyReview,
-  createPost, fetchMetrics, cleanPublic, replyPrompt, postPrompt, draft, waiting, REPLY_MAX, POST_MAX, CTAS, nextPostSlot } from "../lib/gbp.mjs";
+  createPost, fetchMetrics, cleanPublic, replyPrompt, postPrompt, draft, waiting, REPLY_MAX, POST_MAX, CTAS, nextPostSlot,
+  addPhoto, photoChoices, photoAllowed, pickPostPhoto, PHOTO_CATS } from "../lib/gbp.mjs";
 
 const json = (b, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const osBase = () => (process.env.OS_BASE_URL || OS_BASE).replace(/\/$/, "");
@@ -86,7 +89,9 @@ export default async (req) => {
 
     if (action === "overview") {
       const [rv, metrics] = await Promise.all([listReviews(tok, link), fetchMetrics(tok, link).catch((e) => ({ error: e.message }))]);
-      return json({ ok: true, reviews: rv.reviews, average: rv.average, total: rv.total, waiting: waiting(rv.reviews).length, metrics, drafts: cl.gbpDrafts || {}, log: (cl.gbpLog || []).slice(0, 10) });
+      const sent = (cl.gbpLog || []).filter((x) => x.type === "photo").map((x) => x.url);
+      return json({ ok: true, reviews: rv.reviews, average: rv.average, total: rv.total, waiting: waiting(rv.reviews).length, metrics, drafts: cl.gbpDrafts || {}, log: (cl.gbpLog || []).slice(0, 10),
+        photos: photoChoices(cl).map((c) => ({ ...c, sent: sent.includes(c.url) })) });
     }
 
     const anthropic = () => { if (!process.env.ANTHROPIC_API_KEY) throw new Error("Missing ANTHROPIC_API_KEY in Netlify."); return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }); };
@@ -103,15 +108,18 @@ export default async (req) => {
       const text = cleanPublic(await draft(anthropic(), postPrompt(cl, recent, String(body.idea || "").slice(0, 300))), POST_MAX);
       // On demand, any time: it takes the coming Monday's slot (or keeps the one the draft it replaces had).
       const next = await write((d) => { const old = (d.gbpDrafts || {}).post || {};
-        return { ...d, gbpDrafts: { ...(d.gbpDrafts || {}), post: { text, cta: old.cta || "BOOK", at: new Date().toISOString(), scheduledFor: old.scheduledFor || nextPostSlot(), held: !!old.held } } }; });
+        const photo = old.photo !== undefined ? old.photo : pickPostPhoto(d);
+        return { ...d, gbpDrafts: { ...(d.gbpDrafts || {}), post: { text, cta: old.cta || "BOOK", ...(photo ? { photo } : {}), at: new Date().toISOString(), scheduledFor: old.scheduledFor || nextPostSlot(), held: !!old.held } } }; });
       return json({ ok: true, text, drafts: next.gbpDrafts });
     }
     if (action === "savePost") {   // his edits: words, button, hold. Nothing goes to Google here.
       const text = cleanPublic(body.text, POST_MAX);
       if (text.length < 20) return json({ ok: false, error: "The post is too short." });
       const cta = CTAS[body.cta] ? body.cta : "";
+      // The picture: one of the business's own photos, or "" for none. Anything else is refused, never saved.
+      if (body.photo !== undefined && body.photo !== "" && !photoAllowed(cl, body.photo)) return json({ ok: false, error: "That picture isn't one of this business's photos." });
       const next = await write((d) => { const old = (d.gbpDrafts || {}).post || {};
-        return { ...d, gbpDrafts: { ...(d.gbpDrafts || {}), post: { ...old, text, cta, held: body.held === true, scheduledFor: old.scheduledFor || nextPostSlot(), editedAt: new Date().toISOString(), at: old.at || new Date().toISOString() } } }; });
+        return { ...d, gbpDrafts: { ...(d.gbpDrafts || {}), post: { ...old, text, cta, ...(body.photo !== undefined ? { photo: body.photo } : {}), held: body.held === true, scheduledFor: old.scheduledFor || nextPostSlot(), editedAt: new Date().toISOString(), at: old.at || new Date().toISOString() } } }; });
       return json({ ok: true, text, drafts: next.gbpDrafts });
     }
 
@@ -133,13 +141,25 @@ export default async (req) => {
       const url = cta && cta !== "CALL" ? httpsUrl(body.url || link.website) : "";
       if (cta && cta !== "CALL" && !url) return json({ ok: false, error: "That button needs the business's website address." });
       if (/boldline/i.test(url)) return json({ ok: false, error: "The button can't point at BoldLine. Use the business's own website." });
-      await createPost(tok, link, { text, cta, url });
+      const photo = body.photo ? String(body.photo) : "";
+      if (photo && !photoAllowed(cl, photo)) return json({ ok: false, error: "That picture isn't one of this business's photos." });
+      await createPost(tok, link, { text, cta, url, photo });
       const at = new Date().toISOString();
       // Posting early fills that week's Monday slot, so the job doesn't write another one for the same Monday.
       await write((d) => { const dr = { ...(d.gbpDrafts || {}) }; const forSlot = (dr.post && dr.post.scheduledFor) || ""; delete dr.post;
-        return { ...d, gbpDrafts: dr, gbpLog: [{ type: "post", text, cta, at, ...(forSlot ? { forSlot } : {}) }, ...(d.gbpLog || [])].slice(0, 100),
+        return { ...d, gbpDrafts: dr, gbpLog: [{ type: "post", text, cta, ...(photo ? { photo } : {}), at, ...(forSlot ? { forSlot } : {}) }, ...(d.gbpLog || [])].slice(0, 100),
           commLog: [{ date: phx(at), note: `Posted an update on ${d.name}'s Google profile.`, cat: "update", ts: Date.now() }, ...(d.commLog || [])].slice(0, 200) }; });
       return json({ ok: true, text });
+    }
+    if (action === "photo") {   // put one of the business's own photos on its Google profile
+      const url = String(body.url || "");
+      if (!photoAllowed(cl, url)) return json({ ok: false, error: "That picture isn't one of this business's photos. Upload it to their photos first." });
+      const category = PHOTO_CATS[body.category] ? body.category : "ADDITIONAL";
+      await addPhoto(tok, link, { url, category });
+      const at = new Date().toISOString();
+      await write((d) => ({ ...d, gbpLog: [{ type: "photo", url, category, at, by: "owner" }, ...(d.gbpLog || [])].slice(0, 100),
+        commLog: [{ date: phx(at), note: `Added a photo (${PHOTO_CATS[category]}) to ${d.name}'s Google profile.`, cat: "update", ts: Date.now() }, ...(d.commLog || [])].slice(0, 200) }));
+      return json({ ok: true });
     }
     if (action === "dismiss") {   // throw a draft away without publishing it
       await write((d) => { const dr = { ...(d.gbpDrafts || {}) }; if (body.reviewId) { const rp = { ...(dr.replies || {}) }; delete rp[body.reviewId]; dr.replies = rp; } else delete dr.post; return { ...d, gbpDrafts: dr }; });

@@ -115,3 +115,35 @@ nothing = run this week's job (Tuesday onward) or "Write a new one"; disconnecte
 Photos advice given (GBP email "add photos"): real photos only, no stock; logo + cover, him at his desk, the OS on a
 laptop/phone (sample data), screenshots of sample sites he built, team/working shots; add a few each month.
 Photo upload to GBP is not automated by the OS (only posts and review replies).
+- 2026-11-24 Google profile photo pack made (scratchpad gbp/, render.mjs): 1 Logo 720x720, 2 Cover 1600x900 ("Google
+  and Meta ads, and the websites behind them."), 3-5 sample websites (auto detailing / window tint / handyman example
+  sites, real renders, labelled "Sample website ... (made-up business)") on laptop + phone, 6 How it works card (pay per
+  qualified lead, ad budget on your card, nothing live without your OK). Declined to AI-generate fake photos of him or
+  an office (misleading; Google can remove). Real photos of him/his setup still recommended alongside.
+- 2026-11-25 Bryson: "Can't the ai add those itself?" Answer: not today. gbp.mjs has no photo/media code; the bot only
+  drafts/publishes posts and review replies. Google's API CAN add photos to a profile and attach a photo to a post
+  (v4 locations.media / localPosts media with a public sourceUrl), so it's buildable: offered (a) every weekly post
+  carries a picture, (b) a "Send to Google profile" button for photos from the media library, published only after he
+  confirms, never AI-made photos of people. Awaiting his yes.
+  His live profile photos then: a vacation selfie in sunglasses (advise replacing with a real headshot), the logo
+  (keep), an old ad graphic "Slow weeks. Inconsistent leads." containing an em dash and "steady, predictable leads"
+  (advise removing).
+
+## 2026-11-25: PHOTOS, BUILT and live (Bryson: "Can you make it so the bot can add the photos" + "make sure it works for clients too")
+- `gbp.mjs`: `addPhoto` (v4 `{location}/media`, mediaFormat PHOTO, `locationAssociation.category`, Google fetches
+  `sourceUrl`), `PHOTO_CATS` (ADDITIONAL, PRODUCT, AT_WORK, TEAMS, INTERIOR, EXTERIOR, COVER, LOGO; mirrored as
+  `GBP_PHOTO_CATS` in index.html), `photoUrlOk` (https + .jpg/.jpeg/.png only), `photoChoices(cl)` = the business's own
+  library photos (not video/review/source) + for BoldLine's own account ONLY the `BRAND_PHOTO_PACK` (brand/gbp/*.jpg in
+  the repo, served at https://os.boldlinemedia.com/brand/gbp/...), `photoAllowed`, `pickPostPhoto` (never logo/cover,
+  least recently used by gbpLog `photo`), `createPost` adds `media` when a photo is given, `postPayload` carries `photo`.
+- Weekly posts: `gbp-watch` drafts include `photo`; `gbp-post-run` posts with it and, if Google refuses the picture,
+  posts the words alone and says "(without its picture: Google said ...)" in the alert. gbpLog post entries keep `photo`.
+- OS card: picture picker under the post (or "No picture"), "Photos on Google" grid (thumb, kind dropdown, Add to Google
+  with a confirm naming it, "✓ On Google" once sent), log shows "Photo added to Google (by the client)".
+  Server: action `photo`; `savePost`/`post` accept `photo`; all refuse any URL not in `photoChoices`.
+- Client portal (Your Photos & Video card): "Add to Google" on each JPG/PNG photo once their profile is linked;
+  `media.mjs?action=google` (portal token): photo must be in THEIR library, profile linked, max 10/day, logs gbpLog
+  `{type:"photo", by:"client"}` + commLog, blue alert to Bryson. Portal preview can't send (fetch wrapper blocks POST).
+- verify-google-listing 91 (18 new; mutations caught: client sending a non-library photo, pack leaking to clients).
+- Bryson to do: nothing for BoldLine (pack is built in: open My Ads > Overview > Google listing > Photos on Google and
+  press Add to Google). For a client: their photos must be in their library (they upload in the portal, or he does).

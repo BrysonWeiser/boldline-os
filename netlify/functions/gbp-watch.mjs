@@ -7,7 +7,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { loadAllClients } from "../lib/report-shared.mjs";
 import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
-import { gbpReady, loadConn, accessToken, listReviews, waiting, draft, replyPrompt, postPrompt, cleanPublic, REPLY_MAX, POST_MAX, nextPostSlot, phxDay } from "../lib/gbp.mjs";
+import { gbpReady, loadConn, accessToken, listReviews, waiting, draft, replyPrompt, postPrompt, cleanPublic, REPLY_MAX, POST_MAX, nextPostSlot, phxDay, pickPostPhoto } from "../lib/gbp.mjs";
 
 export const MAX_REPLY_DRAFTS = 5;   // per business per run: a flood of old reviews should not run up the bill in one morning
 
@@ -49,7 +49,8 @@ export async function runWatch(db, rows, { anthropic, tok, now = Date.now(), ale
     }
     if (p.post) {
       const recent = (cl.gbpLog || []).filter((x) => x.type === "post").slice(0, 6).map((x) => x.text);
-      try { post = { text: cleanPublic(await draft(anthropic, postPrompt(cl, recent)), POST_MAX), cta: "BOOK", at: new Date(now).toISOString(), scheduledFor: p.slot, held: false }; } catch (e) { console.error("gbp-watch post draft:", e.message); problems.push(`${cl.name}: next week's Google post could not be written (${e.message}).`); }
+      try { const photo = pickPostPhoto(cl);   // one of the business's own photos, the one used longest ago ("" if they have none)
+        post = { text: cleanPublic(await draft(anthropic, postPrompt(cl, recent)), POST_MAX), cta: "BOOK", ...(photo ? { photo } : {}), at: new Date(now).toISOString(), scheduledFor: p.slot, held: false }; } catch (e) { console.error("gbp-watch post draft:", e.message); problems.push(`${cl.name}: next week's Google post could not be written (${e.message}).`); }
     }
     if (!Object.keys(replies).length && !post) continue;
     const { data: fresh } = await db.from("clients").select("data").eq("id", r.id).maybeSingle();
