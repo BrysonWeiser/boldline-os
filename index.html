@@ -11032,6 +11032,8 @@ function HealthPrivacyCard({client,onUpdate}){
   );
 }
 
+// Google's photo kinds, as the card names them. Mirror of PHOTO_CATS in netlify/lib/gbp.mjs (verify-google-listing).
+const GBP_PHOTO_CATS = { ADDITIONAL: "Photo", PRODUCT: "Our work", AT_WORK: "At work", TEAMS: "Team", INTERIOR: "Inside", EXTERIOR: "Outside", COVER: "Cover photo", LOGO: "Logo" };
 function GoogleListingCard({client}){
   const [st,setSt] = useState(null);            // {ready, connected, email}
   const [link,setLink] = useState(client.gbp||null);
@@ -11039,6 +11041,8 @@ function GoogleListingCard({client}){
   const [locs,setLocs] = useState(null);
   const [edits,setEdits] = useState({});        // reviewId|"post" -> text being edited
   const [cta,setCta] = useState("BOOK");
+  const [pic,setPic] = useState(null);         // the post's picture while editing (null = as saved)
+  const [cats,setCats] = useState({});         // photo url -> Google category picked
   const [idea,setIdea] = useState("");
   const [busy,setBusy] = useState(""); const [msg,setMsg] = useState({});
   const say = (k,t,ok) => setMsg(m=>({...m,[k]:{t,ok}}));
@@ -11046,7 +11050,7 @@ function GoogleListingCard({client}){
   const sub = {fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,margin:"16px 0 8px"};
   const small = (primary)=>({padding:"8px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,cursor:"pointer",border:`1px solid ${primary?C.borderAccent:C.border}`,backgroundColor:primary?"rgba(200,168,75,.1)":"rgba(255,255,255,.04)",color:primary?C.gold:C.textDim,flexShrink:0});
   const note = (k) => msg[k] ? <div style={{fontSize:11.5,lineHeight:1.55,marginTop:7,color:msg[k].ok?C.green:C.red}}>{msg[k].t}</div> : null;
-  const load = async () => { const r = await gbpCall("overview",{clientId:client.id}); if(r.ok){ setOv(r); setEdits({}); if(r.drafts&&r.drafts.post) setCta(r.drafts.post.cta||""); } else say("top",r.error,false); };
+  const load = async () => { const r = await gbpCall("overview",{clientId:client.id}); if(r.ok){ setOv(r); setEdits({}); setPic(null); if(r.drafts&&r.drafts.post) setCta(r.drafts.post.cta||""); } else say("top",r.error,false); };
   useEffect(()=>{ (async()=>{ const s = await gbpCall("status"); setSt(s.ok?s:{ready:false}); if(s.ok&&s.connected&&link) load(); })(); },[client.id]);
   const connect = async () => { setBusy("connect"); const r = await gbpCall("start"); setBusy(""); if(r.ok&&r.url) window.location.href = r.url; else say("top",r.error||"Could not start.",false); };
   const pickList = async () => { setBusy("locs"); const r = await gbpCall("locations"); setBusy(""); if(r.ok) setLocs(r.locations); else say("top",r.error,false); };
@@ -11062,11 +11066,17 @@ function GoogleListingCard({client}){
   const draftPost = async () => { if(edits.post!=null&&!confirm("Write a new post? Your unsaved changes to this one will be replaced.")) return; setBusy("post"); const r = await gbpCall("draftPost",{clientId:client.id,idea}); setBusy("");
     if(r.ok){ setOv(o=>({...o,drafts:r.drafts})); setEdits(e=>({...e,post:r.text})); setIdea(""); } else say("post",r.error,false); };
   // Save his edits (words, button, hold) without posting. The draft goes up by itself Monday 8am unless held.
-  const savePost = async (text, held) => { setBusy("save"); const r = await gbpCall("savePost",{clientId:client.id,text,cta,held}); setBusy("");
-    if(r.ok){ setOv(o=>({...o,drafts:r.drafts})); setEdits(e=>{ const n={...e}; delete n.post; return n; }); say("post",held?"Saved and on hold. It won't go up by itself.":"Saved. This is what goes up Monday at 8am.",true); } else say("post",r.error,false); };
-  const sendPost = async (text) => { if(!confirm(`Post this on ${client.name}'s Google profile?\n\n"${text}"`)) return;
-    setBusy("send"); const r = await gbpCall("post",{clientId:client.id,text,cta,url:link&&link.website}); setBusy("");
+  const savePost = async (text, held) => { setBusy("save"); const r = await gbpCall("savePost",{clientId:client.id,text,cta,held,...(pic!=null?{photo:pic}:{})}); setBusy("");
+    if(r.ok){ setOv(o=>({...o,drafts:r.drafts})); setPic(null); setEdits(e=>{ const n={...e}; delete n.post; return n; }); say("post",held?"Saved and on hold. It won't go up by itself.":"Saved. This is what goes up Monday at 8am.",true); } else say("post",r.error,false); };
+  const sendPost = async (text) => { const ph = pic!=null ? pic : ((ov&&ov.drafts&&ov.drafts.post&&ov.drafts.post.photo)||"");
+    if(!confirm(`Post this on ${client.name}'s Google profile${ph?", with the picture shown":""}?\n\n"${text}"`)) return;
+    setBusy("send"); const r = await gbpCall("post",{clientId:client.id,text,cta,url:link&&link.website,photo:ph}); setBusy("");
     if(r.ok){ say("post","Posted on Google.",true); load(); } else say("post",r.error,false); };
+  // Put one of the business's own photos on its Google profile, after a confirm that names it.
+  const sendPhoto = async (p) => { const cat = cats[p.url] || p.cat || "ADDITIONAL";
+    if(!confirm(`Add "${p.label}" to ${client.name}'s Google profile as: ${GBP_PHOTO_CATS[cat]||"Photo"}?\n\nIt shows on Google Maps and Search, usually within a day.`)) return;
+    setBusy("ph"+p.url); const r = await gbpCall("photo",{clientId:client.id,url:p.url,category:cat}); setBusy("");
+    if(r.ok){ say("photos","Sent. Google usually shows it within a day.",true); load(); } else say("photos",r.error,false); };
 
   if(!st) return <Card><Label>Google listing</Label><div style={{fontSize:12,color:C.textDim,marginTop:6}}>Checking...</div></Card>;
   const intro = <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,margin:"4px 0 6px"}}>{client.name}'s Google profile: how many people call and find it, a reply drafted for every new review, and a post each week. Nothing goes on Google until you press Post.</div>;
@@ -11085,7 +11095,9 @@ function GoogleListingCard({client}){
   const drafts = (ov && ov.drafts) || {}, rdr = drafts.replies || {};
   const open = ov ? ov.reviews.filter(r=>!r.reply) : [];
   const postText = edits.post!=null ? edits.post : (drafts.post && drafts.post.text) || "";
-  const pd = drafts.post || null, held = !!(pd && pd.held), dirty = edits.post!=null || (pd && (pd.cta||"")!==cta);
+  const pd = drafts.post || null, held = !!(pd && pd.held), dirty = edits.post!=null || (pd && (pd.cta||"")!==cta) || (pic!=null && pic!==((pd&&pd.photo)||""));
+  const photos = (ov && ov.photos) || [], postPics = photos.filter(p=>p.cat!=="LOGO"&&p.cat!=="COVER");
+  const curPic = pic!=null ? pic : ((pd&&pd.photo)||"");
   const when = pd && pd.scheduledFor ? new Date(pd.scheduledFor).toLocaleString("en-US",{weekday:"long",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZone:"America/Phoenix"}) : "";
   const tile = (label, v, extra) => <div style={{padding:"10px 12px",borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.02)",minWidth:0}}>
     <div style={lbl}>{label}</div><div style={{fontSize:20,fontWeight:800,color:C.text}}>{v}</div>{extra&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:2,lineHeight:1.45}}>{extra}</div>}</div>;
@@ -11123,6 +11135,11 @@ function GoogleListingCard({client}){
         {postText&&pd&&<div style={{fontSize:11.5,lineHeight:1.55,marginBottom:6,color:held?C.amber:C.textDim}}>{held?"On hold. It won't go up by itself. Post it now, or press \"Let it post\".":when?`Goes up on Google ${when} unless you change it.`:"Ready to post."}{dirty?" You have unsaved changes.":""}</div>}
         {postText ? <>
             <textarea value={postText} onChange={e=>setEdits(x=>({...x,post:e.target.value}))} rows={5} style={{...inp,resize:"vertical",lineHeight:1.5}}/>
+            <div style={{display:"flex",gap:10,alignItems:"center",marginTop:6}}>
+              {curPic ? <img src={curPic} alt="" style={{width:64,height:48,objectFit:"cover",borderRadius:6,border:`1px solid ${C.border}`,flexShrink:0}}/> : <div style={{width:64,height:48,borderRadius:6,border:`1px dashed ${C.border}`,display:"grid",placeItems:"center",fontSize:9.5,color:C.textMuted,flexShrink:0}}>No picture</div>}
+              <select value={curPic} onChange={e=>setPic(e.target.value)} style={{...inp,flex:1,minWidth:0,padding:"8px 10px",fontSize:12}}>
+                <option value="">No picture</option>{postPics.map(p=><option key={p.url} value={p.url}>Picture: {p.label}</option>)}</select></div>
+            {!postPics.length&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:4,lineHeight:1.5}}>Posts with a picture get noticed more. Add photos of {client.name}'s work on the Assets tab and the bot picks one each week.</div>}
             <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap",alignItems:"center"}}>
               <select value={cta} onChange={e=>setCta(e.target.value)} style={{...inp,width:"auto",padding:"8px 10px",fontSize:12}}>{GBP_CTAS.map(([v,l])=><option key={v} value={v}>{v?`Button: ${l}`:l}</option>)}</select>
               {pd&&<button onClick={()=>savePost(postText,held)} disabled={!!busy||!dirty} style={{...small(!!dirty),opacity:dirty?1:.5}}>{busy==="save"?"Saving...":"Save changes"}</button>}
@@ -11136,8 +11153,21 @@ function GoogleListingCard({client}){
               <button onClick={draftPost} disabled={busy==="post"} style={small(true)}>{busy==="post"?"Writing...":"Write one now"}</button></div>}
         {note("post")}
         <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Each morning new reviews get a reply drafted here for you to approve. Every Tuesday next week's post is written, and it goes up by itself on Monday at 8am unless you edit it, hold it or throw it away. You'll get a message either way.</div>
+        <div style={sub}>Photos on Google</div>
+        {!photos.length ? <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6}}>No photos to send yet. Upload {client.name}'s photos on the Assets tab{client.internal?"":", or they can add them from their portal"}, then send them to Google from here.</div>
+          : <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:8}}>{photos.map(p=>(
+            <div key={p.url} style={{borderRadius:10,border:`1px solid ${p.sent?C.green+"55":C.border}`,overflow:"hidden",backgroundColor:"rgba(255,255,255,.02)",minWidth:0}}>
+              <img src={p.url} alt="" style={{display:"block",width:"100%",height:92,objectFit:"cover"}}/>
+              <div style={{padding:"7px 8px"}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.label}</div>
+                {p.sent ? <div style={{fontSize:10.5,color:C.green,marginTop:5}}>✓ On Google</div> : <>
+                  <select value={cats[p.url]||p.cat||"ADDITIONAL"} onChange={e=>setCats(c=>({...c,[p.url]:e.target.value}))} style={{...inp,padding:"5px 6px",fontSize:11,marginTop:5}}>{Object.entries(GBP_PHOTO_CATS).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select>
+                  <button onClick={()=>sendPhoto(p)} disabled={!!busy} style={{...small(true),width:"100%",marginTop:5,padding:"6px 8px"}}>{busy==="ph"+p.url?"Sending...":"Add to Google"}</button></>}
+              </div></div>))}</div>}
+        {note("photos")}
+        <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>Only {client.name}'s own photos can go up. Real photos of the work, the team and the place do best on Google.</div>
         {(ov.log||[]).length>0&&<><div style={sub}>Recently posted</div>{ov.log.slice(0,4).map((x,i)=><div key={i} style={{fontSize:11.5,color:C.textDim,lineHeight:1.5,padding:"5px 0",borderTop:i?`1px solid ${C.border}`:"none"}}>
-          <span style={{color:C.textMuted}}>{new Date(x.at).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/Phoenix"})} · {x.type==="post"?"Post":"Review reply"}:</span> {String(x.text).slice(0,140)}{String(x.text).length>140?"...":""}</div>)}</>}
+          <span style={{color:C.textMuted}}>{new Date(x.at).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/Phoenix"})} · {x.type==="post"?(x.photo?"Post with picture":"Post"):x.type==="photo"?`Photo added to Google${x.by==="client"?" by the client":""}`:"Review reply"}{x.type==="photo"?"":":"}</span> {x.type==="photo"?(x.category&&x.category!=="ADDITIONAL"?`(${GBP_PHOTO_CATS[x.category]||""})`:""):<>{String(x.text||"").slice(0,140)}{String(x.text||"").length>140?"...":""}</>}</div>)}</>}
       </>}
       <div style={{display:"flex",gap:10,marginTop:12,fontSize:10.5,color:C.textMuted,flexWrap:"wrap"}}>
         <span>Connected as {st.email||"your Google account"}</span>

@@ -21,18 +21,24 @@ export async function runPosts(db, rows, { post, now = Date.now(), alert = dispa
     if (!cl.gbp || !cl.gbp.location || !postDue(dr, now)) continue;
     const body = postPayload(cl.gbp, dr);
     if (body.text.length < 20) { failed.push(`${cl.name}: the post is too short to publish`); continue; }
+    // If Google refuses the PICTURE (too small, moved, the wrong kind), the words still go up: a post without a photo beats no post.
+    let photoDropped = "";
     try { await post(cl.gbp, body); }
-    catch (e) { failed.push(`${cl.name}: ${e.message}`); console.error("gbp-post-run:", cl.name, e.message); continue; }
+    catch (e) {
+      if (!body.photo) { failed.push(`${cl.name}: ${e.message}`); console.error("gbp-post-run:", cl.name, e.message); continue; }
+      try { await post(cl.gbp, { ...body, photo: "" }); photoDropped = e.message; body.photo = ""; }
+      catch (e2) { failed.push(`${cl.name}: ${e2.message}`); console.error("gbp-post-run:", cl.name, e2.message); continue; }
+    }
     const at = new Date(now).toISOString();
     // Write onto a fresh read, and only clear the draft if it is still the one that was posted.
     const { data: fresh } = await db.from("clients").select("data").eq("id", r.id).maybeSingle();
     const d = (fresh && fresh.data) || cl, drs = { ...(d.gbpDrafts || {}) };
     if (drs.post && drs.post.scheduledFor === dr.scheduledFor) delete drs.post;
     await db.from("clients").update({ data: { ...d, gbpDrafts: drs,
-      gbpLog: [{ type: "post", text: body.text, cta: body.cta, at, forSlot: dr.scheduledFor, auto: true }, ...(d.gbpLog || [])].slice(0, 100),
+      gbpLog: [{ type: "post", text: body.text, cta: body.cta, ...(body.photo ? { photo: body.photo } : {}), at, forSlot: dr.scheduledFor, auto: true }, ...(d.gbpLog || [])].slice(0, 100),
       commLog: [{ date: phx(at), note: `Posted this week's update on ${d.name}'s Google profile.`, cat: "update", ts: now }, ...(d.commLog || [])].slice(0, 200) },
       updated_at: at }).eq("id", r.id);
-    done.push(cl.name);
+    done.push(photoDropped ? `${cl.name} (without its picture: Google said ${photoDropped})` : cl.name);
   }
   if (done.length || failed.length) {
     try { await alert({ severity: failed.length ? "amber" : "blue", title: failed.length ? "A Google post didn't go up" : "This week's Google posts are up",

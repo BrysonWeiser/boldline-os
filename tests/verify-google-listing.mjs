@@ -245,12 +245,75 @@ S.rows.c2 = { name: "Another", internal: true, owned: true, commLog: [] };
   ok("website-only clients get it too", /isWebsiteOnly\(client\)&&<div style=\{\{marginTop:11\}\}><GoogleListingCard client=\{client\}\/>(<GbpCareBilling client=\{client\}\/>)?/.test(UI));
   ok("🔴 the server-owned keys are never saved over by an OS screen", /const SERVER_OWNED_KEYS=\[[^\]]*"gbp","gbpDrafts","gbpLog"[^\]]*\]/.test(UI));
   ok("🔴 and the ad-access records from the portal neither", /const SERVER_OWNED_KEYS=\[[^\]]*"googleLinkRequest","metaAccess"[^\]]*\]/.test(UI));
-  ok("🔴 posting a reply or a post always asks first, showing the words", /confirm\(`Post this reply on Google[^`]*\$\{text\}/.test(card) && /confirm\(`Post this on \$\{client\.name\}'s Google profile\?[^`]*\$\{text\}/.test(card));
+  ok("🔴 posting a reply or a post always asks first, showing the words", /confirm\(`Post this reply on Google[^`]*\$\{text\}/.test(card) && /confirm\(`Post this on \$\{client\.name\}'s Google profile[^`]*\$\{text\}/.test(card));
   const eff = card.slice(card.indexOf("useEffect("), card.indexOf("},[client.id]);"));
   ok("🔴 opening the card only reads (no publish on load)", eff.length > 20 && !/"reply"|"post"/.test(eff));
   ok("Google's return address is wired", /from = "\/gbp-connect\/done"\s*\n\s*to = "\/\.netlify\/functions\/gbp-connect-done"/.test(TOML));
   ok("the daily job runs at 8:41am Phoenix (15:41 UTC, no daylight saving)", /\[functions\."gbp-watch"\]\s*\n\s*schedule = "41 15 \* \* \*"/.test(TOML));
   ok("no em dashes in the card's words", !/[–—]/.test(card.replace(/\/\/[^\n]*/g, "")));
+}
+
+// ── 7. PHOTOS (Bryson, 2026-11-25: "Can't the ai add those itself?" + "make sure it works for clients too") ─────────
+{
+  const lib = [{ url: "https://x.supabase.co/storage/v1/object/public/client-media/c1/photo/van.jpg", category: "photo", label: "Van" },
+    { url: "https://x.supabase.co/storage/v1/object/public/client-media/c1/photo/shop.png", category: "photo", label: "Shop" },
+    { url: "https://x.supabase.co/storage/v1/object/public/client-media/c1/logo/logo.png", category: "logo", label: "Logo" },
+    { url: "https://x.supabase.co/a/clip.mp4", category: "video" }, { url: "https://x.supabase.co/a/r.jpg", category: "review" },
+    { url: "https://x.supabase.co/a/heic.webp", category: "photo" }, { url: "http://insecure.example/a.jpg", category: "photo" }];
+  const client = { name: "Desert Gloss", mediaLibrary: lib, gbpLog: [] }, house = { ...client, internal: true };
+  const ch = G.photoChoices(client).map((c) => c.url);
+  ok("🔴 only their own JPG/PNG photos can go to Google (no video, review, webp or plain http)", ch.length === 3 && ch.every((u) => /^https:/.test(u) && /\.(jpg|png)$/.test(u)));
+  ok("a client never gets BoldLine's photo pack; BoldLine's own account does", !ch.some((u) => /brand\/gbp/.test(u)) && G.photoChoices(house).filter((c) => c.source === "pack").length === 6);
+  ok("🔴 an address that isn't one of theirs is refused", !G.photoAllowed(client, "https://evil.example/x.jpg") && G.photoAllowed(client, lib[0].url));
+  ok("the week's picture is never the logo, and rotates to the one used longest ago",
+    G.pickPostPhoto(client) === lib[0].url && G.pickPostPhoto({ ...client, gbpLog: [{ photo: lib[0].url }] }) === lib[1].url
+    && G.pickPostPhoto({ ...client, gbpLog: [{ photo: lib[1].url }, { photo: lib[0].url }] }) === lib[0].url && G.pickPostPhoto({ name: "x" }) === "");
+  ok("a post's picture only rides along when it's a proper photo", G.postPayload({ website: "desertgloss.com" }, { text: "Winter is hard on paint, book a wash.", cta: "BOOK", photo: lib[0].url }).photo === lib[0].url
+    && G.postPayload({}, { text: "Winter is hard on paint, book a wash.", photo: "https://x/a.gif" }).photo === "");
+  const sent = []; const f0 = globalThis.fetch;
+  globalThis.fetch = async (u, o = {}) => { sent.push({ u: String(u), body: o.body ? JSON.parse(o.body) : null }); return new Response("{}", { status: 200 }); };
+  try {
+    await G.addPhoto("tok", { account: "accounts/1", location: "locations/2" }, { url: lib[0].url, category: "PRODUCT" });
+    await G.createPost("tok", { account: "accounts/1", location: "locations/2" }, { text: "Winter is hard on paint, book a wash.", cta: "", url: "", photo: lib[0].url });
+    await G.addPhoto("tok", { account: "accounts/1", location: "locations/2" }, { url: lib[0].url, category: "SELFIE" });
+  } finally { globalThis.fetch = f0; }
+  ok("🔴 a photo goes to the profile's media as a PHOTO from its public address", /\/v4\/accounts\/1\/locations\/2\/media$/.test(sent[0].u) && sent[0].body.mediaFormat === "PHOTO" && sent[0].body.sourceUrl === lib[0].url && sent[0].body.locationAssociation.category === "PRODUCT");
+  ok("a post carries its picture", /localPosts$/.test(sent[1].u) && sent[1].body.media && sent[1].body.media[0].sourceUrl === lib[0].url);
+  ok("an unknown photo kind falls back to a plain photo", sent[2].body.locationAssociation.category === "ADDITIONAL");
+
+  // The weekly job attaches one; the Monday job still posts the words if Google refuses the picture.
+  const W = await import("../netlify/functions/gbp-watch.mjs"), P = await import("../netlify/functions/gbp-post-run.mjs");
+  const rowsW = [{ id: "p1", data: { ...client, gbp: { account: "accounts/1", location: "locations/2", linkedAt: "2026-11-01T00:00:00Z" } } }];
+  const ww = []; const dbW = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { data: rowsW[0].data } }) }) }), update: (v) => ({ eq: async () => { ww.push(v.data); return {}; } }) }) };
+  const fW = globalThis.fetch; globalThis.fetch = async (u, o) => /\/reviews/.test(String(u)) ? new Response(JSON.stringify({ reviews: [] }), { status: 200 }) : fW(u, o);
+  try { await W.runWatch(dbW, rowsW, { anthropic: { messages: { create: async () => ({ content: [{ type: "text", text: "Winter is hard on paint, so book a wash this week." }] }) } }, tok: "at", alert: async () => {}, now: Date.parse("2026-11-24T16:00:00Z") }); }
+  finally { globalThis.fetch = fW; }
+  ok("🔴 the bot picks one of their photos for the week's post", ww.some((w) => w.gbpDrafts && w.gbpDrafts.post && w.gbpDrafts.post.photo === lib[0].url));
+  const due = "2026-11-30T15:00:00.000Z", tries = [], wr = {};
+  const rowsP = [{ id: "q", data: { name: "Desert Gloss", gbp: { account: "accounts/1", location: "locations/2" }, gbpDrafts: { post: { text: "Winter is hard on paint, so book a wash this week.", cta: "", photo: lib[0].url, scheduledFor: due } } } }];
+  const dbP = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { data: rowsP[0].data } }) }) }), update: (v) => ({ eq: async (_k, id) => { wr[id] = v.data; return {}; } }) }) };
+  const al = [];
+  const res = await P.runPosts(dbP, rowsP, { post: async (_l, b) => { tries.push(b.photo); if (b.photo) throw new Error("Invalid media"); }, now: Date.parse(due) + 6e4, alert: async (a) => al.push(a) });
+  ok("🔴 Google refuses the picture: the words still go up, and he's told", tries.length === 2 && tries[0] && !tries[1] && res.done.length === 1 && /without its picture/.test(res.done[0]) && !wr.q.gbpLog[0].photo);
+
+  // The OS card and the server agree; the portal button and its server.
+  const UI = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const SRV = readFileSync(new URL("../netlify/functions/gbp.mjs", import.meta.url), "utf8");
+  const MED = readFileSync(new URL("../netlify/functions/media.mjs", import.meta.url), "utf8");
+  const POR = readFileSync(new URL("../netlify/functions/portal.mjs", import.meta.url), "utf8");
+  const mirror = UI.match(/const GBP_PHOTO_CATS = (\{[^}]+\});/);
+  ok("the OS names the same photo kinds as the server", !!mirror && JSON.stringify(eval("(" + mirror[1] + ")")) === JSON.stringify(G.PHOTO_CATS));
+  ok("🔴 the OS refuses any picture that isn't the business's own", /if \(!photoAllowed\(cl, url\)\) return json\(\{ ok: false/.test(SRV) && /if \(photo && !photoAllowed\(cl, photo\)\) return json/.test(SRV) && /body\.photo !== "" && !photoAllowed\(cl, body\.photo\)\) return json/.test(SRV));
+  ok("🔴 sending a photo from the OS asks first, naming it", /const sendPhoto = async \(p\) => \{[^\n]*\n\s*if\(!confirm\(`Add "\$\{p\.label\}" to \$\{client\.name\}'s Google profile/.test(UI));
+  ok("🔴 a client can only send a photo from THEIR library, once their profile is linked, ten a day", /const entry = \(cl\.mediaLibrary \|\| \[\]\)\.find\(\(m\) => m && m\.path === path\);/.test(MED)
+    && /if \(!cl\.gbp \|\| !cl\.gbp\.location\) return json/.test(MED) && /if \(today >= 10\) return json/.test(MED) && /if \(!photoAllowed\(cl, entry\.url\)\) return json/.test(MED));
+  ok("Bryson is told when a client adds one", /dispatchAlert\(\{ severity: "blue", title: `\$\{d\.name\} added a photo to their Google profile`/.test(MED));
+  ok("🔴 the portal button asks first and is only there once their profile is linked", /const gbpBtn = \(m\) => !gbpOn \|\|/.test(POR) && /function gbpPhoto\(btn\)\{[^}]*if\(!confirm\('Add this photo to your Google profile\?/.test(POR));
+  ok("🔴 the portal preview can't send one (every POST is refused there)", /if\(BL_PREVIEW\)\{var _blFetch=window\.fetch;window\.fetch=function\(u,o\)\{var m=\(\(o&&o\.method\)\|\|'GET'\)\.toUpperCase\(\);if\(m==='GET'/.test(POR));
+  // The photo pack Google fetches from the OS site: real JPGs, big enough, small enough.
+  const { statSync } = await import("node:fs");
+  const packOk = G.BRAND_PHOTO_PACK.every(([p]) => { try { const st = statSync(new URL("../" + p, import.meta.url)); const b = readFileSync(new URL("../" + p, import.meta.url)); return /\.jpg$/.test(p) && b[0] === 0xff && b[1] === 0xd8 && st.size > 10240 && st.size < 5 * 1024 * 1024; } catch (e) { return false; } });
+  ok("BoldLine's photo pack is in the OS as real JPGs Google will take (10 KB to 5 MB)", packOk);
 }
 
 globalThis.fetch = realFetch;
