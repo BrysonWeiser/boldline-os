@@ -39,3 +39,9 @@ steps given; collaborator must accept from the invited account.
   text. Suggested bio: "Google and Meta ads for service businesses / You pay per qualified lead, no monthly ad fee /
   Arizona based, working nationwide / Book a free call below". Pin carousel + reel, unpin/archive Welcome; profile pic
   = plain B mark (brand/gbp/1-logo.jpg); engage prospects Instagram suggests (e.g. couture.detailing).
+- 2026-11-25 highlights restarted: made 4 highlights (scratchpad hl/Highlights, source hl/hl.html): How it works (5:
+  ads that make your phone ring / we build it / nothing live without your OK / pay per qualified lead, ad budget on
+  your card, 3 months then month to month / DM "LEADS"), Websites (3: sample sites labelled made-up, what you get,
+  $1,500 + $100/mo or free on Complete $500/mo -> $375, DM "WEBSITE"), FAQ (3: qualified lead, $500/mo ad minimum,
+  you own the ad account, locked in?, nationwide, DM), About (2: his face "Hey, I'm Bryson", system + human check).
+  Covers: gold ring icons (checklist, browser, ?, B). Old "Clients"/"Results" highlights to be deleted.
