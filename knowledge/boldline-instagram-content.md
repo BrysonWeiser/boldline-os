@@ -33,3 +33,9 @@ steps given; collaborator must accept from the invited account.
   upgrade) 3 how you pay (fee per qualified lead, no monthly fee for ads, ad budget on your own card, 3 months then month
   to month, 30 days' notice) 4 who it's for (detailers, tint, handymen, epoxy, home services) + DM "LEADS" /
   boldlinemedia.com. Caption: one short line + 5 hashtags.
+- 2026-11-25 profile review (after archiving): 2 posts + Collab reel; Welcome post still pinned; bio "We build client
+  acquisition systems / Ads + Landing Pages + Follow-Up / Based in Arizona · Working nationwide / Book a call below";
+  highlights "Clients" and "Results" (advise renaming until real client results exist); profile pic logo with small
+  text. Suggested bio: "Google and Meta ads for service businesses / You pay per qualified lead, no monthly ad fee /
+  Arizona based, working nationwide / Book a free call below". Pin carousel + reel, unpin/archive Welcome; profile pic
+  = plain B mark (brand/gbp/1-logo.jpg); engage prospects Instagram suggests (e.g. couture.detailing).
