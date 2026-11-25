@@ -120,3 +120,11 @@ Photo upload to GBP is not automated by the OS (only posts and review replies).
   sites, real renders, labelled "Sample website ... (made-up business)") on laptop + phone, 6 How it works card (pay per
   qualified lead, ad budget on your card, nothing live without your OK). Declined to AI-generate fake photos of him or
   an office (misleading; Google can remove). Real photos of him/his setup still recommended alongside.
+- 2026-11-25 Bryson: "Can't the ai add those itself?" Answer: not today. gbp.mjs has no photo/media code; the bot only
+  drafts/publishes posts and review replies. Google's API CAN add photos to a profile and attach a photo to a post
+  (v4 locations.media / localPosts media with a public sourceUrl), so it's buildable: offered (a) every weekly post
+  carries a picture, (b) a "Send to Google profile" button for photos from the media library, published only after he
+  confirms, never AI-made photos of people. Awaiting his yes.
+  His live profile photos then: a vacation selfie in sunglasses (advise replacing with a real headshot), the logo
+  (keep), an old ad graphic "Slow weeks. Inconsistent leads." containing an em dash and "steady, predictable leads"
+  (advise removing).
